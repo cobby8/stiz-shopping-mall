@@ -1,0 +1,900 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+:root {
+    /* Color Palette - White/Black/Gold */
+    --primary-color: #000000;
+    --secondary-color: #1A1A1A;
+    --accent-color: #D4AF37;
+
+    --bg-color: #FFFFFF;
+    --bg-light: #F8F9FA;
+    --bg-dark: #121212;
+
+    --text-main: #111111;
+    --text-sub: #555555;
+    --text-light: #999999;
+    --text-white: #FFFFFF;
+
+    --border-color: #E0E0E0;
+
+    /* Typography */
+    --font-main: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+
+    /* Spacing & Layout */
+    --container-width: 1400px;
+    --header-height: 160px;
+    --mobile-header-height: 80px;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    line-height: 1.6;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Typography Utilities */
+.text-primary {
+    color: var(--primary-color);
+}
+
+.text-accent {
+    color: var(--accent-color);
+}
+
+.text-center {
+    text-align: center;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+/* Button Styles */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 32px;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: 0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--text-white);
+    border: 1px solid var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--primary-color);
+}
+
+.btn-outline {
+    border: 1px solid var(--text-main);
+    background: transparent;
+    color: var(--text-main);
+}
+
+.btn-outline:hover {
+    background: var(--text-main);
+    color: var(--text-white);
+}
+
+.btn-outline.active {
+    background: var(--text-main);
+    color: var(--text-white);
+}
+
+/* Header */
+#header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--header-height);
+    background-color: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.gnb {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.logo a {
+    display: block;
+    height: 120px;
+}
+
+.logo img {
+    height: 100%;
+    width: auto;
+    display: block;
+}
+
+.menu {
+    display: flex;
+    gap: 50px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.menu a {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-main);
+    transition: color 0.3s;
+    text-decoration: none;
+    position: relative;
+}
+
+.menu a::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: var(--accent-color);
+    transition: width 0.3s;
+}
+
+.menu a:hover {
+    color: var(--primary-color);
+}
+
+.menu a:hover::after {
+    width: 100%;
+}
+
+.utils {
+    display: flex;
+    gap: 25px;
+    font-size: 20px;
+}
+
+.utils a {
+    color: var(--text-main);
+    transition: color 0.3s;
+}
+
+.utils a:hover {
+    color: var(--accent-color);
+}
+
+/* Hero Section */
+.hero {
+    height: 100vh;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4)), url('../images/hero_banner.png');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-white);
+    padding-top: var(--header-height);
+}
+
+.hero-content h1 {
+    font-size: 90px;
+    font-weight: 900;
+    margin-bottom: 20px;
+    letter-spacing: -2px;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    line-height: 1.1;
+}
+
+.hero-content p {
+    font-size: 24px;
+    margin-bottom: 50px;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+/* Section Common */
+section {
+    padding: 100px 0;
+}
+
+.section-title {
+    font-size: 42px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 80px;
+    position: relative;
+    letter-spacing: -1px;
+}
+
+.section-title::after {
+    content: '';
+    display: block;
+    width: 80px;
+    height: 4px;
+    background-color: var(--accent-color);
+    margin: 25px auto 0;
+}
+
+/* Customizing Section */
+#customizing {
+    padding: 80px 0;
+    background-color: #fff;
+}
+
+.custom-tabs {
+    margin-bottom: 40px;
+}
+
+.custom-workspace {
+    display: flex;
+    gap: 40px;
+    min-height: 600px;
+}
+
+/* Mockup Layer System */
+.canvas-container {
+    position: relative;
+    background: #f8f9fa;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #eee;
+}
+
+.mockup-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: all 0.3s ease;
+}
+
+.mockup-layer.base {
+    background-color: #FFFFFF;
+    z-index: 1;
+}
+
+.mockup-layer.logo {
+    z-index: 2;
+    pointer-events: none;
+}
+
+.mockup-layer.texture {
+    background-image: url('../images/mockup_top.png');
+    mix-blend-mode: multiply;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+.canvas-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 10px 20px;
+    border-radius: 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.color-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid white;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.color-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Chat Interface */
+.chat-interface {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+/* Product/Card Grid */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 30px;
+}
+
+.product-card {
+    background: var(--bg-color);
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.product-card:hover {
+    transform: translateY(-10px);
+}
+
+.product-img {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background-color: var(--bg-light);
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.product-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.product-card:hover .product-img img {
+    transform: scale(1.08);
+}
+
+.product-info {
+    text-align: center;
+}
+
+.product-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.product-price {
+    font-size: 16px;
+    color: var(--text-sub);
+}
+
+/* Large Card Layout (Sportswear / KOGAS) */
+.large-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px;
+}
+
+.large-card {
+    position: relative;
+    aspect-ratio: 3/4;
+    overflow: hidden;
+}
+
+.large-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.large-card:hover img {
+    transform: scale(1.05);
+}
+
+.large-card-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 40px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    color: white;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.4s ease;
+}
+
+.large-card:hover .large-card-overlay {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Masonry / Gallery (Culture) */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    grid-auto-rows: 300px;
+}
+
+.gallery-item {
+    position: relative;
+    overflow: hidden;
+    background: #ccc;
+}
+
+.gallery-item:nth-child(2n) {
+    grid-row: span 2;
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Footer */
+footer {
+    background-color: var(--secondary-color);
+    color: var(--text-white);
+    padding: 80px 0 40px;
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .menu {
+        gap: 30px;
+    }
+
+    .hero-content h1 {
+        font-size: 60px;
+    }
+}
+
+@media (max-width: 768px) {
+    .gnb {
+        flex-direction: column;
+        height: auto;
+        padding: 15px 0;
+    }
+
+    .menu {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+        margin: 15px 0;
+    }
+
+    .card-grid,
+    .large-card-grid,
+    .gallery-grid {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    ``` .canvas-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 10px 20px;
+        border-radius: 30px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        display: flex;
+        gap: 10px;
+        z-index: 10;
+    }
+
+    .color-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 2px solid white;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+
+    .color-btn:hover {
+        transform: scale(1.1);
+    }
+
+    /* Chat Interface */
+    .chat-interface {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Product/Card Grid */
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 30px;
+    }
+
+    .product-card {
+        background: var(--bg-color);
+        transition: transform 0.3s ease;
+        cursor: pointer;
+    }
+
+    .product-card:hover {
+        transform: translateY(-10px);
+    }
+
+    .product-img {
+        width: 100%;
+        aspect-ratio: 1/1;
+        background-color: var(--bg-light);
+        overflow: hidden;
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .product-img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s ease;
+    }
+
+    .product-card:hover .product-img img {
+        transform: scale(1.08);
+    }
+
+    .product-info {
+        text-align: center;
+    }
+
+    .product-name {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .product-price {
+        font-size: 16px;
+        color: var(--text-sub);
+    }
+
+    /* Large Card Layout (Sportswear / KOGAS) */
+    .large-card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 40px;
+    }
+
+    .large-card {
+        position: relative;
+        aspect-ratio: 3/4;
+        overflow: hidden;
+    }
+
+    .large-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s ease;
+    }
+
+    .large-card:hover img {
+        transform: scale(1.05);
+    }
+
+    .large-card-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 40px;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+        color: white;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.4s ease;
+    }
+
+    .large-card:hover .large-card-overlay {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Masonry / Gallery (Culture) */
+    .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        grid-auto-rows: 300px;
+    }
+
+    .gallery-item {
+        position: relative;
+        overflow: hidden;
+        background: #ccc;
+    }
+
+    .gallery-item:nth-child(2n) {
+        grid-row: span 2;
+    }
+
+    .gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Footer */
+    footer {
+        background-color: var(--secondary-color);
+        color: var(--text-white);
+        padding: 80px 0 40px;
+        text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .menu {
+            gap: 30px;
+        }
+
+        .hero-content h1 {
+            font-size: 60px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .gnb {
+            flex-direction: column;
+            height: auto;
+            padding: 15px 0;
+        }
+
+        .menu {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .card-grid,
+        .large-card-grid,
+        .gallery-grid {
+            grid-template-columns: repeat(1, 1fr);
+        }
+
+        .sub-hero {
+            background: #000;
+            color: white;
+            padding: 120px 20px 80px;
+            text-align: center;
+        }
+
+        /* AI Search Bar */
+        .ai-search-container {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto 40px;
+        }
+
+        .search-input-wrapper {
+            display: flex;
+            background: white;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .search-input-wrapper:focus-within {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+            border-color: var(--accent-color);
+        }
+
+        #aiSearchInput {
+            flex: 1;
+            padding: 20px 30px;
+            border: none;
+            font-size: 1.1rem;
+            outline: none;
+            font-family: var(--font-main);
+        }
+
+        #btnAiSearch {
+            background: black;
+            color: white;
+            border: none;
+            padding: 0 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: background 0.3s ease;
+        }
+
+        #btnAiSearch:hover {
+            background: #333;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-btn {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            font-family: var(--font-main);
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: black;
+            color: white;
+            border-color: black;
+        }
+
+        /* Product Grid */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 40px;
+        }
+
+        /* Product Card */
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-image {
+            position: relative;
+            padding-top: 100%;
+            /* 1:1 Aspect Ratio */
+            background: #f8f9fa;
+            overflow: hidden;
+        }
+
+        .card-image img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            /* Or contain depending on image style */
+            transition: transform 0.5s ease;
+        }
+
+        .product-card:hover .card-image img {
+            transform: scale(1.05);
+        }
+
+        .card-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .product-card:hover .card-overlay {
+            opacity: 1;
+        }
+
+        .btn-view {
+            background: white;
+            color: black;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .product-card:hover .btn-view {
+            transform: translateY(0);
+        }
+
+        .card-info {
+            padding: 20px;
+        }
+
+        .card-category {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-price {
+            font-size: 1rem;
+            font-weight: 700;
+            color: black;
+            margin-bottom: 15px;
+        }
+
+        .card-tags {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .card-tags span {
+            font-size: 0.75rem;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #666;
+        }
+
+        ```
