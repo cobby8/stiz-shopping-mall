@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ - Product Detail</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .detail-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            padding: 60px 0;
+        }
+
+        .detail-img img {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .detail-info h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .detail-price {
+            font-size: 24px;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 30px;
+            display: block;
+        }
+
+        .detail-desc {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 40px;
+        }
+
+        .feature-list {
+            margin-bottom: 40px;
+        }
+
+        .feature-list li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-list i {
+            color: var(--secondary-color);
+        }
+
+        @media (max-width: 768px) {
+            .detail-container {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header id="header">
+        <div class="container">
+            <nav class="gnb">
+                <div class="logo"><a href="index.html">STIZ</a></div>
+                <ul class="menu">
+                    <li><a href="list.html" class="text-primary">TEAM KIT</a></li>
+                    <li><a href="list.html">APPAREL</a></li>
+                    <li><a href="#">PORTFOLIO</a></li>
+                    <li><a href="custom_order.html">CUSTOM ORDER</a></li>
+                </ul>
+                <div class="utils">
+                    <a href="#"><i class="fa-solid fa-magnifying-glass"></i></a>
+                    <a href="#"><i class="fa-regular fa-user"></i></a>
+                    <a href="#"><i class="fa-solid fa-cart-shopping"></i></a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main style="padding-top: var(--header-height);">
+        <div class="container">
+            <div class="detail-container">
+                <div class="detail-img">
+                    <img src="images/product_soccer.png" alt="Product Image">
+                </div>
+                <div class="detail-info">
+                    <h1>STIZ Elite Soccer Kit</h1>
+                    <span class="detail-price">50,000 KRW</span>
+                    <p class="detail-desc">
+                        Designed for professional performance. The STIZ Elite Soccer Kit features moisture-wicking
+                        technology and a lightweight, breathable fabric to keep you cool on the pitch. Fully
+                        customizable with your team colors and logo.
+                    </p>
+                    <ul class="feature-list">
+                        <li><i class="fa-solid fa-check"></i> Premium Dry-Fit Fabric</li>
+                        <li><i class="fa-solid fa-check"></i> Ergonomic Fit</li>
+                        <li><i class="fa-solid fa-check"></i> Fully Sublimated Printing</li>
+                        <li><i class="fa-solid fa-check"></i> Durable Stitching</li>
+                    </ul>
+
+                    <a href="custom_order.html?sport=soccer&style=basic" class="btn btn-primary"
+                        style="width: 100%; text-align: center;">
+                        CUSTOMIZE THIS STYLE
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 STIZ. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

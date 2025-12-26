@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ - Custom Sports Gear</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header id="header">
+        <div class="container">
+            <nav class="gnb">
+                <div class="logo">
+                    <a href="index.html">
+                        <img src="images/logo.png" alt="STIZ Logo">
+                    </a>
+                </div>
+                <ul class="menu">
+                    <li><a href="#customizing">커스터마이징</a></li>
+                    <li><a href="#sportswear">스포츠웨어</a></li>
+                    <li><a href="#kogas">한국가스공사</a></li>
+                    <li><a href="#culture">CULTURE / LOOKBOOK</a></li>
+                    <li><a href="#notice">NOTICE</a></li>
+                </ul>
+                <div class="utils">
+                    <a href="#"><i class="fa-solid fa-magnifying-glass"></i></a>
+                    <a href="#"><i class="fa-regular fa-user"></i></a>
+                    <a href="#"><i class="fa-solid fa-cart-shopping"></i></a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container hero-content">
+                <h1 class="animate-up">WEAR YOUR ENERGY</h1>
+                <p class="animate-up delay-1">Professional Custom Sports Gear</p>
+                <a href="#customizing" class="btn btn-primary animate-up delay-2">START CUSTOM ORDER</a>
+            </div>
+        </section>
+
+        <!-- Customizing Section -->
+        <section id="customizing">
+            <div class="container">
+                <h2 class="section-title">CUSTOMIZING</h2>
+
+                <!-- Sub Menu Tabs -->
+                <div class="custom-tabs text-center" style="margin-bottom: 40px;">
+                    <button class="btn btn-outline active" data-tab="basketball">농구 (Basketball)</button>
+                    <button class="btn btn-outline" data-tab="soccer">축구 (Soccer)</button>
+                    <button class="btn btn-outline" data-tab="teamwear">팀웨어 (Teamwear)</button>
+                </div>
+
+                <div class="custom-workspace" style="display: flex; gap: 40px; min-height: 600px;">
+                    <!-- Editor Area -->
+                    <div class="editor-area" style="flex: 2; display: flex; flex-direction: column; gap: 20px;">
+                        <div class="canvas-container" id="mockupContainer"
+                            style="background: #f8f9fa; flex: 1; border-radius: 8px; position: relative; overflow: hidden; border: 1px solid #eee; min-height: 500px;">
+                            <!-- Layer 3: Base Color (Bottom) -->
+                            <div id="mockupBase" class="mockup-layer base"></div>
+
+                            <!-- Layer 2: Logo/Pattern (Middle) -->
+                            <div id="mockupLogo" class="mockup-layer logo"
+                                style="display: flex; align-items: center; justify-content: center;">
+                                <div
+                                    style="border: 2px dashed rgba(0,0,0,0.2); padding: 10px; color: rgba(0,0,0,0.3); font-weight: bold;">
+                                    LOGO AREA</div>
+                            </div>
+
+                            <!-- Layer 1: Texture/Shadow (Top) -->
+                            <div id="mockupTexture" class="mockup-layer texture"></div>
+
+                            <div class="canvas-controls"
+                                style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 10px 20px; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: flex; gap: 10px; z-index: 10;">
+                                <button class="color-btn"
+                                    style="width: 30px; height: 30px; border-radius: 50%; background: #FF0000; border: 2px solid white; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"
+                                    data-color="#FF0000"></button>
+                                <button class="color-btn"
+                                    style="width: 30px; height: 30px; border-radius: 50%; background: #0000FF; border: 2px solid white; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"
+                                    data-color="#0000FF"></button>
+                                <button class="color-btn"
+                                    style="width: 30px; height: 30px; border-radius: 50%; background: #000000; border: 2px solid white; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"
+                                    data-color="#000000"></button>
+                                <button class="color-btn"
+                                    style="width: 30px; height: 30px; border-radius: 50%; background: #FFFFFF; border: 1px solid #ccc; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"
+                                    data-color="#FFFFFF"></button>
+                                <button class="color-btn"
+                                    style="width: 30px; height: 30px; border-radius: 50%; background: #D4AF37; border: 2px solid white; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"
+                                    data-color="#D4AF37"></button>
+                            </div>
+                        </div>
+                        <div class="editor-tools" style="display: flex; justify-content: space-between;">
+                            <button class="btn btn-outline" id="btnTempSave"><i class="fa-regular fa-floppy-disk"></i>
+                                임시저장</button>
+                            <button class="btn btn-outline" id="btnShare"><i class="fa-solid fa-share-nodes"></i>
+                                공유하기</button>
+                        </div>
+                    </div>
+
+                    <!-- Chatbot / Order Area -->
+                    <div class="sidebar-area" style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+                        <!-- AI Chatbot -->
+                        <div class="chat-interface"
+                            style="background: #fff; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                            <div class="chat-header"
+                                style="padding: 15px; background: var(--secondary-color); color: white; display: flex; align-items: center; gap: 10px;">
+                                <i class="fa-solid fa-robot"></i>
+                                <span style="font-weight: 700;">STIZ AI Designer</span>
+                            </div>
+                            <div class="chat-messages" id="chatMessages"
+                                style="flex: 1; padding: 20px; overflow-y: auto; background: #f8f9fa;">
+                                <div class="message bot" style="margin-bottom: 15px;">
+                                    <div class="bubble"
+                                        style="background: white; padding: 10px 15px; border-radius: 15px 15px 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: inline-block; max-width: 80%;">
+                                        안녕하세요! 어떤 유니폼 디자인을 도와드릴까요? (예: "강렬한 레드 컬러 유니폼 추천해줘")
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-input"
+                                style="padding: 15px; background: white; border-top: 1px solid #eee; display: flex; gap: 10px;">
+                                <input type="text" id="chatInput" placeholder="메시지를 입력하세요..."
+                                    style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                <button class="btn btn-primary" id="btnSendChat" style="padding: 0 15px;"><i
+                                        class="fa-solid fa-paper-plane"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Order Summary -->
+                        <div class="order-summary"
+                            style="background: white; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 15px;">예상 견적</h3>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span>기본 유니폼 (상/하)</span>
+                                <span>₩89,000</span>
+                            </div>
+                            <div
+                                style="display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: 700; font-size: 20px; color: var(--primary-color);">
+                                <span>Total</span>
+                                <span id="totalPrice">₩89,000</span>
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%;">주문하기 (Roster 입력)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sportswear Section -->
+        <section id="sportswear" style="background-color: var(--bg-light);">
+            <div class="container">
+                <h2 class="section-title">SPORTSWEAR</h2>
+                <div class="large-card-grid">
+                    <div class="large-card">
+                        <img src="images/product_soccer.png" alt="Sportswear 1">
+                        <div class="large-card-overlay">
+                            <h3>Performance Training Set</h3>
+                            <p>High quality material for professionals</p>
+                        </div>
+                    </div>
+                    <div class="large-card">
+                        <img src="images/product_baseball.png" alt="Sportswear 2">
+                        <div class="large-card-overlay">
+                            <h3>Essential Team Gear</h3>
+                            <p>Comfort and style combined</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- KOGAS Section -->
+        <section id="kogas">
+            <div class="container">
+                <h2 class="section-title">KOGAS & PARTNERS</h2>
+                <div class="large-card-grid">
+                    <div class="large-card">
+                        <img src="images/product_baseball.png" alt="KOGAS Merch">
+                        <div class="large-card-overlay">
+                            <h3>Official Home Kit</h3>
+                            <p>2025 Season Authentic</p>
+                        </div>
+                    </div>
+                    <div class="large-card">
+                        <img src="images/product_soccer.png" alt="KOGAS Merch">
+                        <div class="large-card-overlay">
+                            <h3>Training Collection</h3>
+                            <p>Official Training Gear</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Culture / Lookbook -->
+        <section id="culture" style="background-color: #111; color: white;">
+            <div class="container">
+                <h2 class="section-title" style="color: white;">CULTURE / LOOKBOOK</h2>
+                <div class="gallery-grid">
+                    <div class="gallery-item"><img src="images/product_soccer.png" alt="Lookbook 1"></div>
+                    <div class="gallery-item"><img src="images/product_baseball.png" alt="Lookbook 2"></div>
+                    <div class="gallery-item"><img src="images/product_soccer.png" alt="Lookbook 3"></div>
+                    <div class="gallery-item"><img src="images/product_baseball.png" alt="Lookbook 4"></div>
+                    <div class="gallery-item"><img src="images/product_soccer.png" alt="Lookbook 5"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Notice -->
+        <section id="notice">
+            <div class="container">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 50px;">
+                    <!-- Notice List -->
+                    <div>
+                        <h2 class="section-title" style="text-align: left; margin-bottom: 40px;">NOTICE</h2>
+                        <ul style="list-style: none; padding: 0;">
+                            <li
+                                style="border-bottom: 1px solid #eee; padding: 20px 0; display: flex; justify-content: space-between;">
+                                <a href="#"
+                                    style="font-size: 18px; color: var(--text-main); text-decoration: none;">2025 시즌 유니폼
+                                    주문 안내</a>
+                                <span style="color: #999;">2025.11.28</span>
+                            </li>
+                            <li
+                                style="border-bottom: 1px solid #eee; padding: 20px 0; display: flex; justify-content: space-between;">
+                                <a href="#" style="font-size: 18px; color: var(--text-main); text-decoration: none;">설
+                                    연휴 배송 공지</a>
+                                <span style="color: #999;">2025.01.15</span>
+                            </li>
+                            <li
+                                style="border-bottom: 1px solid #eee; padding: 20px 0; display: flex; justify-content: space-between;">
+                                <a href="#" style="font-size: 18px; color: var(--text-main); text-decoration: none;">신규
+                                    회원 가입 이벤트</a>
+                                <span style="color: #999;">2024.12.01</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Instagram Widget Placeholder -->
+                    <div>
+                        <h3 style="font-size: 24px; font-weight: 700; margin-bottom: 30px;">INSTAGRAM</h3>
+                        <div
+                            style="background: #f8f9fa; height: 400px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                            <div class="text-center">
+                                <i class="fa-brands fa-instagram"
+                                    style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
+                                <p>@stiz_official</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="logo" style="margin-bottom: 30px;">
+                <img src="images/logo.png" alt="STIZ Logo"
+                    style="height: 30px; margin: 0 auto; filter: brightness(0) invert(1);">
+            </div>
+            <p>&copy; 2025 STIZ. All rights reserved.</p>
+            <div style="margin-top: 20px; font-size: 14px; color: #888;">
+                <p>Customer Center: 02-1234-5678 | Mon-Fri 10:00 - 18:00</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/stiz_data.js"></script>
+    <script src="js/customizing.js"></script>
+</body>
+
+</html>

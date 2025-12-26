@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ - All Products</title>
+    <!-- Fonts -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Header (Same as index.html) -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="index.html">STIZ</a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html#customizing">커스터마이징</a></li>
+                    <li><a href="list.html" class="active">스포츠웨어</a></li>
+                    <li><a href="#kogas">한국가스공사</a></li>
+                    <li><a href="#culture">CULTURE</a></li>
+                    <li><a href="#notice">NOTICE</a></li>
+                </ul>
+            </nav>
+            <div class="header-icons">
+                <a href="#"><i class="fas fa-search"></i></a>
+                <a href="#"><i class="fas fa-shopping-cart"></i></a>
+                <a href="#"><i class="fas fa-user"></i></a>
+            </div>
+            <div class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="sub-hero" style="background: #000; color: white; padding: 100px 20px; text-align: center;">
+        <h1 style="font-size: 3rem; margin-bottom: 10px;">SPORTSWEAR</h1>
+        <p style="opacity: 0.8;">STIZ의 프리미엄 퍼포먼스 웨어를 만나보세요.</p>
+    </section>
+
+    <!-- Search & Filter Section -->
+    <section class="product-filter-section" style="padding: 40px 20px; background: #f9f9f9;">
+        <div class="container">
+            <!-- AI Smart Search -->
+            <div class="ai-search-container" style="max-width: 800px; margin: 0 auto 40px; position: relative;">
+                <div class="ai-badge"
+                    style="position: absolute; top: -10px; left: 20px; background: var(--accent-color); color: white; padding: 2px 10px; font-size: 0.8rem; border-radius: 4px; font-weight: bold;">
+                    AI Smart Search</div>
+                <div class="search-input-wrapper"
+                    style="display: flex; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border-radius: 50px; overflow: hidden; background: white;">
+                    <input type="text" id="aiSearchInput" placeholder="예: 빨간색 프로 스타일 유니폼 찾아줘"
+                        style="flex: 1; padding: 20px 30px; border: none; font-size: 1.1rem; outline: none;">
+                    <button id="btnAiSearch"
+                        style="background: black; color: white; border: none; padding: 0 40px; cursor: pointer; font-weight: bold; font-size: 1.1rem;">
+                        <i class="fas fa-magic" style="margin-right: 8px; color: var(--accent-color);"></i> 검색
+                    </button>
+                </div>
+                <p id="aiFeedback"
+                    style="text-align: center; margin-top: 10px; color: #666; font-size: 0.9rem; min-height: 20px;"></p>
+            </div>
+
+            <!-- Standard Filters -->
+            <div class="filter-bar"
+                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 20px;">
+                <div class="filter-group">
+                    <button class="filter-btn active" data-category="all">전체</button>
+                    <button class="filter-btn" data-category="basketball">농구</button>
+                    <button class="filter-btn" data-category="soccer">축구</button>
+                    <button class="filter-btn" data-category="teamwear">팀웨어</button>
+                </div>
+                <div class="sort-group">
+                    <select id="sortSelect" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="newest">신상품순</option>
+                        <option value="price_asc">낮은가격순</option>
+                        <option value="price_desc">높은가격순</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Product Grid Section -->
+    <section class="product-list-section" style="padding: 60px 20px;">
+        <div class="container">
+            <div id="productGrid" class="product-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px;">
+                <!-- Product Cards will be injected here -->
+                <div class="loading-spinner" style="grid-column: 1/-1; text-align: center; padding: 50px;">
+                    <i class="fas fa-spinner fa-spin fa-3x" style="color: #ddd;"></i>
+                    <p style="margin-top: 20px; color: #999;">제품 정보를 불러오는 중입니다...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer (Same as index.html) -->
+    <footer class="main-footer">
+        <div class="footer-content">
+            <div class="footer-logo">STIZ</div>
+            <p>Copyright © 2024 STIZ. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/product_list.js"></script>
+</body>
+
+</html>
