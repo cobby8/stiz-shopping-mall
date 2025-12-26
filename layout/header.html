@@ -1,0 +1,140 @@
+<!-- Header Container -->
+<div class="container mx-auto px-6 h-20 flex items-center justify-between">
+    <!-- Logo -->
+    <a href="index.html" class="z-50 transition-transform duration-300 hover:scale-105">
+        <!-- White Logo (Default/Dark BG) -->
+        <img src="images/logo_white.png" alt="STIZ" class="h-8 md:h-10 w-auto object-contain logo-white">
+        <!-- Black Logo (Light BG) -->
+        <img src="images/logo_black.png" alt="STIZ" class="h-8 md:h-10 w-auto object-contain logo-black hidden">
+    </a>
+
+    <!-- Desktop Navigation (Mega Menu) -->
+    <nav class="hidden md:flex space-x-12 h-full items-center">
+
+        <!-- Customizing (Mega Menu Hook) -->
+        <div class="group h-full flex items-center">
+            <a href="custom.html"
+                class="font-medium hover:text-gray-300 transition-colors py-8 cursor-pointer tracking-wide">디자인 연구소</a>
+
+            <!-- Mega Menu Dropdown -->
+            <div
+                class="hidden group-hover:block absolute left-0 top-full w-full bg-white text-black shadow-xl border-t border-gray-100 py-12 z-40">
+                <div class="container mx-auto px-6 grid grid-cols-4 gap-8">
+                    <div class="col-span-1">
+                        <h3 class="font-bold text-lg mb-4 text-gray-900 border-b pb-2">Teamwear</h3>
+                        <ul class="space-y-3 text-gray-600">
+                            <li><a href="list.html?category=Soccer" class="hover:text-black hover:underline">Soccer
+                                    (축구)</a></li>
+                            <li><a href="list.html?category=Basketball"
+                                    class="hover:text-black hover:underline">Basketball (농구)</a></li>
+                            <li><a href="list.html?category=Volleyball"
+                                    class="hover:text-black hover:underline">Volleyball (배구)</a></li>
+                            <li><a href="list.html?category=Baseball" class="hover:text-black hover:underline">Baseball
+                                    (야구)</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-span-1">
+                        <h3 class="font-bold text-lg mb-4 text-gray-900 border-b pb-2">Design Lab</h3>
+                        <ul class="space-y-3 text-gray-600">
+                            <li><a href="custom.html" class="hover:text-black hover:underline">Start 3D Design</a></li>
+                            <li><a href="custom.html" class="hover:text-black hover:underline">Start 2D Simple
+                                    Editor</a></li>
+                            <li><a href="notice.html" class="hover:text-black hover:underline">Request Mockup</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-span-1">
+                        <h3 class="font-bold text-lg mb-4 text-gray-900 border-b pb-2">Portfolio</h3>
+                        <ul class="space-y-3 text-gray-600">
+                            <li><a href="lookbook.html" class="hover:text-black hover:underline">Client Gallery</a></li>
+                            <li><a href="notice.html" class="hover:text-black hover:underline">Review</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-span-1 bg-gray-100 rounded-lg p-6 flex flex-col justify-end items-start"
+                        style="background-image: url('https://placehold.co/300x200/EEE/31343C?text=New+Collection'); background-size: cover;">
+                        <span class="bg-black text-white px-3 py-1 text-xs font-bold mb-2">NEW</span>
+                        <h4 class="font-bold text-xl mb-1">SS25 Collection</h4>
+                        <a href="list.html" class="text-sm underline">Shop Now &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <a href="list.html" class="font-medium hover:text-gray-300 transition-colors tracking-wide">스토어</a>
+        <a href="lookbook.html" class="font-medium hover:text-gray-300 transition-colors tracking-wide">룩북</a>
+        <a href="notice.html" class="font-medium hover:text-gray-300 transition-colors tracking-wide">커뮤니티</a>
+        <a href="/kogas" class="font-medium hover:text-gray-300 transition-colors tracking-wide text-blue-400">가스공사
+            굿즈</a>
+        <a href="/customer" class="font-medium hover:text-gray-300 transition-colors tracking-wide">고객지원</a>
+    </nav>
+
+    <!-- Utilities -->
+    <div class="flex items-center space-x-6" id="auth-links">
+        <!-- Search (Triggers AI) -->
+        <button onclick="toggleChatbot()" class="hover:text-gray-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </button>
+
+        <!-- My Page -->
+        <a href="myshop.html" class="hover:text-gray-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+        </a>
+
+        <!-- Cart -->
+        <a href="basket.html" class="hover:text-gray-300 relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            <span
+                class="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full cart-badge">0</span>
+        </a>
+
+        <!-- Mobile Menu Btn -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        </button>
+        <button class="hover:text-gray-300 relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            <span
+                class="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">0</span>
+        </button>
+        <button id="mobile-menu-btn" class="md:hidden hover:text-gray-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Mobile Menu (Hidden by default) -->
+<div id="mobile-menu"
+    class="hidden md:hidden bg-white text-black absolute top-20 left-0 w-full shadow-lg border-t z-50">
+    <div class="flex flex-col p-6 space-y-4">
+        <a href="custom.html" class="text-lg font-medium">CUSTOM</a>
+        <a href="list.html" class="text-lg font-medium">SHOP</a>
+        <a href="lookbook.html" class="text-lg font-medium">LOOKBOOK</a>
+        <a href="notice.html" class="text-lg font-medium">COMMUNITY</a>
+        <a href="/kogas" class="text-lg font-medium text-blue-600">KOGAS MD</a>
+        <a href="/customer" class="text-lg font-medium">SUPPORT</a>
+        <div class="flex items-center space-x-6 pt-4 border-t border-gray-200">
+            <a href="login.html" id="login-link" class="text-lg font-medium hover:text-gray-700">Login</a>
+            <a href="join.html" id="join-link" class="text-lg font-medium hover:text-gray-700">Join</a>
+        </div>
+    </div>
+</div>

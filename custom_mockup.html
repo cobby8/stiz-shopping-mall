@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Design Lab - Virtual Fitting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+</head>
+
+<body class="bg-white text-black h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="h-16 border-b border-gray-200 flex items-center justify-between px-6 shrink-0 bg-white">
+        <div class="flex items-center space-x-3">
+            <a href="custom.html" class="flex items-center space-x-2">
+                <img src="images/logo_black.png" alt="STIZ" class="h-5">
+            </a>
+            <span class="h-4 w-px bg-gray-300 mx-2"></span>
+            <span class="font-bold tracking-wider">VIRTUAL FITTING ROOM</span>
+        </div>
+        <a href="index.html" class="text-xs font-bold border-b border-black pb-0.5">EXIT LAB</a>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <!-- Left: Configuration -->
+        <aside
+            class="w-full md:w-[400px] border-r border-gray-200 p-6 md:p-8 flex flex-col bg-gray-50 overflow-y-auto h-[45%] md:h-auto md:order-1 order-2">
+            <h2 class="text-xl md:text-2xl font-bold mb-6 md:mb-8">Finalize Mockup</h2>
+
+            <div class="space-y-6 md:space-y-8">
+                <!-- 1. Review Design -->
+                <div>
+                    <h3 class="text-xs md:text-sm font-bold text-gray-500 uppercase mb-3 md:mb-4">1. Your Design</h3>
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <img id="source-design" src="https://placehold.co/300x300?text=No+Design+Found"
+                            class="w-full h-auto rounded-md bg-gray-100" />
+                    </div>
+                </div>
+
+                <!-- 2. Select Model -->
+                <div>
+                    <h3 class="text-xs md:text-sm font-bold text-gray-500 uppercase mb-3 md:mb-4">2. Select Model</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="model-select-btn border-2 border-black rounded-lg p-3 bg-white text-left active"
+                            data-model="man">
+                            <span class="block text-base md:text-lg font-bold">Man</span>
+                            <span class="text-xs text-gray-500">Pro Athlete</span>
+                        </button>
+                        <button
+                            class="model-select-btn border border-gray-200 rounded-lg p-3 bg-white text-left hover:border-gray-400"
+                            data-model="woman">
+                            <span class="block text-base md:text-lg font-bold">Woman</span>
+                            <span class="text-xs text-gray-500">Pro Athlete</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action -->
+                <button id="btn-generate"
+                    class="w-full bg-black text-white py-3 md:py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition-all shadow-lg">
+                    GENERATE FITTING
+                </button>
+            </div>
+        </aside>
+
+        <!-- Right: Result -->
+        <section
+            class="w-full md:flex-1 bg-white relative flex items-center justify-center p-6 md:p-10 order-1 md:order-2 h-[55%] md:h-auto border-b md:border-b-0 border-gray-200">
+            <!-- Loading State -->
+            <div id="fitting-loader"
+                class="hidden absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center">
+                <div
+                    class="w-12 h-12 md:w-16 md:h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4">
+                </div>
+                <h3 class="text-lg md:text-xl font-bold tracking-tight animate-pulse text-center px-4">STIZ AI is sewing
+                    your kit...</h3>
+                <p class="text-xs md:text-sm text-gray-500 mt-2">Adjusting lighting and physics</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="result-placeholder" class="text-center">
+                <div
+                    class="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">
+                    <svg class="w-8 h-8 md:w-10 md:h-10 text-gray-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-bold mb-2">Ready to Wear?</h2>
+                <p class="text-sm md:text-base text-gray-500">Select options and click Generate.</p>
+            </div>
+
+            <!-- Result Image -->
+            <div id="result-container"
+                class="hidden relative w-full h-full max-w-2xl max-h-[800px] shadow-2xl rounded-xl overflow-hidden">
+                <img id="result-image" src="" class="w-full h-full object-cover">
+
+                <div class="absolute bottom-6 md:bottom-8 left-0 right-0 text-center">
+                    <button onclick="alert('Sent to Sales Team!')"
+                        class="bg-white text-black px-6 py-2 md:px-8 md:py-3 rounded-full font-bold shadow-lg hover:scale-105 transition-transform text-sm md:text-base">
+                        REQUEST ORDER QUOTE
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/mockup.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Design Lab - Customize Your Gear</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Pretendard -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+    <!-- Sports Fonts (30 selections) -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Black+Han+Sans&family=Black+Ops+One&family=Bungee+Inline&family=Changa:wght@200..800&family=Chusso&family=College&family=Do+Hyeon&family=Faster+One&family=Graduate&family=Gugi&family=Hammersmith+One&family=Impact&family=Jua&family=Kanit:ital,wght@0,100..900;1,100..900&family=Knewave&family=Lemon&family=Lobster&family=Moirai+One&family=Monoton&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Sans+KR:wght@100..900&family=Orbitron:wght@400..900&family=Oswald:wght@200..700&family=Pacifico&family=Passion+One:wght@400;700;900&family=Permanent+Marker&family=Racing+Sans+One&family=Righteous&family=Roboto+Slab:wght@100..900&family=Rowdies:wght@300;400;700&family=Russo+One&family=Shojumaru&family=Sigmar&family=Squada+One&family=Stardos+Stencil:wght@400;700&family=Teko:wght@300..700&family=Titan+One&family=Tourney:ital,wght@0,100..900;1,100..900&family=Wallpoet&display=swap"
+        rel="stylesheet">
+
+    <!-- Fabric.js -->
+    <script src="https://unpkg.com/fabric@5.3.0/dist/fabric.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        .canvas-container {
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-black min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-black text-white border-b border-gray-800">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <a href="index.html" class="flex items-center space-x-2">
+                <img src="images/logo_white.png" alt="STIZ" class="h-6">
+                <span class="text-white text-lg font-bold tracking-tighter">DESIGN LAB</span>
+            </a>
+            <a href="index.html" class="text-gray-400 hover:text-white transition-colors">Exit Lab</a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col justify-center items-center p-6 relative overflow-hidden">
+        <!-- Background Ambient -->
+        <div
+            class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center opacity-20 filter blur-sm">
+        </div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+
+        <div class="relative z-10 text-center max-w-5xl w-full">
+            <h1 class="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter loading-text">CREATE YOUR
+                IDENTITY</h1>
+            <p class="text-gray-400 text-lg md:text-xl mb-16 max-w-2xl mx-auto">
+                STIZ Design Lab offers advanced tools to visualize your team's spirit. <br class="hidden md:block">
+                Choose your preferred way to design.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+                <!-- Card 1: 2D Editor -->
+                <a href="custom_2d.html"
+                    class="group relative bg-gray-900 rounded-2xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-100 group-hover:opacity-0 transition-opacity">
+                    </div>
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                    </div>
+
+                    <div
+                        class="relative bg-black h-full rounded-xl p-8 flex flex-col items-center justify-center text-center border border-gray-800 group-hover:border-transparent">
+                        <div
+                            class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Start 2D Editor</h3>
+                        <p class="text-gray-400 text-sm mb-6">Customize existing STIZ products with logos, text, and
+                            colors.</p>
+                        <span
+                            class="inline-block border border-gray-600 rounded-full px-4 py-1 text-xs text-gray-300 group-hover:bg-white group-hover:text-black group-hover:border-white transition-colors font-bold">LAUNCH
+                            &rarr;</span>
+                    </div>
+                </a>
+
+                <!-- Card 2: 3D AI Design -->
+                <a href="custom_3d.html"
+                    class="group relative bg-gray-900 rounded-2xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-100 group-hover:opacity-0 transition-opacity">
+                    </div>
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    </div>
+
+                    <div
+                        class="relative bg-black h-full rounded-xl p-8 flex flex-col items-center justify-center text-center border border-gray-800 group-hover:border-transparent">
+                        <div
+                            class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Start 3D Design</h3>
+                        <p class="text-gray-400 text-sm mb-6">Create unique designs with NanoBanana AI Engine.</p>
+                        <span
+                            class="inline-block border border-gray-600 rounded-full px-4 py-1 text-xs text-gray-300 group-hover:bg-white group-hover:text-black group-hover:border-white transition-colors font-bold">ENTER
+                            AI LAB &rarr;</span>
+                    </div>
+                </a>
+
+                <!-- Card 3: Request Mockup -->
+                <a href="custom_mockup.html"
+                    class="group relative bg-gray-900 rounded-2xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-100 group-hover:opacity-0 transition-opacity">
+                    </div>
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    </div>
+
+                    <div
+                        class="relative bg-black h-full rounded-xl p-8 flex flex-col items-center justify-center text-center border border-gray-800 group-hover:border-transparent">
+                        <div
+                            class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Request Mockup</h3>
+                        <p class="text-gray-400 text-sm mb-6">See your design on real models with AI virtual fitting.
+                        </p>
+                        <span
+                            class="inline-block border border-gray-600 rounded-full px-4 py-1 text-xs text-gray-300 group-hover:bg-white group-hover:text-black group-hover:border-white transition-colors font-bold">VIRTUAL
+                            FIT &rarr;</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </main>
+
+</body>
+
+</html>

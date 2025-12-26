@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - STIZ</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white">
+
+    <header></header>
+    <div class="h-20"></div>
+    <div class="h-20"></div>
+
+    <main class="container mx-auto px-6 py-20 max-w-md">
+        <h1 class="text-3xl font-bold mb-10 text-center tracking-tight">LOGIN</h1>
+
+        <div class="space-y-4">
+            <input type="email" id="email" placeholder="Email"
+                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
+            <input type="password" id="password" placeholder="Password"
+                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
+
+            <div class="flex justify-between items-center text-xs text-gray-500">
+                <label class="flex items-center">
+                    <input type="checkbox" class="mr-2 rounded border-gray-300 text-black focus:ring-black"> Keep me
+                    signed in
+                </label>
+                <a href="#" class="underline">Forgot password?</a>
+            </div>
+
+            <button onclick="handleLogin()"
+                class="w-full bg-black text-white py-4 font-bold rounded hover:bg-gray-800 transition-colors uppercase">
+                Sign In
+            </button>
+        </div>
+
+        <div class="relative my-8">
+            <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t border-gray-200"></div>
+            </div>
+            <div class="relative flex justify-center text-xs">
+                <span class="bg-white px-2 text-gray-500 uppercase">Or continue with</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <button class="flex items-center justify-center border border-gray-300 py-3 rounded hover:bg-gray-50">
+                <span class="font-bold text-sm">Kakao</span>
+            </button>
+            <button class="flex items-center justify-center border border-gray-300 py-3 rounded hover:bg-gray-50">
+                <span class="font-bold text-sm">Naver</span>
+            </button>
+        </div>
+
+        <div class="mt-8 text-center text-sm text-gray-600">
+            Not a member?
+            <a href="join.html" class="text-black font-bold underline">Create an account</a>
+        </div>
+
+    </main>
+
+    <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/header_render.js"></script>
+    <script src="js/chatbot.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (login(email, password)) {
+                location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,49 @@
+@charset "utf-8";
+
+/* 
+  STIZ Custom Styles 
+  Based on Tailwind CSS (CDN version being used in HTML)
+*/
+
+/* Cafe24 Logic Override */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mega Menu Animations */
+.group:hover .group-hover\:block {
+    display: block;
+    animation: slideDown 0.3s ease-out forwards;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Custom Scrollbar for Webkit */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f1f1; 
+}
+::-webkit-scrollbar-thumb {
+    background: #888; 
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
+
+/* Utility Class Extensions (that might be missed by CDN or needing high specificity) */
+.text-brand-black { color: #111111; }
+.bg-brand-black { background-color: #111111; }
+.text-brand-gray { color: #666666; }

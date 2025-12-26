@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ - Make Your Team Identity</title>
+
+    <!-- Tailwind CSS (CDN for Dev) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Pretendard -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="page-main font-sans antialiased text-gray-900 bg-white selection:bg-black selection:text-white">
+
+    <!-- HEADER (Rendered via JS) -->
+    <header></header>
+
+
+    <!-- HERO SECTION -->
+    <section class="relative h-screen w-full overflow-hidden bg-black text-white">
+        <!-- Video Background Placeholder -->
+        <div class="absolute inset-0 z-0 opacity-60">
+            <img src="images/hero_bg.jpg" class="w-full h-full object-cover opacity-80" alt="Hero Background">
+        </div>
+
+        <div class="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
+            <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-6 animate-fade-in-up">
+                DESIGN YOUR GAME
+            </h1>
+            <p class="text-lg md:text-xl text-gray-200 mb-10 max-w-2xl font-light">
+                Professional Teamwear & Custom Solutions. <br>
+                Design your victory with STIZ.
+            </p>
+            <div class="flex space-x-4">
+                <button onclick="location.href='list.html'"
+                    class="bg-white text-black px-8 py-4 font-bold tracking-widest hover:bg-gray-200 transition-colors uppercase">
+                    View Teamwear
+                </button>
+                <button onclick="location.href='inquiry.html'"
+                    class="border border-white text-white px-8 py-4 font-bold tracking-widest hover:bg-white hover:text-black transition-colors uppercase">
+                    Get a Quote
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- CATEGORY SECTION -->
+    <section class="py-24 bg-gray-50">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold tracking-tight mb-4">WHAT WE OFFER</h2>
+                <div class="w-12 h-1 bg-black mx-auto"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Card 1 -->
+                <div class="group relative overflow-hidden h-96 cursor-pointer"
+                    onclick="location.href='list.html?category=soccer'">
+                    <img src="https://images.unsplash.com/photo-1515523110800-9415d13b84a8?q=80&w=1587&auto=format&fit=crop"
+                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        alt="Custom">
+                    <div class="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors"></div>
+                    <div class="absolute bottom-8 left-8 text-white">
+                        <h3 class="text-2xl font-bold mb-2">TEAMWEAR</h3>
+                        <p
+                            class="text-sm opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-4 group-hover:translate-y-0">
+                            Professional Custom Kits</p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="group relative overflow-hidden h-96 cursor-pointer">
+                    <img src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=1675&auto=format&fit=crop"
+                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        alt="Sportswear">
+                    <div class="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors"></div>
+                    <div class="absolute bottom-8 left-8 text-white">
+                        <h3 class="text-2xl font-bold mb-2">SPORTSWEAR</h3>
+                        <p
+                            class="text-sm opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-4 group-hover:translate-y-0">
+                            최고의 퍼포먼스를 위한 기능성 웨어</p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="group relative overflow-hidden h-96 cursor-pointer"
+                    onclick="location.href='list.html?category=kogas'">
+                    <img src="https://images.unsplash.com/photo-1473042904451-00171c69419d?q=80&w=1799&auto=format&fit=crop"
+                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        alt="KOGAS">
+                    <div class="absolute inset-0 bg-blue-900/40 group-hover:bg-blue-900/60 transition-colors"></div>
+                    <div class="absolute bottom-8 left-8 text-white">
+                        <h3 class="text-2xl font-bold mb-2">KOGAS MD</h3>
+                        <p
+                            class="text-sm opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-4 group-hover:translate-y-0">
+                            한국가스공사 공식 굿즈</p>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="group relative overflow-hidden h-96 cursor-pointer">
+                    <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=1790&auto=format&fit=crop"
+                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        alt="Basketball">
+                    <div class="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors"></div>
+                    <div class="absolute bottom-8 left-8 text-white">
+                        <h3 class="text-2xl font-bold mb-2">BASKETBALL</h3>
+                        <p
+                            class="text-sm opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-4 group-hover:translate-y-0">
+                            농구인을 위한 전문 용품</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER (Loaded via JS) -->
+    <!-- FOOTER (Inlined) -->
+    <footer class="bg-black text-white">
+        <div class="container mx-auto px-6 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Brand Info -->
+                <div class="col-span-1 md:col-span-1">
+                    <h2 class="text-2xl font-bold tracking-tighter mb-4">STIZ</h2>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                        We create the best teamwear for your victory. <br>
+                        Design your identity with our premium quality gears.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+
+                <!-- Shop Links -->
+                <div class="col-span-1">
+                    <h3 class="font-bold text-lg mb-4 text-white">SHOP</h3>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="list.html?category=Soccer" class="hover:text-white transition-colors">Soccer</a>
+                        </li>
+                        <li><a href="list.html?category=Basketball"
+                                class="hover:text-white transition-colors">Basketball</a></li>
+                        <li><a href="list.html?category=Volleyball"
+                                class="hover:text-white transition-colors">Volleyball</a></li>
+                        <li><a href="list.html" class="hover:text-white transition-colors">Accessories</a></li>
+                    </ul>
+                </div>
+
+                <!-- Support Links -->
+                <div class="col-span-1">
+                    <h3 class="font-bold text-lg mb-4 text-white">SUPPORT</h3>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="notice.html" class="hover:text-white transition-colors">FAQ</a></li>
+                        <li><a href="notice.html" class="hover:text-white transition-colors">Contact Us</a></li>
+                        <li><a href="notice.html" class="hover:text-white transition-colors">Size Guide</a></li>
+                        <li><a href="notice.html" class="hover:text-white transition-colors">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <!-- Newsletter -->
+                <div class="col-span-1">
+                    <h3 class="font-bold text-lg mb-4 text-white">NEWSLETTER</h3>
+                    <p class="text-gray-400 text-sm mb-4">Subscribe to get special offers and new product drops.</p>
+                    <div class="flex">
+                        <input type="email" placeholder="Your email"
+                            class="bg-gray-800 text-white px-4 py-2 text-sm focus:outline-none w-full">
+                        <button class="bg-white text-black px-4 py-2 font-bold text-sm hover:bg-gray-200">JOIN</button>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between text-xs text-gray-500">
+                <p>&copy; 2024 STIZ Custom Teamwear. All rights reserved.</p>
+                <p class="mt-2 md:mt-0">Seoul, Republic of Korea | Business License: 000-00-00000</p>
+            </div>
+            <!-- Chatbot Script (Global) -->
+            <script src="js/chatbot.js"></script>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
+    <script src="js/header_render.js"></script>
+    <script src="js/chatbot.js"></script>
+</body>
+
+</html>

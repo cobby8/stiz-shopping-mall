@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Shop - STIZ</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white">
+
+    <header></header>
+    <div class="h-20"></div>
+    <div class="h-20"></div>
+
+    <main class="container mx-auto px-6 py-12">
+        <div class="flex flex-col md:flex-row gap-12">
+
+            <!-- Sidebar Nav -->
+            <aside class="w-full md:w-64 space-y-2">
+                <h2 class="text-xl font-bold mb-6">MY SHOP</h2>
+                <a href="#" class="block px-4 py-2 bg-black text-white rounded font-bold">Dashboard</a>
+                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Order History</a>
+                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Saved Designs</a>
+                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Profile</a>
+                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600"
+                    onclick="logout()">Logout</a>
+            </aside>
+
+            <!-- Content -->
+            <div class="flex-1 space-y-12">
+
+                <!-- Welcome -->
+                <div class="bg-gray-50 p-8 rounded-lg border border-gray-200">
+                    <h3 class="text-2xl font-bold mb-2">Hello, STIZ Member!</h3>
+                    <p class="text-gray-500 text-sm">Member since 2025. 12. 09</p>
+                </div>
+
+                <!-- Order Status -->
+                <div>
+                    <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Order Status</h3>
+                    <div class="grid grid-cols-4 gap-4 text-center py-6">
+                        <div class="relative">
+                            <div class="text-3xl font-bold mb-1">0</div>
+                            <div class="text-xs text-gray-500">Payment Pending</div>
+                        </div>
+                        <div class="relative">
+                            <div class="text-3xl font-bold mb-1 text-brand-red">1</div>
+                            <div class="text-xs text-gray-500">Processing</div>
+                        </div>
+                        <div class="relative">
+                            <div class="text-3xl font-bold mb-1">0</div>
+                            <div class="text-xs text-gray-500">Shipped</div>
+                        </div>
+                        <div class="relative">
+                            <div class="text-3xl font-bold mb-1">0</div>
+                            <div class="text-xs text-gray-500">Delivered</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Orders -->
+                <div>
+                    <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Recent Orders</h3>
+                    <!-- Mock Item -->
+                    <div class="border border-gray-200 rounded-lg p-6 flex flex-col sm:flex-row items-center gap-6">
+                        <div class="w-20 h-20 bg-gray-100 rounded overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=1790&auto=format&fit=crop"
+                                class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1 text-center sm:text-left">
+                            <div class="text-xs text-gray-500 mb-1">2025-12-09 (Order #STIZ-2025-001)</div>
+                            <div class="font-bold text-sm">STIZ Elite Soccer Kit</div>
+                            <div class="text-sm">₩ 98,000 / 2 ea</div>
+                        </div>
+                        <div class="text-right">
+                            <span
+                                class="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">Processing</span>
+                            <button class="block mt-2 text-xs underline text-gray-500">Track Order</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/header_render.js"></script>
+    <script src="js/chatbot.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Redirect if not logged in
+        if (!isLoggedIn()) {
+            location.href = 'login.html';
+        }
+    </script>
+</body>
+
+</html>

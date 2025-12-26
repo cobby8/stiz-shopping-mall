@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Design Lab - Customize Your Gear</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Pretendard -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+    <!-- Sports Fonts (30 selections) -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Black+Han+Sans&family=Black+Ops+One&family=Bungee+Inline&family=Changa:wght@200..800&family=Chusso&family=College&family=Do+Hyeon&family=Faster+One&family=Graduate&family=Gugi&family=Hammersmith+One&family=Impact&family=Jua&family=Kanit:ital,wght@0,100..900;1,100..900&family=Knewave&family=Lemon&family=Lobster&family=Moirai+One&family=Monoton&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Sans+KR:wght@100..900&family=Orbitron:wght@400..900&family=Oswald:wght@200..700&family=Pacifico&family=Passion+One:wght@400;700;900&family=Permanent+Marker&family=Racing+Sans+One&family=Righteous&family=Roboto+Slab:wght@100..900&family=Rowdies:wght@300;400;700&family=Russo+One&family=Shojumaru&family=Sigmar&family=Squada+One&family=Stardos+Stencil:wght@400;700&family=Teko:wght@300..700&family=Titan+One&family=Tourney:ital,wght@0,100..900;1,100..900&family=Wallpoet&display=swap"
+        rel="stylesheet">
+
+    <!-- Fabric.js -->
+    <script src="https://unpkg.com/fabric@5.3.0/dist/fabric.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        .canvas-container {
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white h-screen flex flex-col overflow-hidden">
+
+    <!-- Header (Simplified for Tool) -->
+    <header class="bg-black text-white px-6 h-16 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-4">
+            <a href="index.html" class="block hover:opacity-80 transition-opacity">
+                <img src="images/logo_white.png" alt="STIZ Design Lab" class="h-8 w-auto">
+            </a>
+            <span class="text-xs text-gray-400 border-l border-gray-600 pl-4">BETA v1.0</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button id="save-btn"
+                class="bg-white text-black px-4 py-1.5 text-sm font-bold rounded hover:bg-gray-200 transition-colors">
+                SAVE DESIGN
+            </button>
+            <a href="index.html" class="text-gray-400 hover:text-white text-sm">Exit</a>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+
+        <!-- Left Sidebar: Tools -->
+        <aside
+            class="w-full md:w-80 bg-white border-b md:border-b-0 md:border-r border-gray-200 flex flex-col z-10 shadow-lg order-2 md:order-1 h-[45%] md:h-auto relative">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 shrink-0">
+                <button class="flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-center border-b-2 border-black"
+                    data-tab="product">PRODUCT</button>
+                <button
+                    class="flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-center text-gray-400 hover:text-black"
+                    data-tab="color">COLOR</button>
+                <button
+                    class="flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-center text-gray-400 hover:text-black"
+                    data-tab="text">TEXT</button>
+                <button
+                    class="flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-center text-gray-400 hover:text-black"
+                    data-tab="logo">LOGO</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-6" id="tool-panel">
+
+                <!-- Product Tool -->
+                <div id="panel-product" class="space-y-6">
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Select Base Product</h3>
+                        <div class="grid grid-cols-2 gap-3" id="product-list">
+                            <div class="cursor-pointer border-2 border-black rounded-lg overflow-hidden group"
+                                onclick="changeBaseProduct('images/products/uniform_basket.png', 'Basketball Kit Pro')">
+                                <img src="images/products/uniform_basket.png"
+                                    class="w-full h-auto transition-transform group-hover:scale-105">
+                                <div class="p-2 text-center text-xs font-bold bg-gray-50">Basketball</div>
+                            </div>
+                            <div class="cursor-pointer border border-gray-200 rounded-lg overflow-hidden group hover:border-black"
+                                onclick="changeBaseProduct('images/products/uniform_soccer.png', 'Soccer Kit Elite')">
+                                <img src="images/products/uniform_soccer.png"
+                                    class="w-full h-auto transition-transform group-hover:scale-105">
+                                <div class="p-2 text-center text-xs font-bold bg-gray-50">Soccer</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color Tool -->
+                <div id="panel-color" class="hidden space-y-8">
+                    <!-- Main Body Color -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center">
+                            <span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span>
+                            Main Body Color
+                        </h3>
+                        <div class="grid grid-cols-5 gap-2" id="color-palette-main">
+                            <!-- JS Generated -->
+                        </div>
+                    </div>
+
+                    <!-- Point/Trim Color -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center">
+                            <span class="w-3 h-3 rounded-full border border-gray-400 mr-2"></span>
+                            Point Color (Trim)
+                        </h3>
+                        <div class="grid grid-cols-5 gap-2" id="color-palette-point">
+                            <!-- JS Generated -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Text Tool -->
+                <div id="panel-text" class="hidden space-y-6">
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Add Text</h3>
+                        <div class="flex space-x-2 mb-4">
+                            <input type="text" id="text-input" placeholder="Number or Name"
+                                class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-black">
+                            <button id="add-text-btn"
+                                class="bg-black text-white px-3 py-2 rounded text-sm font-bold">+</button>
+                        </div>
+
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Font Style</h3>
+                        <!-- New Font List UI -->
+                        <div class="border border-gray-200 rounded-lg h-40 md:h-56 overflow-y-auto p-2 bg-gray-50 space-y-1 mb-4"
+                            id="font-list">
+                            <!-- JS Generated: Items will be here -->
+                            <div class="text-center text-gray-400 text-xs py-4">Loading Fonts...</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Text Color</h3>
+                        <div class="grid grid-cols-5 gap-2" id="text-color-palette"></div>
+                    </div>
+                </div>
+
+                <!-- Logo Tool -->
+                <div id="panel-logo" class="hidden space-y-8">
+                    <!-- 1. Upload Section -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Custom Upload</h3>
+                        <div class="relative">
+                            <input type="file" id="logo-upload" class="hidden" accept="image/*">
+                            <label for="logo-upload"
+                                class="flex flex-col items-center justify-center w-full h-24 md:h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-black hover:bg-gray-50 transition-all group">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <svg class="w-6 h-6 md:w-8 md:h-8 mb-3 text-gray-400 group-hover:text-black"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                                        </path>
+                                    </svg>
+                                    <p class="text-xs md:text-sm text-gray-500 group-hover:text-black"><span
+                                            class="font-bold">Click to upload</span></p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100 my-4"></div>
+
+                    <!-- 2. AI Smart Logo Creator -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xs font-bold text-gray-500 uppercase">AI Emblem Generator</h3>
+                            <span class="bg-black text-white text-[10px] px-1.5 py-0.5 rounded font-bold">BETA</span>
+                        </div>
+
+                        <div class="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                            <!-- 1. Team Info -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Team Name (팀명)</label>
+                                <input type="text" id="ai-team-name" placeholder="STIZ FC"
+                                    class="w-full text-xs border border-gray-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-black">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Slogan (문구)</label>
+                                    <input type="text" id="ai-slogan" placeholder="Win Together"
+                                        class="w-full text-xs border border-gray-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-black">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Year (창단년도)</label>
+                                    <input type="number" id="ai-year" placeholder="2024"
+                                        class="w-full text-xs border border-gray-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-black">
+                                </div>
+                            </div>
+
+                            <!-- 2. Logo Style Selection -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Logo Type (형태)</label>
+                                <select id="ai-logo-style"
+                                    class="w-full text-xs border border-gray-200 rounded px-2 py-2 bg-white focus:outline-none focus:border-black">
+                                    <option value="Emblem" selected>🛡️ Emblem (엠블럼)</option>
+                                    <option value="Typography">🅰️ Text/Typography (텍스트)</option>
+                                    <option value="Symbol">🦁 Symbol/Icon (심볼)</option>
+                                    <option value="Mascot Character">🐯 Mascot Character (캐릭터)</option>
+                                </select>
+                            </div>
+
+                            <!-- 3. Context/Prompt Addition -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Additional Request (추가
+                                    요청)</label>
+                                <textarea id="ai-logo-prompt" rows="2"
+                                    placeholder="Ex: Red and Gold colors, aggressive lion..."
+                                    class="w-full text-xs border border-gray-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-black"></textarea>
+                            </div>
+
+                            <button id="btn-generate-ai-logo"
+                                class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 rounded-lg text-sm font-bold shadow-md transition-all flex items-center justify-center">
+                                ✨ Generate AI Logo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Center: Canvas -->
+        <section
+            class="w-full md:flex-1 bg-gray-100 flex items-center justify-center relative canvas-container overflow-hidden order-1 md:order-2 h-[55%] md:h-auto border-b md:border-b-0 border-gray-200">
+            <div
+                class="bg-white shadow-2xl rounded-sm transform scale-[0.6] md:scale-100 transition-transform origin-center">
+                <canvas id="c" width="600" height="700"></canvas>
+            </div>
+
+            <!-- Floating Controls -->
+            <div
+                class="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-full shadow-lg flex space-x-4 items-center whitespace-nowrap">
+                <button id="zoom-in" class="text-gray-600 hover:text-black text-lg md:text-xl font-bold">+</button>
+                <button id="zoom-out" class="text-gray-600 hover:text-black text-lg md:text-xl font-bold">-</button>
+                <span class="border-l border-gray-200 mx-1 md:mx-2 h-4 md:h-6"></span>
+                <button id="clear-canvas"
+                    class="text-red-500 hover:text-red-700 text-xs md:text-sm font-bold">RESET</button>
+            </div>
+        </section>
+
+        <!-- Right Sidebar: Summary (Collapsible) -->
+        <aside class="w-72 bg-white border-l border-gray-200 p-6 hidden md:block order-3">
+            <h2 class="font-bold text-lg mb-4">Summary</h2>
+            <div class="space-y-4 text-sm">
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-500">Base Model</span>
+                    <span class="font-medium">Basketball Kit Pro</span>
+                </div>
+                <!-- Price -->
+                <div class="mt-8 pt-4 border-t border-black">
+                    <div class="flex justify-between items-center mb-6">
+                        <span class="font-bold text-lg">Total</span>
+                        <span class="font-bold text-xl text-brand-red">₩ 49,000</span>
+                    </div>
+                    <button
+                        class="w-full bg-black text-white py-4 font-bold tracking-wide hover:bg-gray-800 transition-colors">
+                        ADD TO CART
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <script src="js/custom_2d.js"></script>
+</body>
+
+</html>

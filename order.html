@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - STIZ</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white">
+
+    <header class="fixed w-full z-50 bg-white text-black border-b border-gray-100" data-include="layout/header.html">
+    </header>
+    <div class="h-20"></div>
+
+    <main class="container mx-auto px-6 py-12">
+        <h1 class="text-3xl font-bold mb-10 tracking-tight">CHECKOUT</h1>
+
+        <div class="flex flex-col lg:flex-row gap-12">
+
+            <!-- Information Form -->
+            <div class="flex-1 space-y-8">
+
+                <!-- Section 1: Contact -->
+                <div class="bg-white p-6 border border-gray-200 rounded-lg">
+                    <h2 class="text-xl font-bold mb-4">Contact Information</h2>
+                    <input type="email" placeholder="Email address"
+                        class="w-full border border-gray-300 rounded px-4 py-3 text-sm mb-2 focus:border-black focus:ring-black">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="newsletter" class="mr-2">
+                        <label for="newsletter" class="text-xs text-gray-500">Email me with news and offers</label>
+                    </div>
+                </div>
+
+                <!-- Section 2: Shipping -->
+                <div class="bg-white p-6 border border-gray-200 rounded-lg">
+                    <h2 class="text-xl font-bold mb-4">Shipping Address</h2>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <input type="text" placeholder="First Name"
+                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
+                        <input type="text" placeholder="Last Name"
+                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
+                    </div>
+                    <input type="text" placeholder="Address"
+                        class="w-full border border-gray-300 rounded mb-4 px-4 py-3 text-sm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="text" placeholder="City"
+                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
+                        <input type="text" placeholder="Postal Code"
+                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
+                    </div>
+                </div>
+
+                <!-- Section 3: Payment -->
+                <div class="bg-white p-6 border border-gray-200 rounded-lg">
+                    <h2 class="text-xl font-bold mb-4">Payment</h2>
+                    <p class="text-xs text-gray-500 mb-4">All transactions are secure and encrypted.</p>
+
+                    <div class="space-y-3">
+                        <label class="flex items-center p-4 border border-black rounded-lg bg-gray-50 cursor-pointer">
+                            <input type="radio" name="payment" checked class="text-black focus:ring-black">
+                            <span class="ml-3 font-bold text-sm">Credit Card (PG Mock)</span>
+                        </label>
+                        <label
+                            class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-black">
+                            <input type="radio" name="payment" class="text-black focus:ring-black">
+                            <span class="ml-3 font-bold text-sm">Bank Transfer</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button onclick="processOrder()"
+                    class="w-full bg-brand-red text-white py-4 font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg">
+                    PAY NOW
+                </button>
+            </div>
+
+            <!-- Side Summary -->
+            <div class="w-full lg:w-96 bg-gray-50 p-8 rounded-lg h-fit">
+                <h2 class="font-bold text-lg mb-6">In Your Cart</h2>
+                <div id="mini-cart" class="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2">
+                    <!-- JS Injected -->
+                </div>
+
+                <div class="border-t border-gray-200 pt-4 text-sm space-y-2">
+                    <div class="flex justify-between">
+                        <span>Subtotal</span>
+                        <span id="order-subtotal">₩ 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Shipping</span>
+                        <span>Free</span>
+                    </div>
+                </div>
+                <div class="border-t border-gray-200 pt-4 mt-4 flex justify-between items-center">
+                    <span class="font-bold text-lg">Total</span>
+                    <span class="font-bold text-xl text-black" id="order-total">₩ 0</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/cart.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cart = getCart();
+            const container = document.getElementById('mini-cart');
+
+            cart.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'flex items-center gap-4';
+                el.innerHTML = `
+                    <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden relative border border-gray-200">
+                        <img src="${item.image}" class="w-full h-full object-cover">
+                        <span class="absolute top-0 right-0 bg-gray-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-bl">${item.qty}</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-xs font-bold truncate">${item.name}</p>
+                        <p class="text-[10px] text-gray-500">${item.size}</p>
+                    </div>
+                    <span class="text-xs font-medium">₩${(item.price * item.qty).toLocaleString()}</span>
+                `;
+                container.appendChild(el);
+            });
+
+            const total = getCartTotal();
+            const formatted = '₩ ' + total.toLocaleString();
+            document.getElementById('order-subtotal').innerText = formatted;
+            document.getElementById('order-total').innerText = formatted;
+        });
+
+        function processOrder() {
+            // Mock Processing
+            const btn = document.querySelector('button[onclick="processOrder()"]');
+            btn.innerText = 'Processing...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                // Clear cart after order
+                clearCart();
+                // Redirect to success
+                location.href = 'order_result.html';
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>
