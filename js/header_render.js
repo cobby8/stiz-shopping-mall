@@ -44,9 +44,9 @@ function renderHeader() {
                 </div>
             </div>
 
-            <!-- 2. CUSTOMIZING (Mega Menu) - HIDDEN FOR MVP
+            <!-- 2. TEAMWEAR (Mega Menu) - RESTORED & RENAMED -->
             <div class="group h-full flex items-center relative">
-                <a href="list.html?type=custom" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase text-blue-600">CUSTOMIZING</a>
+                <a href="list.html?type=custom" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase text-blue-600">TEAMWEAR</a>
                 <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-[600px] bg-white text-black shadow-2xl border-t border-black py-8 z-40">
                     <div class="grid grid-cols-2 gap-8 px-8">
                         <div>
@@ -55,8 +55,13 @@ function renderHeader() {
                                 <li><a href="list.html?type=custom&category=basketball" class="hover:text-blue-600 font-medium">농구 유니폼 (Basketball)</a></li>
                                 <li><a href="list.html?type=custom&category=soccer" class="hover:text-blue-600 font-medium">축구 유니폼 (Soccer)</a></li>
                                 <li><a href="list.html?type=custom&category=volleyball" class="hover:text-blue-600 font-medium">배구 유니폼 (Volleyball)</a></li>
-                                <li><a href="list.html?type=custom&category=baseball" class="hover:text-blue-600 font-medium">야구 유니폼 (Baseball)</a></li>
-                                <li><a href="list.html?type=custom&category=teamwear" class="hover:text-blue-600 font-medium">트레이닝복 / 웜업</a></li>
+                                <!-- Baseball Removed -->
+                                <li>
+                                    <a href="list.html?type=custom&category=teamwear" class="hover:text-blue-600 font-medium flex items-center">
+                                        트레이닝복 / 웜업
+                                        <span class="ml-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold tracking-wider animate-pulse">NEW</span>
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                         <div class="bg-gray-50 p-6 rounded-xl">
@@ -73,7 +78,6 @@ function renderHeader() {
                     </div>
                 </div>
             </div>
-            -->
 
             <!-- 3. STORE (Dropdown) -->
             <div class="group h-full flex items-center relative">
@@ -132,17 +136,20 @@ function renderHeader() {
     <!-- Mobile Menu -->
     <div id="mobile-menu" class="hidden md:hidden bg-white text-black absolute top-20 left-0 w-full shadow-lg border-t z-50">
         <div class="flex flex-col p-6 space-y-6">
-            <!-- CUSTOMIZING Mobile Menu - HIDDEN FOR MVP
+            <!-- TEAMWEAR Mobile Menu - RESTORED & RENAMED -->
             <div>
-                <h3 class="font-bold text-gray-400 text-xs mb-2">CUSTOMIZING</h3>
+                <h3 class="font-bold text-gray-400 text-xs mb-2">TEAMWEAR</h3>
                 <a href="list.html?type=custom" class="block text-xl font-bold mb-2">팀웨어 제작</a>
                 <div class="pl-4 space-y-2 text-sm text-gray-600">
                     <a href="list.html?type=custom&category=soccer" class="block">축구</a>
                     <a href="list.html?type=custom&category=basketball" class="block">농구</a>
-                    <a href="list.html?type=custom&category=baseball" class="block">야구</a>
+                    <!-- Baseball Removed -->
+                    <a href="list.html?type=custom&category=teamwear" class="block flex items-center">
+                        트레이닝복 / 웜업
+                        <span class="ml-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+                    </a>
                 </div>
             </div>
-            -->
             <div class="border-t pt-4">
                 <h3 class="font-bold text-gray-400 text-xs mb-2">STORE</h3>
                 <a href="list.html?type=store" class="block text-xl font-bold mb-2">스토어</a>

@@ -11,18 +11,37 @@ function initChatbot() {
     // 1. Create Floating Button & Chat Window
     const body = document.body;
 
-    // Floating Button
+    // Check if there is an existing FAB container (e.g. in list.html)
+    const existingFabContainer = document.getElementById('floating-fab');
+
+    // Floating Button (Styled like "Request Free Mockup")
     const chatBtn = document.createElement('div');
     chatBtn.id = 'stiz-chat-btn';
-    chatBtn.className = 'fixed bottom-8 right-8 w-16 h-16 bg-black text-white rounded-full flex items-center justify-center cursor-pointer shadow-2xl z-50 hover:scale-110 transition-transform duration-300 group';
+
+    // Base classes (Pill shape, Black bg, etc.)
+    const baseClasses = 'w-48 py-3 text-center text-sm font-bold shadow-2xl transition-all flex items-center justify-center space-x-2 rounded-full border-2 border-white ring-1 ring-black/10 bg-black text-white hover:bg-gray-800 cursor-pointer group z-50';
+
+    if (existingFabContainer) {
+        // If FAB container exists, append to it (stacks vertically)
+        // Reset fixed positioning as the container handles it
+        // Remove 'fixed bottom-8 right-6' if present in base class, but baseClasses variable doesn't have it.
+        // It has z-50.
+        chatBtn.className = baseClasses;
+        existingFabContainer.appendChild(chatBtn);
+    } else {
+        // Standalone (e.g. index.html) - Use fixed positioning
+        chatBtn.className = `fixed bottom-8 right-6 ${baseClasses}`;
+        body.appendChild(chatBtn);
+    }
+
     chatBtn.innerHTML = `
-        <div class="absolute -top-10 right-0 bg-white text-black px-3 py-1 rounded-lg text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">Run AI</div>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
         </svg>
-        <span class="absolute -top-1 -right-1 flex h-4 w-4">
+        <span>AI상담사 연결하기</span>
+        <span class="absolute -top-1 -right-1 flex h-3 w-3">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[8px] text-white justify-center items-center">AI</span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
         </span>
     `;
 
