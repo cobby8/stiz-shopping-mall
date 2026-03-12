@@ -5,7 +5,15 @@
 document.addEventListener('DOMContentLoaded', () => {
     renderHeader();
     renderFooter();
+    loadAnalytics();
 });
+
+function loadAnalytics() {
+    if (document.querySelector('script[src*="analytics.js"]')) return;
+    const s = document.createElement('script');
+    s.src = 'js/analytics.js';
+    document.head.appendChild(s);
+}
 
 function renderHeader() {
     const isMainPage = document.querySelector('body').classList.contains('page-main');
