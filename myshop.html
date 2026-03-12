@@ -31,6 +31,7 @@
 
 <body class="font-sans antialiased text-gray-900 bg-white">
 
+    <!-- HEADER -->
     <header></header>
     <div class="h-20"></div>
     <div class="h-20"></div>
@@ -41,64 +42,84 @@
             <!-- Sidebar Nav -->
             <aside class="w-full md:w-64 space-y-2">
                 <h2 class="text-xl font-bold mb-6">MY SHOP</h2>
-                <a href="#" class="block px-4 py-2 bg-black text-white rounded font-bold">Dashboard</a>
-                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Order History</a>
-                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Saved Designs</a>
-                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Profile</a>
-                <a href="#" class="block px-4 py-2 hover:bg-gray-100 rounded text-gray-600"
-                    onclick="logout()">Logout</a>
+                <button onclick="showTab('dashboard')" id="tab-dashboard"
+                    class="block w-full text-left px-4 py-2 bg-black text-white rounded font-bold">Dashboard</button>
+                <button onclick="showTab('orders')" id="tab-orders"
+                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Order History</button>
+                <button onclick="showTab('profile')" id="tab-profile"
+                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Profile</button>
+                <button onclick="logout()"
+                    class="block w-full text-left px-4 py-2 hover:bg-red-50 rounded text-red-500 mt-4">Logout</button>
             </aside>
 
             <!-- Content -->
-            <div class="flex-1 space-y-12">
+            <div class="flex-1">
 
-                <!-- Welcome -->
-                <div class="bg-gray-50 p-8 rounded-lg border border-gray-200">
-                    <h3 class="text-2xl font-bold mb-2">Hello, STIZ Member!</h3>
-                    <p class="text-gray-500 text-sm">Member since 2025. 12. 09</p>
-                </div>
+                <!-- Dashboard Tab -->
+                <div id="content-dashboard" class="space-y-8">
+                    <div class="bg-gray-50 p-8 rounded-lg border border-gray-200">
+                        <h3 class="text-2xl font-bold mb-2" id="welcome-name">Hello!</h3>
+                        <p class="text-gray-500 text-sm" id="welcome-date"></p>
+                    </div>
 
-                <!-- Order Status -->
-                <div>
-                    <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Order Status</h3>
-                    <div class="grid grid-cols-4 gap-4 text-center py-6">
-                        <div class="relative">
-                            <div class="text-3xl font-bold mb-1">0</div>
-                            <div class="text-xs text-gray-500">Payment Pending</div>
+                    <!-- Order Status Summary -->
+                    <div>
+                        <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Order Status</h3>
+                        <div class="grid grid-cols-4 gap-4 text-center py-6">
+                            <div>
+                                <div class="text-3xl font-bold mb-1" id="stat-pending">0</div>
+                                <div class="text-xs text-gray-500">Pending</div>
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold mb-1 text-blue-600" id="stat-processing">0</div>
+                                <div class="text-xs text-gray-500">Processing</div>
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold mb-1" id="stat-shipped">0</div>
+                                <div class="text-xs text-gray-500">Shipped</div>
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold mb-1 text-green-600" id="stat-delivered">0</div>
+                                <div class="text-xs text-gray-500">Delivered</div>
+                            </div>
                         </div>
-                        <div class="relative">
-                            <div class="text-3xl font-bold mb-1 text-brand-red">1</div>
-                            <div class="text-xs text-gray-500">Processing</div>
-                        </div>
-                        <div class="relative">
-                            <div class="text-3xl font-bold mb-1">0</div>
-                            <div class="text-xs text-gray-500">Shipped</div>
-                        </div>
-                        <div class="relative">
-                            <div class="text-3xl font-bold mb-1">0</div>
-                            <div class="text-xs text-gray-500">Delivered</div>
+                    </div>
+
+                    <!-- Recent Orders (preview) -->
+                    <div>
+                        <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Recent Orders</h3>
+                        <div id="recent-orders" class="space-y-4">
+                            <p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Recent Orders -->
-                <div>
-                    <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Recent Orders</h3>
-                    <!-- Mock Item -->
-                    <div class="border border-gray-200 rounded-lg p-6 flex flex-col sm:flex-row items-center gap-6">
-                        <div class="w-20 h-20 bg-gray-100 rounded overflow-hidden">
-                            <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=1790&auto=format&fit=crop"
-                                class="w-full h-full object-cover">
+                <!-- Orders Tab -->
+                <div id="content-orders" class="hidden space-y-6">
+                    <h3 class="text-2xl font-bold mb-4">Order History</h3>
+                    <div id="all-orders" class="space-y-4">
+                        <p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>
+                    </div>
+                </div>
+
+                <!-- Profile Tab -->
+                <div id="content-profile" class="hidden space-y-6">
+                    <h3 class="text-2xl font-bold mb-4">Profile Settings</h3>
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 space-y-4 max-w-lg">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Name</label>
+                            <input type="text" id="profile-name" readonly
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
                         </div>
-                        <div class="flex-1 text-center sm:text-left">
-                            <div class="text-xs text-gray-500 mb-1">2025-12-09 (Order #STIZ-2025-001)</div>
-                            <div class="font-bold text-sm">STIZ Elite Soccer Kit</div>
-                            <div class="text-sm">₩ 98,000 / 2 ea</div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Email</label>
+                            <input type="email" id="profile-email" readonly
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
                         </div>
-                        <div class="text-right">
-                            <span
-                                class="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">Processing</span>
-                            <button class="block mt-2 text-xs underline text-gray-500">Track Order</button>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Member Since</label>
+                            <input type="text" id="profile-joined" readonly
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
                         </div>
                     </div>
                 </div>
@@ -107,16 +128,94 @@
         </div>
     </main>
 
+    <!-- FOOTER -->
     <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
 
     <script src="js/main.js"></script>
     <script src="js/header_render.js"></script>
     <script src="js/chatbot.js"></script>
+    <script src="js/cart.js"></script>
     <script src="js/auth.js"></script>
     <script>
         // Redirect if not logged in
         if (!isLoggedIn()) {
             location.href = 'login.html';
+        }
+
+        // Tab switching
+        function showTab(tab) {
+            ['dashboard', 'orders', 'profile'].forEach(t => {
+                document.getElementById('content-' + t).classList.add('hidden');
+                document.getElementById('tab-' + t).classList.remove('bg-black', 'text-white', 'font-bold');
+                document.getElementById('tab-' + t).classList.add('text-gray-600');
+            });
+            document.getElementById('content-' + tab).classList.remove('hidden');
+            const btn = document.getElementById('tab-' + tab);
+            btn.classList.add('bg-black', 'text-white', 'font-bold');
+            btn.classList.remove('text-gray-600');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = getUser();
+            if (!user) return;
+
+            // Welcome
+            document.getElementById('welcome-name').innerText = `Hello, ${user.name}!`;
+            const joinDate = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ko-KR') : '';
+            document.getElementById('welcome-date').innerText = `Member since ${joinDate}`;
+
+            // Profile
+            document.getElementById('profile-name').value = user.name;
+            document.getElementById('profile-email').value = user.email;
+            document.getElementById('profile-joined').value = joinDate;
+
+            // Orders
+            const orders = getUserOrders();
+            const pending = orders.filter(o => o.status === 'pending').length;
+            document.getElementById('stat-pending').innerText = pending;
+            document.getElementById('stat-processing').innerText = orders.filter(o => o.status === 'processing').length;
+            document.getElementById('stat-delivered').innerText = orders.filter(o => o.status === 'delivered').length;
+
+            if (orders.length > 0) {
+                renderOrders(orders.slice(0, 3), 'recent-orders');
+                renderOrders(orders, 'all-orders');
+            }
+        });
+
+        function renderOrders(orders, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            orders.forEach(order => {
+                const statusColors = {
+                    pending: 'bg-yellow-100 text-yellow-800',
+                    processing: 'bg-blue-100 text-blue-800',
+                    shipped: 'bg-purple-100 text-purple-800',
+                    delivered: 'bg-green-100 text-green-800',
+                };
+                const statusClass = statusColors[order.status] || statusColors.pending;
+                const date = new Date(order.createdAt).toLocaleDateString('ko-KR');
+                const itemCount = order.items ? order.items.length : 0;
+                const firstItem = order.items && order.items[0];
+
+                const el = document.createElement('div');
+                el.className = 'border border-gray-200 rounded-lg p-6 flex flex-col sm:flex-row items-center gap-6';
+                el.innerHTML = `
+                    ${firstItem ? `
+                    <div class="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                        <img src="${firstItem.image}" class="w-full h-full object-cover">
+                    </div>` : ''}
+                    <div class="flex-1 text-center sm:text-left min-w-0">
+                        <div class="text-xs text-gray-500 mb-1">${date} (Order #${order.orderNumber})</div>
+                        <div class="font-bold text-sm truncate">${firstItem ? firstItem.name : 'Order'}${itemCount > 1 ? ` +${itemCount - 1} more` : ''}</div>
+                        <div class="text-sm text-gray-600">₩${(order.total || 0).toLocaleString()}</div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <span class="inline-block px-3 py-1 ${statusClass} text-xs font-bold rounded-full capitalize">${order.status || 'pending'}</span>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
         }
     </script>
 </body>

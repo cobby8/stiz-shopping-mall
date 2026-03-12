@@ -67,7 +67,15 @@
                     </div>
                     <div class="flex justify-between mb-4 text-sm">
                         <span class="text-gray-600">Shipping</span>
-                        <span class="text-gray-600" id="shipping-cost">Calculated at checkout</span>
+                        <span class="font-bold" id="shipping-cost">₩ 0</span>
+                    </div>
+
+                    <!-- Free Shipping Progress -->
+                    <div id="shipping-progress" class="mb-4 hidden">
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div id="shipping-bar" class="bg-black h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+                        </div>
+                        <p class="text-xs text-gray-500" id="shipping-msg"></p>
                     </div>
 
                     <div class="border-t border-gray-200 my-6 pt-6 flex justify-between items-center">
@@ -80,8 +88,13 @@
                         Proceed to Checkout
                     </button>
 
+                    <button onclick="clearCart()" id="clear-cart-btn"
+                        class="w-full border border-gray-300 text-gray-500 py-3 font-bold rounded hover:border-red-500 hover:text-red-500 transition-colors text-sm mt-3 hidden">
+                        Clear Cart
+                    </button>
+
                     <p class="text-xs text-gray-400 mt-4 text-center">
-                        Prices include tax. Shipping calculated at checkout.
+                        Free shipping on orders over ₩50,000
                     </p>
                 </div>
             </div>
@@ -102,49 +115,97 @@
         function renderCart() {
             const cart = getCart();
             const container = document.getElementById('cart-container');
-            const emptyMsg = document.getElementById('empty-msg');
             const checkoutBtn = document.getElementById('checkout-btn');
+            const clearBtn = document.getElementById('clear-cart-btn');
 
-            // Clear current list (except header/empty msg handled below)
             container.innerHTML = '';
 
             if (cart.length === 0) {
-                container.appendChild(emptyMsg);
-                emptyMsg.style.display = 'block';
+                container.innerHTML = `
+                    <div class="py-16 text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/>
+                        </svg>
+                        <p class="text-lg font-bold text-gray-400 mb-2">장바구니가 비어있습니다</p>
+                        <a href="list.html" class="inline-block mt-4 px-6 py-3 bg-black text-white text-sm font-bold rounded hover:bg-gray-800 transition-colors">Continue Shopping</a>
+                    </div>`;
 
-                document.getElementById('subtotal').innerText = '0';
-                document.getElementById('total').innerText = '0';
+                document.getElementById('subtotal').innerText = '₩ 0';
+                document.getElementById('shipping-cost').innerText = '₩ 0';
+                document.getElementById('total').innerText = '₩ 0';
+                document.getElementById('shipping-progress').classList.add('hidden');
                 checkoutBtn.disabled = true;
+                clearBtn.classList.add('hidden');
                 return;
             }
 
-            emptyMsg.style.display = 'none';
             checkoutBtn.disabled = false;
+            clearBtn.classList.remove('hidden');
 
             cart.forEach((item, index) => {
                 const el = document.createElement('div');
-                el.className = 'flex flex-col sm:flex-row items-center gap-6 py-6 border-b border-gray-100';
+                el.className = 'flex items-center gap-4 sm:gap-6 py-6 border-b border-gray-100';
                 el.innerHTML = `
-                    <div class="w-24 h-24 bg-gray-100 flex-shrink-0">
-                        <img src="${item.image}" class="w-full h-full object-cover">
+                    <div class="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
+                        <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover">
                     </div>
-                    <div class="flex-1 text-center sm:text-left">
-                        <h3 class="font-bold text-sm mb-1">${item.name}</h3>
-                        <p class="text-xs text-gray-500 mb-2">Size: ${item.size || 'Free'} / Qty: ${item.qty}</p>
-                        <button onclick="removeFromCart(${index})" class="text-xs text-gray-400 underline hover:text-red-500">Remove</button>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold text-sm mb-1 truncate">${item.name}</h3>
+                        <p class="text-xs text-gray-500 mb-1">Size: ${item.size || 'Free'}</p>
+                        <p class="text-xs text-gray-500 mb-3">₩${item.price.toLocaleString()} each</p>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center border border-gray-200 rounded">
+                                <button onclick="updateCartItemQty(${index}, ${item.qty - 1})"
+                                    class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-100 transition-colors text-lg font-bold">−</button>
+                                <span class="w-10 h-8 flex items-center justify-center text-sm font-bold border-x border-gray-200">${item.qty}</span>
+                                <button onclick="updateCartItemQty(${index}, ${item.qty + 1})"
+                                    class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-100 transition-colors text-lg font-bold">+</button>
+                            </div>
+                            <button onclick="removeFromCart(${index})" class="text-xs text-gray-400 hover:text-red-500 transition-colors" title="Remove">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="font-bold text-sm">
-                        ₩ ${(item.price * item.qty).toLocaleString()}
+                    <div class="font-bold text-sm text-right flex-shrink-0">
+                        ₩${(item.price * item.qty).toLocaleString()}
                     </div>
                 `;
                 container.appendChild(el);
             });
 
             // Update Summary
-            const total = getCartTotal();
-            const formatted = '₩ ' + total.toLocaleString();
-            document.getElementById('subtotal').innerText = formatted;
-            document.getElementById('total').innerText = formatted;
+            const subtotal = getCartTotal();
+            const shipping = getShippingCost();
+            const grandTotal = getGrandTotal();
+
+            document.getElementById('subtotal').innerText = '₩ ' + subtotal.toLocaleString();
+            document.getElementById('shipping-cost').innerText = shipping === 0 ? 'FREE' : '₩ ' + shipping.toLocaleString();
+            document.getElementById('shipping-cost').className = shipping === 0 ? 'font-bold text-green-600' : 'font-bold';
+            document.getElementById('total').innerText = '₩ ' + grandTotal.toLocaleString();
+
+            // Free shipping progress bar
+            const progressEl = document.getElementById('shipping-progress');
+            const barEl = document.getElementById('shipping-bar');
+            const msgEl = document.getElementById('shipping-msg');
+
+            if (subtotal > 0 && subtotal < 50000) {
+                progressEl.classList.remove('hidden');
+                const pct = Math.min((subtotal / 50000) * 100, 100);
+                barEl.style.width = pct + '%';
+                const remaining = 50000 - subtotal;
+                msgEl.innerText = `₩${remaining.toLocaleString()} more for free shipping!`;
+            } else if (subtotal >= 50000) {
+                progressEl.classList.remove('hidden');
+                barEl.style.width = '100%';
+                barEl.classList.remove('bg-black');
+                barEl.classList.add('bg-green-600');
+                msgEl.innerText = '🎉 Free shipping applied!';
+                msgEl.classList.add('text-green-600', 'font-bold');
+            } else {
+                progressEl.classList.add('hidden');
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {

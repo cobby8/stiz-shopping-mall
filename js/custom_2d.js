@@ -12,39 +12,72 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 2. Advanced Product Rendering (Layered)
-    // State
     const productState = {
         baseColor: '#ffffff',
         pointColor: '#000000',
+        sport: 'soccer',
     };
 
-    // Layer Objects
     let layers = {
         bodyColorRect: null,
         pointColorRect: null,
-        baseShading: null
+    };
+
+    // Sport-specific jersey templates
+    const templates = {
+        soccer: {
+            body: { width: 300, height: 380, top: 130, left: 150 },
+            sleeves: [
+                { width: 70, height: 160, top: 130, left: 80 },
+                { width: 70, height: 160, top: 130, left: 450 }
+            ],
+            collar: { width: 120, height: 25, top: 105, left: 240 },
+            label: 'Soccer Jersey'
+        },
+        basketball: {
+            body: { width: 280, height: 400, top: 120, left: 160 },
+            sleeves: [
+                { width: 40, height: 120, top: 120, left: 120 },
+                { width: 40, height: 120, top: 120, left: 440 }
+            ],
+            collar: { width: 160, height: 40, top: 80, left: 220 },
+            label: 'Basketball Jersey'
+        },
+        volleyball: {
+            body: { width: 320, height: 370, top: 140, left: 140 },
+            sleeves: [
+                { width: 80, height: 140, top: 140, left: 60 },
+                { width: 80, height: 140, top: 140, left: 460 }
+            ],
+            collar: { width: 100, height: 20, top: 120, left: 250 },
+            label: 'Volleyball Jersey'
+        },
+        baseball: {
+            body: { width: 310, height: 400, top: 120, left: 145 },
+            sleeves: [
+                { width: 90, height: 200, top: 120, left: 55 },
+                { width: 90, height: 200, top: 120, left: 455 }
+            ],
+            collar: { width: 80, height: 30, top: 90, left: 260 },
+            label: 'Baseball Jersey'
+        }
     };
 
     window.loadLayeredProduct = function (type) {
         canvas.clear();
         canvas.setBackgroundColor('#f3f4f6', canvas.renderAll.bind(canvas));
 
-        // Clear previous references
         layers.bodyColorRect = null;
         layers.pointColorRect = null;
-        layers.baseShading = null;
 
-        // SIMULATED MASKS (Code-based)
-        // Since we don't have the real transparent PNGs yet, we create shapes to representing the uniform parts.
+        productState.sport = type;
+        const tmpl = templates[type] || templates.soccer;
 
         // A. Body Layer (Main Color)
-        // We make a T-Shirt shape using a Group of Rects or a simplified Rect for demo
-        // For better demo, let's use a standard Rect in the center.
         const bodyMask = new fabric.Rect({
-            width: 320, height: 420, top: 120, left: 140,
+            ...tmpl.body, rx: 8, ry: 8,
             absolutePositioned: true
         });
-
         layers.bodyColorRect = new fabric.Rect({
             left: 0, top: 0, width: 600, height: 700,
             fill: productState.baseColor,
@@ -53,16 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
         layers.bodyColorRect.clipPath = bodyMask;
         canvas.add(layers.bodyColorRect);
 
-
         // B. Point Layer (Trim) - Sleeves/Collar
-        // Sleeves
-        const sleeveL = new fabric.Rect({ width: 60, height: 180, top: 120, left: 80 });
-        const sleeveR = new fabric.Rect({ width: 60, height: 180, top: 120, left: 460 });
-        // Collar
-        const collar = new fabric.Rect({ width: 140, height: 30, top: 90, left: 230 });
+        const pointShapes = [];
+        tmpl.sleeves.forEach(s => pointShapes.push(new fabric.Rect({ ...s, rx: 4, ry: 4 })));
+        pointShapes.push(new fabric.Rect({ ...tmpl.collar, rx: 4, ry: 4 }));
 
-        const pointMaskGroup = new fabric.Group([sleeveL, sleeveR, collar], { absolutePositioned: true });
-
+        const pointMaskGroup = new fabric.Group(pointShapes, { absolutePositioned: true });
         layers.pointColorRect = new fabric.Rect({
             left: 0, top: 0, width: 600, height: 700,
             fill: productState.pointColor,
@@ -71,25 +100,52 @@ document.addEventListener('DOMContentLoaded', () => {
         layers.pointColorRect.clipPath = pointMaskGroup;
         canvas.add(layers.pointColorRect);
 
+        // C. Outline for realism
+        canvas.add(new fabric.Rect({
+            ...tmpl.body, rx: 8, ry: 8,
+            fill: 'transparent', stroke: 'rgba(0,0,0,0.1)', strokeWidth: 2,
+            selectable: false, evented: false
+        }));
 
-        // C. Base Shading (Texture)
-        // We overlay the product image (if available) or just use the colors for now.
-        // For the "Real" effect, we load the basketball/soccer image on top with multiply.
-        // If the provided images are placeholders with backgrounds, they will block. 
-        // Let's rely on the colors + text for now, or try to load the mock image with opacity.
-        // Using `uniform_basket.png` might cover everything if it's opaque.
-        // Let's skip the texture overlay if we don't have a transparent one, 
-        // OR add a dummy text "Texture" to show z-index.
-
-        // Update Summary
         updateSummary();
+    };
+
+    // Player number/name marking
+    window.addPlayerNumber = function () {
+        const numInput = document.getElementById('player-number');
+        const num = numInput ? numInput.value : '10';
+        const text = new fabric.IText(num, {
+            left: 260, top: 280,
+            fontFamily: "'Anton', sans-serif",
+            fill: productState.pointColor === '#ffffff' ? '#000000' : '#ffffff',
+            fontSize: 120, textAlign: 'center',
+            originX: 'center'
+        });
+        canvas.add(text);
+        canvas.setActiveObject(text);
+    };
+
+    window.addPlayerName = function () {
+        const nameInput = document.getElementById('player-name');
+        const name = nameInput ? nameInput.value : 'PLAYER';
+        const text = new fabric.IText(name.toUpperCase(), {
+            left: 300, top: 200,
+            fontFamily: "'Anton', sans-serif",
+            fill: productState.pointColor === '#ffffff' ? '#000000' : '#ffffff',
+            fontSize: 36, textAlign: 'center',
+            originX: 'center', charSpacing: 200
+        });
+        canvas.add(text);
+        canvas.setActiveObject(text);
     };
 
     function updateSummary() {
         const summaryColor = document.getElementById('summary-color');
+        const tmpl = templates[productState.sport] || templates.soccer;
         if (summaryColor) {
             summaryColor.innerHTML = `
                 <div class="flex flex-col text-xs space-y-1">
+                    <span class="font-bold text-gray-700 mb-1">${tmpl.label}</span>
                     <span class="flex items-center"><span class="w-3 h-3 rounded-full border border-gray-200 mr-2" style="background-color:${productState.baseColor}"></span> Main: ${productState.baseColor}</span>
                     <span class="flex items-center"><span class="w-3 h-3 rounded-full border border-gray-200 mr-2" style="background-color:${productState.pointColor}"></span> Point: ${productState.pointColor}</span>
                 </div>
@@ -99,14 +155,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Override Global Switcher
     window.changeBaseProduct = function (url, name) {
-        // Just reload layered for now as we only simulated one shape
-        loadLayeredProduct('basketball');
+        const sport = name.toLowerCase().includes('soccer') ? 'soccer'
+            : name.toLowerCase().includes('basket') ? 'basketball'
+            : name.toLowerCase().includes('volley') ? 'volleyball'
+            : name.toLowerCase().includes('base') ? 'baseball'
+            : 'soccer';
+        loadLayeredProduct(sport);
         const summaryModel = document.querySelector('.w-72 .font-medium');
-        if (summaryModel) summaryModel.textContent = name + ' (Layered)';
+        if (summaryModel) summaryModel.textContent = name;
     };
 
     // Initialize
-    loadLayeredProduct('basketball');
+    loadLayeredProduct('soccer');
 
 
     /* 3. Coloring Logic */

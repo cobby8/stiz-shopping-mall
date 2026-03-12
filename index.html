@@ -5,6 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STIZ - Make Your Team Identity</title>
+    <meta name="description" content="STIZ - Professional custom teamwear and sportswear. Design your team's identity with AI-powered design tools. Soccer, basketball, volleyball uniforms and more.">
+    <meta property="og:title" content="STIZ - Make Your Team Identity">
+    <meta property="og:description" content="Professional Custom Teamwear & Design Lab. AI-powered jersey design for your team.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
 
     <!-- Tailwind CSS (CDN for Dev) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -47,7 +53,7 @@
     <section class="relative h-screen w-full overflow-hidden bg-black text-white">
         <!-- Video Background Placeholder -->
         <div class="absolute inset-0 z-0 opacity-60">
-            <img src="images/hero_bg.jpg" class="w-full h-full object-cover opacity-80" alt="Hero Background">
+            <img src="images/hero_bg.jpg" class="w-full h-full object-cover opacity-80" alt="STIZ Custom Teamwear Hero">
         </div>
 
         <div class="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
@@ -143,8 +149,51 @@
         </div>
     </section>
 
-    <!-- FOOTER (Loaded via JS) -->
-    <!-- FOOTER (Inlined) -->
+    <!-- BEST SELLERS -->
+    <section class="py-24 bg-white">
+        <div class="container mx-auto px-6">
+            <div class="flex justify-between items-end mb-12">
+                <div>
+                    <h2 class="text-3xl font-bold tracking-tight mb-2">BEST SELLERS</h2>
+                    <p class="text-gray-500 text-sm">Our most popular products</p>
+                </div>
+                <a href="list.html" class="text-sm font-bold border-b border-black pb-1 hover:text-gray-600">View All &rarr;</a>
+            </div>
+            <div id="best-sellers-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- JS injected -->
+            </div>
+        </div>
+    </section>
+
+    <!-- NEW ARRIVALS -->
+    <section class="py-24 bg-gray-50">
+        <div class="container mx-auto px-6">
+            <div class="flex justify-between items-end mb-12">
+                <div>
+                    <h2 class="text-3xl font-bold tracking-tight mb-2">NEW ARRIVALS</h2>
+                    <p class="text-gray-500 text-sm">Fresh drops for your team</p>
+                </div>
+                <a href="list.html" class="text-sm font-bold border-b border-black pb-1 hover:text-gray-600">View All &rarr;</a>
+            </div>
+            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- JS injected -->
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA BANNER -->
+    <section class="py-20 bg-black text-white text-center">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 tracking-tight">DESIGN YOUR TEAM IDENTITY</h2>
+            <p class="text-gray-400 mb-8 max-w-lg mx-auto">Use our AI-powered Design Lab to create custom teamwear. Free mockup included.</p>
+            <div class="flex justify-center space-x-4">
+                <a href="custom.html" class="bg-white text-black px-8 py-4 font-bold tracking-widest hover:bg-gray-200 transition-colors uppercase">Design Lab</a>
+                <a href="inquiry.html" class="border border-white text-white px-8 py-4 font-bold tracking-widest hover:bg-white hover:text-black transition-colors uppercase">Contact Us</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
     <footer class="bg-black text-white">
         <div class="container mx-auto px-6 py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -208,9 +257,44 @@
     </footer>
 
     <!-- Scripts -->
+    <script src="js/product-data.js"></script>
+    <script src="js/cart.js"></script>
     <script src="js/main.js"></script>
     <script src="js/header_render.js"></script>
     <script src="js/chatbot.js"></script>
+    <script>
+        function renderProductGrid(items, containerId) {
+            const grid = document.getElementById(containerId);
+            if (!grid || !items.length) return;
+            grid.innerHTML = '';
+
+            items.forEach(p => {
+                const el = document.createElement('div');
+                el.className = 'group cursor-pointer';
+                el.onclick = () => location.href = `detail.html?id=${p.id}`;
+                el.innerHTML = `
+                    <div class="aspect-[3/4] w-full bg-gray-100 overflow-hidden relative mb-3">
+                        <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                        ${p.isNew ? '<span class="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5">NEW</span>' : ''}
+                        ${p.isBest ? '<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5">BEST</span>' : ''}
+                    </div>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">${p.category}</p>
+                    <h3 class="text-sm font-bold truncate group-hover:underline">${p.name}</h3>
+                    <p class="text-sm font-medium mt-1">₩${p.price.toLocaleString()}</p>
+                `;
+                grid.appendChild(el);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof getBestSellers === 'function') {
+                renderProductGrid(getBestSellers(4), 'best-sellers-grid');
+            }
+            if (typeof getNewArrivals === 'function') {
+                renderProductGrid(getNewArrivals(4), 'new-arrivals-grid');
+            }
+        });
+    </script>
 </body>
 
 </html>

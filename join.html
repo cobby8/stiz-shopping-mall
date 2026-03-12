@@ -39,28 +39,36 @@
         <h1 class="text-3xl font-bold mb-2 text-center tracking-tight">CREATE ACCOUNT</h1>
         <p class="text-center text-gray-500 mb-10 text-sm">Join STIZ for exclusive offers and faster checkout.</p>
 
-        <form class="space-y-4"
-            onsubmit="event.preventDefault(); alert('Registration Mock: Success!'); location.href='login.html';">
-            <div class="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="First Name" required
-                    class="border border-gray-300 rounded px-4 py-3 text-sm w-full focus:border-black focus:ring-black outline-none transition-colors">
-                <input type="text" placeholder="Last Name" required
-                    class="border border-gray-300 rounded px-4 py-3 text-sm w-full focus:border-black focus:ring-black outline-none transition-colors">
+        <form class="space-y-4" onsubmit="event.preventDefault(); handleRegister();">
+            <div>
+                <input type="text" id="reg-name" placeholder="Name (이름) *" required
+                    class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
-            <input type="email" placeholder="Email" required
-                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
+            <div>
+                <input type="email" id="reg-email" placeholder="Email *" required
+                    class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
+            </div>
 
-            <input type="password" placeholder="Password" required
-                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
-            <p class="text-xs text-gray-400 mt-1">Must be at least 8 characters.</p>
+            <div>
+                <input type="password" id="reg-password" placeholder="Password *" required minlength="8"
+                    class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
+                <p class="text-xs text-gray-400 mt-1">Must be at least 8 characters.</p>
+            </div>
+
+            <div>
+                <input type="password" id="reg-password-confirm" placeholder="Confirm Password *" required
+                    class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
+            </div>
+
+            <p id="reg-error" class="text-xs text-red-500 hidden"></p>
 
             <div class="pt-4">
                 <label class="flex items-start">
-                    <input type="checkbox" required
+                    <input type="checkbox" id="reg-agree" required
                         class="mt-1 mr-2 rounded border-gray-300 text-black focus:ring-black">
                     <span class="text-xs text-gray-500 leading-relaxed">
-                        I agree to STIZ's Privacy Policy and Terms of Use.
+                        I agree to STIZ's <a href="notice.html" class="underline font-bold">Privacy Policy</a> and Terms of Use. *
                     </span>
                 </label>
             </div>
@@ -84,6 +92,35 @@
     <script src="js/header_render.js"></script>
     <script src="js/chatbot.js"></script>
     <script src="js/auth.js"></script>
+    <script>
+        // Redirect if already logged in
+        if (isLoggedIn()) {
+            location.href = 'myshop.html';
+        }
+
+        function handleRegister() {
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const passwordConfirm = document.getElementById('reg-password-confirm').value;
+            const errEl = document.getElementById('reg-error');
+
+            if (password !== passwordConfirm) {
+                errEl.innerText = '비밀번호가 일치하지 않습니다.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            const result = register({ name, email, password });
+            if (result.success) {
+                alert('회원가입이 완료되었습니다! 로그인해주세요.');
+                location.href = 'login.html';
+            } else {
+                errEl.innerText = result.error;
+                errEl.classList.remove('hidden');
+            }
+        }
+    </script>
 </body>
 
 </html>
