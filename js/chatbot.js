@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initChatbot() {
+    // Guard: prevent duplicate initialization
+    if (document.getElementById('stiz-chat-btn')) return;
+
     // 1. Create Floating Button & Chat Window
     const body = document.body;
 
@@ -93,7 +96,7 @@ function initChatbot() {
         </div>
     `;
 
-    body.appendChild(chatBtn);
+    if (!chatBtn.parentNode) body.appendChild(chatBtn);
     body.appendChild(chatWindow);
 
     // 2. Event Listeners

@@ -88,20 +88,21 @@
                     <div>
                         <div class="flex justify-between mb-2">
                             <label class="font-bold text-xs uppercase text-gray-500">Select Size</label>
-                            <a href="#" class="text-xs text-gray-400 underline hover:text-black">Size Guide</a>
+                            <a href="notice.html" class="text-xs text-gray-400 underline hover:text-black">Size Guide</a>
                         </div>
-                        <div class="grid grid-cols-5 gap-2">
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">S</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">M</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">L</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">XL</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">2XL</button>
+                        <div id="size-selector" class="grid grid-cols-5 gap-2">
+                            <button data-size="S"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">S</button>
+                            <button data-size="M"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">M</button>
+                            <button data-size="L"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">L</button>
+                            <button data-size="XL"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">XL</button>
+                            <button data-size="2XL"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">2XL</button>
                         </div>
+                        <p id="size-warning" class="text-xs text-red-500 mt-1 hidden">사이즈를 선택해주세요.</p>
                     </div>
                 </div>
 
@@ -208,10 +209,11 @@
             document.getElementById('quote-total').innerText = '₩' + total.toLocaleString();
         }
 
+        let selectedSize = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             // Get ID from URL
             const urlParams = new URLSearchParams(window.location.search);
-            // Default to 1 if no ID 
             const productId = urlParams.get('id') || 1;
 
             const product = getProductById(productId);
@@ -229,19 +231,35 @@
                 location.href = 'list.html';
             }
 
+            // Size Selection Logic
+            document.querySelectorAll('.size-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.size-btn').forEach(b => {
+                        b.classList.remove('bg-black', 'text-white', 'border-black');
+                        b.classList.add('border-gray-200');
+                    });
+                    btn.classList.add('bg-black', 'text-white', 'border-black');
+                    btn.classList.remove('border-gray-200');
+                    selectedSize = btn.dataset.size;
+                    document.getElementById('size-warning').classList.add('hidden');
+                });
+            });
+
             // Add to Cart Logic
             document.getElementById('add-to-cart-btn').addEventListener('click', () => {
                 if (!product) return;
+                if (!selectedSize) {
+                    document.getElementById('size-warning').classList.remove('hidden');
+                    return;
+                }
                 const qty = document.getElementById('buy-qty').value;
-                // Simple sizing for demo (In real app, get selected size)
-                const size = 'L';
 
                 addToCart({
                     id: product.id,
                     name: product.name,
                     price: product.price,
                     image: product.image,
-                    size: size,
+                    size: selectedSize,
                     qty: qty
                 });
             });
