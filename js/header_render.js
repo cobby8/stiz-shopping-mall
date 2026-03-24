@@ -44,35 +44,60 @@ function renderHeader() {
                 </div>
             </div>
 
-            <!-- 2. TEAMWEAR (Mega Menu) - RESTORED & RENAMED -->
+            <!-- 2. TEAMWEAR (Mega Menu) - UPDATED -->
             <div class="group h-full flex items-center relative">
                 <a href="list.html?type=custom" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase text-blue-600">TEAMWEAR</a>
-                <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-[600px] bg-white text-black shadow-2xl border-t border-black py-8 z-40">
-                    <div class="grid grid-cols-2 gap-8 px-8">
+                <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-[900px] bg-white text-black shadow-2xl border-t border-black py-10 z-40">
+                    <div class="container mx-auto px-8 grid grid-cols-3 gap-12">
+                        <!-- Column 1: Category -->
                         <div>
-                            <h3 class="font-bold text-lg mb-4 border-b border-black pb-2">팀웨어 제작 (Teamwear)</h3>
-                            <ul class="space-y-3 text-sm text-gray-600">
-                                <li><a href="list.html?type=custom&category=basketball" class="hover:text-blue-600 font-medium">농구 유니폼 (Basketball)</a></li>
-                                <li><a href="list.html?type=custom&category=soccer" class="hover:text-blue-600 font-medium">축구 유니폼 (Soccer)</a></li>
-                                <li><a href="list.html?type=custom&category=volleyball" class="hover:text-blue-600 font-medium">배구 유니폼 (Volleyball)</a></li>
-                                <!-- Baseball Removed -->
+                            <h3 class="font-bold text-lg mb-6 border-b-2 border-black pb-2 inline-block">SPORT CATEGORY</h3>
+                            <ul class="space-y-4 text-sm text-gray-600 font-medium">
+                                <li><a href="list.html?type=custom&category=basketball" class="hover:text-blue-600 block transition-transform hover:translate-x-1">농구 유니폼 (Basketball)</a></li>
+                                <li><a href="list.html?type=custom&category=soccer" class="hover:text-blue-600 block transition-transform hover:translate-x-1">축구 유니폼 (Soccer)</a></li>
+                                <li><a href="list.html?type=custom&category=volleyball" class="hover:text-blue-600 block transition-transform hover:translate-x-1">배구 유니폼 (Volleyball)</a></li>
                                 <li>
-                                    <a href="list.html?type=custom&category=teamwear" class="hover:text-blue-600 font-medium flex items-center">
+                                    <a href="list.html?type=custom&category=teamwear" class="hover:text-blue-600 block transition-transform hover:translate-x-1 flex items-center">
                                         트레이닝복 / 웜업
                                         <span class="ml-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold tracking-wider animate-pulse">NEW</span>
                                     </a>
                                 </li>
                             </ul>
                         </div>
-                        <div class="bg-gray-50 p-6 rounded-xl">
-                            <h3 class="font-bold text-lg mb-4">Design Services</h3>
-                            <div class="space-y-3">
-                                <a href="inquiry.html" class="block bg-black text-white text-center py-3 text-sm font-bold hover:bg-gray-800 transition-colors">
-                                    무료 시안 요청하기
-                                </a>
-                                <a href="list.html?type=custom" class="block border border-black text-black text-center py-3 text-sm font-bold hover:bg-white transition-colors">
-                                    자동 견적 알아보기
-                                </a>
+                        
+                        <!-- Column 2: Design Services -->
+                        <div>
+                            <h3 class="font-bold text-lg mb-6 border-b-2 border-black pb-2 inline-block">DESIGN SERVICES</h3>
+                            <ul class="space-y-4 text-sm text-gray-600">
+                                <li>
+                                    <a href="custom.html" class="flex items-start group/item">
+                                        <span class="text-2xl mr-3 text-gray-300 group-hover/item:text-blue-600">01</span>
+                                        <div>
+                                            <strong class="text-black block group-hover/item:text-blue-600">Smart Design Lab</strong>
+                                            <span class="text-xs">3D/2D 실시간 커스텀 툴</span>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="inquiry.html" class="flex items-start group/item">
+                                        <span class="text-2xl mr-3 text-gray-300 group-hover/item:text-blue-600">02</span>
+                                        <div>
+                                            <strong class="text-black block group-hover/item:text-blue-600">Free Design Request</strong>
+                                            <span class="text-xs">디자이너 무료 시안 요청</span>
+                                        </div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Column 3: Promotion (Image) -->
+                        <div class="relative overflow-hidden group/img h-full rounded-lg bg-gray-100">
+                            <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2071&auto=format&fit=crop" 
+                                 class="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110 opacity-90 hover:opacity-100" 
+                                 alt="Mega Menu Promo">
+                            <div class="absolute bottom-6 left-6 text-white">
+                                <span class="bg-black text-white text-[10px] px-2 py-1 font-bold mb-2 inline-block">FEATURED</span>
+                                <h4 class="font-bold text-xl leading-tight">NEW SEASON<br>COLLECTION</h4>
                             </div>
                         </div>
                     </div>

@@ -6,11 +6,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static('../')); // Serve frontend files from root
 
 // Initialize Google AI
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || 'MOCK_KEY');
@@ -55,6 +56,43 @@ listAvailableModels();
 // Routes
 app.get('/', (req, res) => {
     res.send('STIZ AI Middleware Server is Running');
+});
+
+// Chatbot Endpoint
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { message } = req.body;
+        console.log(`[Chat Request] "${message}"`);
+
+        if (!process.env.GOOGLE_API_KEY) {
+            return res.json({ success: true, reply: "AI Server is offline (No Key). But I heard you!" });
+        }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const chat = model.startChat({
+            history: [
+                {
+                    role: "user",
+                    parts: [{ text: "You are STIZ AI Assistant. Helpful and cool. Keep answers short." }],
+                },
+                {
+                    role: "model",
+                    parts: [{ text: "Got it. I'm ready to help STIZ customers." }],
+                },
+            ],
+        });
+
+        const result = await chat.sendMessage(message);
+        const response = await result.response;
+        const text = response.text();
+
+        console.log(`[Chat Reply] ${text}`);
+        res.json({ success: true, reply: text });
+
+    } catch (error) {
+        console.error('CHAT ERROR:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // AI Generation Endpoint

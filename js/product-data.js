@@ -109,3 +109,41 @@ function getProductsByCategory(category, type = null) {
 
     return filtered;
 }
+
+/**
+ * Sizing Standards (Mock Database)
+ * Used by size_recommender.js
+ */
+const SIZING_CHARTS = {
+    top: {
+        // Height (cm) based standard
+        // This is a simplified logic. Real logic would use Weight + Chest.
+        ranges: [
+            { height_min: 0, height_max: 165, weight_max: 60, size: "S (90)" },
+            { height_min: 160, height_max: 172, weight_max: 70, size: "M (95)" },
+            { height_min: 170, height_max: 178, weight_max: 78, size: "L (100)" },
+            { height_min: 175, height_max: 184, weight_max: 85, size: "XL (105)" },
+            { height_min: 180, height_max: 190, weight_max: 95, size: "2XL (110)" },
+            { height_min: 185, height_max: 200, weight_max: 110, size: "3XL (115)" }
+        ]
+    }
+};
+
+/**
+ * Option Pricing (Mock Database)
+ * Used by quote_wizard.js
+ */
+const PRICING_OPTIONS = {
+    base_uniform: 39000, // Standard Set Base Price
+    add_ons: [
+        { id: 'team_mark', name: '팀명/번호 마킹 (Team Mark)', price: 5000 },
+        { id: 'emblem', name: '엠블럼 부착 (Emblem Patch)', price: 3000 },
+        { id: 'socks', name: '스타킹 추가 (Socks)', price: 6000 },
+        { id: 'long_sleeve', name: '긴팔 변경 (Long Sleeve)', price: 4000 }
+    ],
+    discounts: [
+        { min_qty: 10, rate: 0.05, label: '5% (10벌 이상)' },
+        { min_qty: 20, rate: 0.10, label: '10% (20벌 이상)' },
+        { min_qty: 50, rate: 0.15, label: '15% (50벌 이상)' }
+    ]
+};

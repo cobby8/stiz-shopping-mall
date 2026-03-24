@@ -191,60 +191,77 @@ function addBotMessage(html, delay = 500) {
 }
 
 // 3. Rule-based Response Logic (The "Brain")
-function processBotResponse(input) {
-    const lower = input.toLowerCase();
+// 3. AI-Powered Response Logic
+// 3. Hybrid Response Logic (Client Mock + Server API)
+async function processBotResponse(input) {
+    const lowerInput = input.toLowerCase();
 
-    // Scenario 1: Custom Order
-    if (lower.includes('custom') || lower.includes('견적') || lower.includes('제작')) {
-        addBotMessage(`
-            <p class="mb-2">For custom teamwear, you can use our <strong>Design Lab</strong>.</p>
-            <p class="mb-3 text-gray-500 text-xs">If you need a bulk order quote (20+ items), please contact us directly.</p>
-            <a href="/custom.html" class="block bg-black text-white text-center py-2 rounded text-xs font-bold hover:bg-gray-800 transition-colors">Start Designing &rarr;</a>
-        `);
-        return;
-    }
-
-    // Scenario 2: Delivery
-    if (lower.includes('delivery') || lower.includes('shipping') || lower.includes('배송') || lower.includes('기간')) {
-        addBotMessage(`
-            <p><strong>Production Time:</strong></p>
-            <ul class="list-disc leading-relaxed ml-4 mb-2">
-                <li>Custom Gear: 3-4 Weeks</li>
-                <li>In-stock Items: 2-3 Days</li>
-            </ul>
-        `);
-        return;
-    }
-
-    // Scenario 3: Product Recommendation (Basketball)
-    if (lower.includes('basketball') || lower.includes('농구')) {
-        // Mock Product Card
-        addBotMessage(`
-            <p class="mb-2">Best Seller for Basketball:</p>
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=1790&auto=format&fit=crop" class="w-full h-32 object-cover">
-                <div class="p-3 bg-gray-50">
-                    <h4 class="font-bold text-xs mb-1">STIZ Pro Jersey</h4>
-                    <p class="text-xs text-brand-red font-bold">₩ 49,000</p>
-                    <a href="/detail.html?id=1" class="block mt-2 text-center border border-black rounded py-1 text-xs hover:bg-black hover:text-white transition-colors">View Product</a>
+    // A. Client-Side Mocks for Rich UI Demo (Proposal Requirement)
+    if (lowerInput.includes('견적') || lowerInput.includes('quote') || lowerInput.includes('가격')) {
+        setTimeout(() => {
+            const richHtml = `
+                <div>
+                    <p class="mb-2"><strong>[자동 견적 안내]</strong><br>선택하신 유니폼의 예상 견적입니다.</p>
+                    <div class="bg-gray-100 p-3 rounded-lg mb-2">
+                        <div class="flex items-center space-x-3">
+                            <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2" class="w-12 h-12 rounded object-cover">
+                            <div>
+                                <p class="font-bold text-xs">STIZ Basketball Kit Pro</p>
+                                <p class="text-xs text-gray-500">Full Set (Jersey + Shorts)</p>
+                            </div>
+                        </div>
+                        <div class="border-t border-gray-300 my-2"></div>
+                        <div class="flex justify-between text-xs font-bold">
+                            <span>예상 단가 (20벌 기준)</span>
+                            <span class="text-red-500">₩49,000</span>
+                        </div>
+                    </div>
+                     <button onclick="location.href='custom.html'" class="w-full bg-black text-white py-2 rounded-lg text-xs font-bold">자세히 보기</button>
                 </div>
-            </div>
-        `);
+            `;
+            addBotMessage(richHtml);
+        }, 600);
         return;
     }
 
-    // Scenario 4: Greetings
-    if (lower.includes('hi') || lower.includes('hello') || lower.includes('안녕')) {
-        addBotMessage("Hello! STIZ crew here. Ready to play?");
+    if (lowerInput.includes('사이즈') || lowerInput.includes('size') || lowerInput.includes('추천')) {
+        setTimeout(() => {
+            const richHtml = `
+                <div>
+                     <p class="mb-2"><strong>[사이즈 추천]</strong><br>고객님의 키/몸무게를 알려주시면 AI가 정확한 사이즈를 추천해드립니다.</p>
+                     <div class="flex space-x-2 my-2">
+                        <button class="flex-1 border border-gray-300 py-2 rounded text-xs hover:bg-black hover:text-white transition-colors">170~175cm</button>
+                        <button class="flex-1 border border-gray-300 py-2 rounded text-xs hover:bg-black hover:text-white transition-colors">175~180cm</button>
+                     </div>
+                     <p class="text-xs text-gray-400">평균적으로 175cm/70kg 기준 <strong>L (100)</strong> 사이즈를 추천합니다.</p>
+                </div>
+            `;
+            addBotMessage(richHtml);
+        }, 600);
         return;
     }
 
-    // Fallback
-    addBotMessage(`
-        I'm still learning. Try asking about:
-        <div class="mt-2 flex flex-wrap gap-2">
-            <span class="text-xs bg-gray-100 px-2 py-1 rounded">Custom Order</span>
-            <span class="text-xs bg-gray-100 px-2 py-1 rounded">Delivery</span>
-        </div>
-    `);
+    // B. Server API Fallback (General Conversation)
+    try {
+        const response = await fetch('http://localhost:4000/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: input })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const formattedReply = data.reply.replace(/\n/g, '<br>');
+            addBotMessage(formattedReply);
+        } else {
+            // Initial Fallback if Server is offline/no key
+            addBotMessage("죄송합니다. 현재 AI 서버 연결이 원활하지 않습니다. <br>고객센터(02-000-0000)로 문의 부탁드립니다.");
+        }
+
+    } catch (e) {
+        console.error("Chat Error:", e);
+        // Fallback for network error
+        addBotMessage("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    }
 }
