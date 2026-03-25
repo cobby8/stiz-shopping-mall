@@ -67,14 +67,14 @@
                     <div class="flex items-end justify-between">
                         <p id="product-price" class="text-2xl font-bold">₩ 0</p>
                         <!-- Auto Quote Trigger -->
-                        <button onclick="location.href='quote.html'"
+                        <button onclick="location.href='inquiry.html'"
                             class="text-xs text-blue-600 font-bold hover:underline flex items-center">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z">
                                 </path>
                             </svg>
-                            Get Team Estimate (Wizard)
+                            견적 문의하기
                         </button>
                     </div>
                 </div>
@@ -176,16 +176,6 @@
             </div>
         </div>
 
-        <!-- Quote Modal (Hidden) -->
-        <div id="quote-modal" class="fixed inset-0 z-50 hidden">
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeQuoteModal()"></div>
-            <div
-                class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white w-full max-w-md rounded-lg shadow-2xl p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="font-bold text-xl">⚡ Quick Team Estimate</h3>
-                    <button onclick="closeQuoteModal()" class="text-gray-400 hover:text-black">&times;</button>
-                </div>
-
     </main>
 
     <!-- FOOTER -->
@@ -199,36 +189,6 @@
     <script src="js/header_render.js"></script>
     <script src="js/chatbot.js"></script>
     <script>
-        // Current Product Price (Global for Modal)
-        let currentPrice = 0;
-
-        function openQuoteModal() {
-            const product = getProductById(new URLSearchParams(window.location.search).get('id') || 1);
-            if (product) {
-                currentPrice = product.price;
-                document.getElementById('modal-price').innerText = '₩' + currentPrice.toLocaleString();
-                calculateQuote();
-                document.getElementById('quote-modal').classList.remove('hidden');
-            }
-        }
-
-        function closeQuoteModal() {
-            document.getElementById('quote-modal').classList.add('hidden');
-        }
-
-        function calculateQuote() {
-            const qty = parseInt(document.getElementById('quote-qty').value) || 0;
-            let unitPrice = currentPrice;
-
-            // Simple Discount Logic
-            if (qty >= 50) unitPrice *= 0.85; // 15% off
-            else if (qty >= 20) unitPrice *= 0.90; // 10% off
-            else if (qty >= 10) unitPrice *= 0.95; // 5% off
-
-            const total = Math.floor(unitPrice * qty);
-            document.getElementById('quote-total').innerText = '₩' + total.toLocaleString();
-        }
-
         let selectedSize = null;
 
         document.addEventListener('DOMContentLoaded', () => {
