@@ -10,6 +10,8 @@
     <meta property="og:description" content="Professional Custom Teamwear & Design Lab. AI-powered jersey design for your team.">
     <meta property="og:type" content="website">
     <meta property="og:image" content="images/hero_bg.jpg">
+    <!-- SEO: canonical URL로 검색엔진 중복 페이지 방지 -->
+    <link rel="canonical" href="https://stiz.co.kr/index.html">
     <link rel="icon" type="image/png" href="images/logo_black.png">
 
     <!-- Tailwind CSS (CDN for Dev) -->
@@ -36,14 +38,30 @@
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
     <!-- Material Symbols (아이콘 폰트) -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- 히어로 이미지 preload: LCP(가장 큰 콘텐츠 그리기) 속도 향상 -->
+    <link rel="preload" as="image" href="images/hero_bg.jpg">
+
+    <!-- JSON-LD: 검색엔진에 조직 정보를 구조화하여 전달 (리치 결과 노출) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "STIZ",
+      "url": "https://stiz.co.kr",
+      "logo": "https://stiz.co.kr/images/logo_black.png",
+      "description": "Professional custom teamwear and sportswear design",
+      "sameAs": [
+        "https://www.instagram.com/stiz_official",
+        "https://www.facebook.com/stiz_official",
+        "https://www.youtube.com/@stiz_official"
+      ]
+    }
+    </script>
 </head>
 
 <body class="page-main font-sans antialiased text-gray-900 bg-white selection:bg-black selection:text-white">
@@ -56,7 +74,8 @@
     <section class="relative h-screen w-full overflow-hidden bg-black text-white">
         <!-- Video Background Placeholder -->
         <div class="absolute inset-0 z-0 opacity-60">
-            <img src="images/hero_bg.jpg" class="w-full h-full object-cover opacity-80" alt="STIZ Custom Teamwear Hero">
+            <!-- width/height: 브라우저가 이미지 로딩 전 공간을 확보하여 레이아웃 이동(CLS) 방지 -->
+            <img src="images/hero_bg.jpg" class="w-full h-full object-cover opacity-80" alt="STIZ Custom Teamwear Hero" width="1920" height="1080">
         </div>
 
         <div class="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
@@ -93,9 +112,9 @@
                 <!-- Card 1 -->
                 <div class="group relative overflow-hidden h-96 cursor-pointer"
                     onclick="location.href='list.html?category=soccer'">
-                    <img src="https://images.unsplash.com/photo-1515523110800-9415d13b84a8?q=80&w=1587&auto=format&fit=crop"
+                    <img src="https://images.unsplash.com/photo-1515523110800-9415d13b84a8?q=80&w=800&auto=format&fit=crop"
                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        alt="Custom">
+                        alt="Custom" loading="lazy" width="800" height="384">
                     <div class="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors"></div>
                     <div class="absolute bottom-8 left-8 text-white">
                         <h3 class="text-2xl font-bold mb-2">TEAMWEAR</h3>
@@ -108,9 +127,9 @@
                 <!-- Card 2 -->
                 <div class="group relative overflow-hidden h-96 cursor-pointer"
                     onclick="location.href='list.html?category=sportswear'">
-                    <img src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=1675&auto=format&fit=crop"
+                    <img src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=800&auto=format&fit=crop"
                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        alt="Sportswear">
+                        alt="Sportswear" loading="lazy" width="800" height="384">
                     <div class="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors"></div>
                     <div class="absolute bottom-8 left-8 text-white">
                         <h3 class="text-2xl font-bold mb-2">SPORTSWEAR</h3>
@@ -123,9 +142,9 @@
                 <!-- Card 3 -->
                 <div class="group relative overflow-hidden h-96 cursor-pointer"
                     onclick="location.href='list.html?category=kogas'">
-                    <img src="https://images.unsplash.com/photo-1473042904451-00171c69419d?q=80&w=1799&auto=format&fit=crop"
+                    <img src="https://images.unsplash.com/photo-1473042904451-00171c69419d?q=80&w=800&auto=format&fit=crop"
                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        alt="KOGAS">
+                        alt="KOGAS" loading="lazy" width="800" height="384">
                     <div class="absolute inset-0 bg-blue-900/40 group-hover:bg-blue-900/60 transition-colors"></div>
                     <div class="absolute bottom-8 left-8 text-white">
                         <h3 class="text-2xl font-bold mb-2">KOGAS MD</h3>
@@ -138,9 +157,9 @@
                 <!-- Card 4 -->
                 <div class="group relative overflow-hidden h-96 cursor-pointer"
                     onclick="location.href='list.html?category=basketball'">
-                    <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=1790&auto=format&fit=crop"
+                    <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=800&auto=format&fit=crop"
                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        alt="Basketball">
+                        alt="Basketball" loading="lazy" width="800" height="384">
                     <div class="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors"></div>
                     <div class="absolute bottom-8 left-8 text-white">
                         <h3 class="text-2xl font-bold mb-2">BASKETBALL</h3>
@@ -222,9 +241,9 @@
                         Design your identity with our premium quality gears.
                     </p>
                     <div class="flex space-x-4">
-                        <a href="https://www.instagram.com/stiz_official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
-                        <a href="https://www.facebook.com/stiz.official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><i class="fab fa-facebook"></i></a>
-                        <a href="https://www.youtube.com/@stiz_official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><i class="fab fa-youtube"></i></a>
+                        <a href="https://www.instagram.com/stiz_official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></a>
+                        <a href="https://www.facebook.com/stiz.official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+                        <a href="https://www.youtube.com/@stiz_official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></a>
                     </div>
                 </div>
 
@@ -258,7 +277,7 @@
                     <h3 class="font-bold text-lg mb-4 text-white">NEWSLETTER</h3>
                     <p class="text-gray-400 text-sm mb-4">Subscribe to get special offers and new product drops.</p>
                     <div class="flex">
-                        <input type="email" placeholder="Your email"
+                        <input type="email" placeholder="Your email" aria-label="이메일 주소"
                             class="bg-gray-800 text-white px-4 py-2 text-sm focus:outline-none w-full">
                         <button class="bg-white text-black px-4 py-2 font-bold text-sm hover:bg-gray-200">JOIN</button>
                     </div>
@@ -273,14 +292,14 @@
         </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="js/product-data.js"></script>
-    <script src="js/cart.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/header_render.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script src="js/fomo-toast.js"></script>
-    <script src="js/instagram-feed.js"></script>
+    <!-- Scripts (defer: 렌더 블로킹 방지, 순서는 유지됨) -->
+    <script src="js/product-data.js" defer></script>
+    <script src="js/cart.js" defer></script>
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/fomo-toast.js" defer></script>
+    <script src="js/instagram-feed.js" defer></script>
     <script>
         function renderProductGrid(items, containerId) {
             const grid = document.getElementById(containerId);

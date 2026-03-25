@@ -4,7 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmed - STIZ</title>
+    <title>STIZ - Order Complete</title>
+    <!-- SEO 메타 태그 -->
+    <meta name="description" content="STIZ 주문이 완료되었습니다. 제작 과정을 확인하세요.">
+    <meta property="og:title" content="STIZ - Order Complete">
+    <meta property="og:description" content="STIZ 주문이 완료되었습니다. 제작 과정을 확인하세요.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/order_result.html">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -105,11 +112,11 @@
     <!-- FOOTER -->
     <footer class="bg-black text-white w-full" data-include="layout/footer.html"></footer>
 
-    <script src="js/product-data.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/header_render.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script src="js/cart.js"></script>
+    <script src="js/product-data.js" defer></script>
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/cart.js" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const orderJson = localStorage.getItem('stiz_last_order');

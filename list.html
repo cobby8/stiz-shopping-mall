@@ -4,7 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHOP - STIZ</title>
+    <title>STIZ - Team Wear & Sportswear</title>
+    <!-- SEO 메타 태그: 검색엔진과 소셜 미디어 최적화 -->
+    <meta name="description" content="축구, 농구, 배구 등 팀 유니폼부터 스포츠웨어까지. STIZ에서 나만의 팀 정체성을 만드세요.">
+    <meta property="og:title" content="STIZ - Team Wear & Sportswear">
+    <meta property="og:description" content="축구, 농구, 배구 등 팀 유니폼부터 스포츠웨어까지. STIZ에서 나만의 팀 정체성을 만드세요.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/list.html">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -93,34 +100,17 @@
             </svg>
             <span>무료 시안 요청하기</span>
         </a>
-        <button onclick="openQuoteModal()"
-            class="bg-white text-black w-48 py-3 text-center text-sm font-bold shadow-2xl hover:bg-gray-50 transition-all flex items-center justify-center space-x-2 rounded-full border border-gray-200">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-            <span>자동 견적 알아보기</span>
-        </button>
     </div>
-
-    <!-- Quote Modal & Functions (Load if needed) -->
-    <!-- Ideally we should componentize this, but for list.html floating FAB we need the modal present if it's not already -->
-    <script>
-        function openQuoteModal() {
-            alert('⚡ 자동 견적 시스템\n\n상품 상세 페이지에서 이용 가능합니다.\n원하시는 상품을 선택해주세요!');
-        }
-    </script>
 
     <!-- FOOTER -->
     <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
 
     <!-- Scripts -->
-    <script src="js/product-data.js"></script>
-    <script src="js/header_render.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script src="js/fomo-toast.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/product-data.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/fomo-toast.js" defer></script>
+    <script src="js/main.js" defer></script>
     <script>
         // Use URL Params to determine mode (custom vs store)
         const urlParams = new URLSearchParams(window.location.search);
@@ -173,7 +163,7 @@
                 el.className = 'group relative';
                 el.innerHTML = `
                     <div class="aspect-[3/4] w-full bg-gray-100 overflow-hidden relative cursor-pointer" onclick="location.href='detail.html?id=${p.id}&type=${p.type}'">
-                        <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
                         
                         <!-- Actions Overlay -->
                         <div class="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur-sm p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">

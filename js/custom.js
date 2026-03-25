@@ -232,5 +232,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { crossOrigin: 'anonymous' }); // Important for external images
     };
 
-    console.log('Design Lab Initialized');
+    // Design Lab 초기화 완료
 });

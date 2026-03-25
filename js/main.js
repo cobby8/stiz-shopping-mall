@@ -3,7 +3,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('STIZ Main JS Loaded');
 });
 
 // Mobile Menu Toggle

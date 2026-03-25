@@ -4,7 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STIZ Design Lab - Virtual Fitting</title>
+    <title>STIZ - Mockup Viewer</title>
+    <!-- SEO 메타 태그 -->
+    <meta name="description" content="디자인 시안을 실제 유니폼 목업으로 확인하세요.">
+    <meta property="og:title" content="STIZ Mockup Viewer">
+    <meta property="og:description" content="디자인 시안을 실제 유니폼 목업으로 확인하세요.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/custom_mockup.html">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
@@ -36,7 +43,7 @@
                     <h3 class="text-xs md:text-sm font-bold text-gray-500 uppercase mb-3 md:mb-4">1. Your Design</h3>
                     <div class="bg-white border rounded-lg p-4 shadow-sm">
                         <img id="source-design" src="https://placehold.co/300x300?text=No+Design+Found"
-                            class="w-full h-auto rounded-md bg-gray-100" />
+                            class="w-full h-auto rounded-md bg-gray-100" width="300" height="300" />
                     </div>
                 </div>
 
@@ -112,7 +119,7 @@
         </section>
     </main>
 
-    <script src="js/mockup.js"></script>
+    <script src="js/mockup.js" defer></script>
 </body>
 
 </html>

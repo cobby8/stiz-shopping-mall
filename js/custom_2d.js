@@ -323,8 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Construct a rich prompt for the backend
         const fullPrompt = `Team Name: ${teamName}, Slogan: ${slogan}, Established: ${year}, Type: ${style}, Additional: ${userRequest}`;
 
-        console.log("[Front] Requesting Logo:", fullPrompt);
-
         try {
             const response = await fetch('http://localhost:4000/api/generate', {
                 method: 'POST',
@@ -478,5 +476,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    console.log('Design Lab V2.1 Loaded');
+    // Design Lab V2.1 초기화 완료
 });

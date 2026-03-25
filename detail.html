@@ -4,7 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Detail - STIZ</title>
+    <title>STIZ - Product Detail</title>
+    <!-- SEO 메타 태그: 상품 상세 기본값 (JS에서 동적 업데이트) -->
+    <meta name="description" content="STIZ 프로 스포츠 유니폼 상세 정보. 커스텀 디자인, 사이즈 추천, 팀 주문.">
+    <meta property="og:title" content="STIZ Product">
+    <meta property="og:description" content="STIZ 프로 스포츠 유니폼 상세 정보. 커스텀 디자인, 사이즈 추천, 팀 주문.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/detail.html">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -184,12 +191,12 @@
     <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
 
     <!-- Scripts -->
-    <script src="js/product-data.js"></script>
-    <script src="js/cart.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/header_render.js"></script>
-    <script src="js/chatbot.js"></script>
+    <script src="js/product-data.js" defer></script>
+    <script src="js/cart.js" defer></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
     <script>
         let selectedSize = null;
 
@@ -284,6 +291,38 @@
             btn.classList.add('border-b-2', 'border-black', 'text-black');
             btn.classList.remove('text-gray-400');
         }
+    </script>
+
+    <!-- JSON-LD: 상품 구조화 데이터를 동적으로 생성 (구글 리치 결과에 가격/재고 노출) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const params = new URLSearchParams(window.location.search);
+        const productId = parseInt(params.get('id'));
+        if (typeof products !== 'undefined' && productId) {
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                const schema = {
+                    "@context": "https://schema.org",
+                    "@type": "Product",
+                    "name": product.name,
+                    "description": product.description,
+                    "image": product.image,
+                    "brand": {"@type": "Brand", "name": "STIZ"},
+                    "offers": {
+                        "@type": "Offer",
+                        "price": product.price,
+                        "priceCurrency": "KRW",
+                        "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+                    }
+                };
+                // script 태그를 만들어 head에 삽입
+                const script = document.createElement('script');
+                script.type = 'application/ld+json';
+                script.textContent = JSON.stringify(schema);
+                document.head.appendChild(script);
+            }
+        }
+    });
     </script>
 </body>
 

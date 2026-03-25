@@ -4,7 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join Us - STIZ</title>
+    <title>STIZ - Sign Up</title>
+    <!-- SEO 메타 태그 -->
+    <meta name="description" content="STIZ 회원가입. 팀 유니폼 커스텀 디자인 서비스를 시작하세요.">
+    <meta property="og:title" content="STIZ Sign Up">
+    <meta property="og:description" content="STIZ 회원가입. 팀 유니폼 커스텀 디자인 서비스를 시작하세요.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/join.html">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -41,23 +48,23 @@
 
         <form class="space-y-4" onsubmit="event.preventDefault(); handleRegister();">
             <div>
-                <input type="text" id="reg-name" placeholder="Name (이름) *" required
+                <input type="text" id="reg-name" placeholder="Name (이름) *" required aria-label="이름"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
             <div>
-                <input type="email" id="reg-email" placeholder="Email *" required
+                <input type="email" id="reg-email" placeholder="Email *" required aria-label="이메일 주소"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
             <div>
-                <input type="password" id="reg-password" placeholder="Password *" required minlength="8"
+                <input type="password" id="reg-password" placeholder="Password *" required minlength="8" aria-label="비밀번호"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
                 <p class="text-xs text-gray-400 mt-1">Must be at least 8 characters.</p>
             </div>
 
             <div>
-                <input type="password" id="reg-password-confirm" placeholder="Confirm Password *" required
+                <input type="password" id="reg-password-confirm" placeholder="Confirm Password *" required aria-label="비밀번호 확인"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
@@ -88,10 +95,10 @@
 
     <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
 
-    <script src="js/main.js"></script>
-    <script src="js/header_render.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/auth.js" defer></script>
     <script>
         // Redirect if already logged in
         if (isLoggedIn()) {

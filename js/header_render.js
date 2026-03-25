@@ -34,8 +34,8 @@ function renderHeader() {
     <div class="container mx-auto px-6 h-20 flex items-center justify-between">
         <!-- Logo (Sticky Home Button) -->
         <a href="index.html" class="z-50 transition-transform duration-300 hover:scale-105 block">
-            <img src="images/logo_white.png" alt="STIZ Home" class="h-8 md:h-10 w-auto object-contain logo-white ${isMainPage ? '' : 'hidden'}">
-            <img src="images/logo_black.png" alt="STIZ Home" class="h-8 md:h-10 w-auto object-contain logo-black ${isMainPage ? 'hidden' : ''}">
+            <img src="images/logo_white.png" alt="STIZ Home" class="h-8 md:h-10 w-auto object-contain logo-white ${isMainPage ? '' : 'hidden'}" width="120" height="40">
+            <img src="images/logo_black.png" alt="STIZ Home" class="h-8 md:h-10 w-auto object-contain logo-black ${isMainPage ? 'hidden' : ''}" width="120" height="40">
         </a>
 
         <!-- Desktop Navigation (Centered 4-Column Layout) -->
@@ -102,7 +102,7 @@ function renderHeader() {
                         <div class="relative overflow-hidden group/img h-full rounded-lg bg-gray-100">
                             <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2071&auto=format&fit=crop" 
                                  class="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110 opacity-90 hover:opacity-100" 
-                                 alt="Mega Menu Promo">
+                                 alt="Mega Menu Promo" width="300" height="250">
                             <div class="absolute bottom-6 left-6 text-white">
                                 <span class="bg-black text-white text-[10px] px-2 py-1 font-bold mb-2 inline-block">FEATURED</span>
                                 <h4 class="font-bold text-xl leading-tight">NEW SEASON<br>COLLECTION</h4>
@@ -266,7 +266,7 @@ function renderFooter() {
                 <div class="col-span-1">
                     <h3 class="font-bold text-lg mb-4 text-white">NEWSLETTER</h3>
                      <div class="flex">
-                        <input type="email" placeholder="Your email" class="bg-gray-800 text-white px-4 py-2 text-sm w-full">
+                        <input type="email" placeholder="Your email" aria-label="이메일 주소" class="bg-gray-800 text-white px-4 py-2 text-sm w-full">
                         <button class="bg-white text-black px-4 py-2 font-bold text-sm">JOIN</button>
                     </div>
                 </div>

@@ -11,7 +11,7 @@
     const instagramPosts = [
         {
             id: 'post_1',
-            imageUrl: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=400&auto=format&fit=crop',
             caption: '새 시즌 유니폼 도착! 올해도 STIZ와 함께 #STIZ #축구 #팀웨어',
             likes: 234,
             username: 'fc_seoul_jr',
@@ -19,7 +19,7 @@
         },
         {
             id: 'post_2',
-            imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=400&auto=format&fit=crop',
             caption: '농구부 새 저지 핏이 미쳤다 #STIZ #농구 #커스텀저지',
             likes: 187,
             username: 'hanyang_basketball',
@@ -27,7 +27,7 @@
         },
         {
             id: 'post_3',
-            imageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=400&auto=format&fit=crop',
             caption: '경기 전 단체샷! 우리만의 아이덴티티 #TeamIdentity #STIZ',
             likes: 312,
             username: 'busan_eagles',
@@ -35,7 +35,7 @@
         },
         {
             id: 'post_4',
-            imageUrl: 'https://images.unsplash.com/photo-1628779238951-be2c9f255902?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1628779238951-be2c9f255902?q=80&w=400&auto=format&fit=crop',
             caption: '트레이닝 키트도 스타일리시하게 #STIZ #트레이닝 #팀복',
             likes: 156,
             username: 'stiz_official',
@@ -43,7 +43,7 @@
         },
         {
             id: 'post_5',
-            imageUrl: 'https://images.unsplash.com/photo-1515523110800-9415d13b84a8?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1515523110800-9415d13b84a8?q=80&w=400&auto=format&fit=crop',
             caption: '승리의 순간을 STIZ와 함께 #Victory #축구유니폼',
             likes: 421,
             username: 'incheon_united_u18',
@@ -51,7 +51,7 @@
         },
         {
             id: 'post_6',
-            imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=400&auto=format&fit=crop',
             caption: '배구부 신규 유니폼 언박싱 #STIZ #배구 #NewSeason',
             likes: 198,
             username: 'gangnam_volleyball',
@@ -59,7 +59,7 @@
         },
         {
             id: 'post_7',
-            imageUrl: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=400&auto=format&fit=crop',
             caption: '체육관에서도 스타일은 포기 못해 #STIZ #스포츠웨어',
             likes: 275,
             username: 'crossfit_alpha',
@@ -67,7 +67,7 @@
         },
         {
             id: 'post_8',
-            imageUrl: 'https://images.unsplash.com/photo-1544698310-74ea9d188d17?q=80&w=600&auto=format&fit=crop',
+            imageUrl: 'https://images.unsplash.com/photo-1544698310-74ea9d188d17?q=80&w=400&auto=format&fit=crop',
             caption: '마라톤 대회 완주! 팀복 덕분에 하나된 느낌 #STIZ #마라톤',
             likes: 143,
             username: 'urban_runners',

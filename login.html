@@ -4,7 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - STIZ</title>
+    <title>STIZ - Login</title>
+    <!-- SEO 메타 태그 -->
+    <meta name="description" content="STIZ 로그인. 팀 유니폼 주문 내역과 디자인을 관리하세요.">
+    <meta property="og:title" content="STIZ Login">
+    <meta property="og:description" content="STIZ 로그인. 팀 유니폼 주문 내역과 디자인을 관리하세요.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/login.html">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -40,11 +47,12 @@
 
         <div class="space-y-4">
             <div>
-                <input type="email" id="email" placeholder="Email"
+                <!-- aria-label: 스크린리더가 이 입력란의 용도를 읽어줌 -->
+                <input type="email" id="email" placeholder="Email" aria-label="이메일 주소"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
             <div>
-                <input type="password" id="password" placeholder="Password"
+                <input type="password" id="password" placeholder="Password" aria-label="비밀번호"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors"
                     onkeydown="if(event.key==='Enter') handleLogin()">
             </div>
@@ -92,10 +100,10 @@
 
     <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
 
-    <script src="js/main.js"></script>
-    <script src="js/header_render.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/auth.js" defer></script>
     <script>
         // Redirect if already logged in
         if (isLoggedIn()) {
