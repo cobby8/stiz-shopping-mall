@@ -145,9 +145,10 @@
 
             cart.forEach((item, index) => {
                 const el = document.createElement('div');
+                // 모바일: 이미지 w-16, 수량영역 shrink-0으로 줄바꿈 방지
                 el.className = 'flex items-center gap-4 sm:gap-6 py-6 border-b border-gray-100';
                 el.innerHTML = `
-                    <div class="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
+                    <div class="w-16 h-16 sm:w-24 sm:h-24 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
                         <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover">
                     </div>
                     <div class="flex-1 min-w-0">
@@ -155,7 +156,7 @@
                         <p class="text-xs text-gray-500 mb-1">Size: ${item.size || 'Free'}</p>
                         <p class="text-xs text-gray-500 mb-3">₩${item.price.toLocaleString()} each</p>
                         <div class="flex items-center gap-3">
-                            <div class="flex items-center border border-gray-200 rounded">
+                            <div class="flex items-center border border-gray-200 rounded shrink-0">
                                 <button onclick="updateCartItemQty(${index}, ${item.qty - 1})"
                                     class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-100 transition-colors text-lg font-bold">−</button>
                                 <span class="w-10 h-8 flex items-center justify-center text-sm font-bold border-x border-gray-200">${item.qty}</span>

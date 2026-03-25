@@ -43,7 +43,8 @@
 
             <!-- Image Gallery (Left) -->
             <div class="space-y-4">
-                <div class="w-full h-[600px] bg-gray-100 overflow-hidden rounded-lg">
+                <!-- 모바일: 400px로 줄여 스크롤 없이 상품정보 노출 / 데스크탑: 600px 유지 -->
+                <div class="w-full h-[400px] md:h-[600px] bg-gray-100 overflow-hidden rounded-lg">
                     <img id="main-image" src="" alt="Product Image" class="w-full h-full object-cover">
                 </div>
                 <div class="grid grid-cols-4 gap-4">
@@ -135,10 +136,11 @@
 
         <!-- Product Info Tabs -->
         <div class="mt-16 border-t border-gray-200">
-            <div class="flex border-b border-gray-200">
-                <button onclick="showDetailTab('desc')" id="dtab-desc" class="detail-tab px-6 py-4 text-sm font-bold border-b-2 border-black">Description</button>
-                <button onclick="showDetailTab('shipping')" id="dtab-shipping" class="detail-tab px-6 py-4 text-sm font-bold text-gray-400 hover:text-black">Shipping & Returns</button>
-                <button onclick="showDetailTab('reviews')" id="dtab-reviews" class="detail-tab px-6 py-4 text-sm font-bold text-gray-400 hover:text-black">Reviews</button>
+            <!-- 모바일: overflow-x-auto로 가로 스크롤 허용, whitespace-nowrap으로 줄바꿈 방지 -->
+            <div class="flex border-b border-gray-200 overflow-x-auto">
+                <button onclick="showDetailTab('desc')" id="dtab-desc" class="detail-tab px-4 md:px-6 py-4 text-sm font-bold border-b-2 border-black whitespace-nowrap">Description</button>
+                <button onclick="showDetailTab('shipping')" id="dtab-shipping" class="detail-tab px-4 md:px-6 py-4 text-sm font-bold text-gray-400 hover:text-black whitespace-nowrap">Shipping & Returns</button>
+                <button onclick="showDetailTab('reviews')" id="dtab-reviews" class="detail-tab px-4 md:px-6 py-4 text-sm font-bold text-gray-400 hover:text-black whitespace-nowrap">Reviews</button>
             </div>
             <div id="dtab-content-desc" class="py-8">
                 <p id="detail-full-desc" class="text-sm text-gray-600 leading-relaxed max-w-2xl">Loading...</p>

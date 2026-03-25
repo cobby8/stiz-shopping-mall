@@ -74,12 +74,13 @@
                 <div class="bg-white p-6 border border-gray-200 rounded-lg">
                     <h2 class="text-xl font-bold mb-4">Shipping Address (배송지)</h2>
                     <div class="space-y-3">
-                        <div class="flex gap-3">
+                        <!-- 모바일: flex-col로 세로 배치, sm 이상에서 가로 배치 -->
+                        <div class="flex flex-col sm:flex-row gap-3">
                             <input type="text" id="order-postcode" placeholder="우편번호 *" readonly
                                 class="flex-1 border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50 cursor-pointer focus:outline-none"
                                 onclick="searchAddress()">
                             <button type="button" onclick="searchAddress()"
-                                class="px-6 py-3 bg-black text-white text-sm font-bold rounded hover:bg-gray-800 transition-colors whitespace-nowrap">
+                                class="shrink-0 px-6 py-3 bg-black text-white text-xs sm:text-sm font-bold rounded hover:bg-gray-800 transition-colors whitespace-nowrap">
                                 주소 검색
                             </button>
                         </div>

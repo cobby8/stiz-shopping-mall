@@ -65,7 +65,8 @@
                     <!-- Order Status Summary -->
                     <div>
                         <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Order Status</h3>
-                        <div class="grid grid-cols-4 gap-4 text-center py-6">
+                        <!-- 모바일: 2열 그리드로 텍스트 잘림 방지 / 데스크탑: 4열 유지 -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center py-6">
                             <div>
                                 <div class="text-3xl font-bold mb-1" id="stat-pending">0</div>
                                 <div class="text-xs text-gray-500">Pending</div>

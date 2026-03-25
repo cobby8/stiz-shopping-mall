@@ -40,7 +40,8 @@ function initChatbot() {
 
     const chatWindow = document.createElement('div');
     chatWindow.id = 'stiz-chat-window';
-    chatWindow.className = 'fixed bottom-28 right-8 w-96 h-[500px] bg-white rounded-2xl shadow-2xl z-50 hidden flex flex-col overflow-hidden border border-gray-100 transform origin-bottom-right transition-all duration-300 scale-90 opacity-0';
+    // 모바일: 화면 폭에 맞춤 (좌우 1rem 여백), 높이 70vh / 데스크탑: 고정 384px, 500px
+    chatWindow.className = 'fixed bottom-28 right-4 sm:right-8 w-[calc(100vw-2rem)] sm:w-96 h-[70vh] sm:h-[500px] bg-white rounded-2xl shadow-2xl z-50 hidden flex flex-col overflow-hidden border border-gray-100 transform origin-bottom-right transition-all duration-300 scale-90 opacity-0';
     chatWindow.innerHTML = `
         <div class="bg-black text-white p-4 flex justify-between items-center shrink-0">
             <div class="flex items-center space-x-2">
