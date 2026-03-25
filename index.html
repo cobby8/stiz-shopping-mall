@@ -39,6 +39,9 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+    <!-- Material Symbols (아이콘 폰트) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -195,6 +198,18 @@
         </div>
     </section>
 
+    <!-- INSTAGRAM FEED -->
+    <section class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-12">
+                <p class="text-sm tracking-widest text-gray-400 mb-2">FOLLOW US</p>
+                <h2 class="text-3xl md:text-4xl font-black">STIZ ON INSTAGRAM</h2>
+                <p class="text-gray-500 mt-2">#STIZ #TeamIdentity</p>
+            </div>
+            <div id="instagram-feed-container"></div>
+        </div>
+    </section>
+
     <!-- FOOTER -->
     <footer class="bg-black text-white">
         <div class="container mx-auto px-6 py-12">
@@ -264,6 +279,8 @@
     <script src="js/main.js"></script>
     <script src="js/header_render.js"></script>
     <script src="js/chatbot.js"></script>
+    <script src="js/fomo-toast.js"></script>
+    <script src="js/instagram-feed.js"></script>
     <script>
         function renderProductGrid(items, containerId) {
             const grid = document.getElementById(containerId);
