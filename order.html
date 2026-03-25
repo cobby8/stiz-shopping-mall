@@ -27,12 +27,17 @@
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="css/style.css">
+    <!-- Daum Postcode API -->
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+    <!-- PortOne (아임포트) PG SDK -->
+    <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-white">
 
-    <header class="fixed w-full z-50 bg-white text-black border-b border-gray-100" data-include="layout/header.html">
-    </header>
+    <!-- HEADER -->
+    <header></header>
+    <div class="h-20"></div>
     <div class="h-20"></div>
 
     <main class="container mx-auto px-6 py-12">
@@ -46,124 +51,395 @@
                 <!-- Section 1: Contact -->
                 <div class="bg-white p-6 border border-gray-200 rounded-lg">
                     <h2 class="text-xl font-bold mb-4">Contact Information</h2>
-                    <input type="email" placeholder="Email address"
-                        class="w-full border border-gray-300 rounded px-4 py-3 text-sm mb-2 focus:border-black focus:ring-black">
-                    <div class="flex items-center">
-                        <input type="checkbox" id="newsletter" class="mr-2">
-                        <label for="newsletter" class="text-xs text-gray-500">Email me with news and offers</label>
+                    <div class="space-y-3">
+                        <div>
+                            <input type="text" id="order-name" placeholder="Name (이름) *"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:outline-none">
+                            <p class="text-xs text-red-500 mt-1 hidden" id="err-name">이름을 입력해주세요.</p>
+                        </div>
+                        <div>
+                            <input type="email" id="order-email" placeholder="Email address (이메일) *"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:outline-none">
+                            <p class="text-xs text-red-500 mt-1 hidden" id="err-email">올바른 이메일을 입력해주세요.</p>
+                        </div>
+                        <div>
+                            <input type="tel" id="order-phone" placeholder="Phone (연락처) *  예: 010-1234-5678"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:outline-none">
+                            <p class="text-xs text-red-500 mt-1 hidden" id="err-phone">연락처를 입력해주세요.</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Section 2: Shipping -->
+                <!-- Section 2: Shipping Address -->
                 <div class="bg-white p-6 border border-gray-200 rounded-lg">
-                    <h2 class="text-xl font-bold mb-4">Shipping Address</h2>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <input type="text" placeholder="First Name"
-                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
-                        <input type="text" placeholder="Last Name"
-                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
-                    </div>
-                    <input type="text" placeholder="Address"
-                        class="w-full border border-gray-300 rounded mb-4 px-4 py-3 text-sm">
-                    <div class="grid grid-cols-2 gap-4">
-                        <input type="text" placeholder="City"
-                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
-                        <input type="text" placeholder="Postal Code"
-                            class="border border-gray-300 rounded px-4 py-3 text-sm w-full">
+                    <h2 class="text-xl font-bold mb-4">Shipping Address (배송지)</h2>
+                    <div class="space-y-3">
+                        <div class="flex gap-3">
+                            <input type="text" id="order-postcode" placeholder="우편번호 *" readonly
+                                class="flex-1 border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50 cursor-pointer focus:outline-none"
+                                onclick="searchAddress()">
+                            <button type="button" onclick="searchAddress()"
+                                class="px-6 py-3 bg-black text-white text-sm font-bold rounded hover:bg-gray-800 transition-colors whitespace-nowrap">
+                                주소 검색
+                            </button>
+                        </div>
+                        <div>
+                            <input type="text" id="order-address" placeholder="기본 주소 *" readonly
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50 focus:outline-none">
+                            <p class="text-xs text-red-500 mt-1 hidden" id="err-address">주소를 입력해주세요.</p>
+                        </div>
+                        <input type="text" id="order-address-detail" placeholder="상세 주소 (동/호수)"
+                            class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:outline-none">
                     </div>
                 </div>
 
-                <!-- Section 3: Payment -->
+                <!-- Section 3: Order Note -->
                 <div class="bg-white p-6 border border-gray-200 rounded-lg">
-                    <h2 class="text-xl font-bold mb-4">Payment</h2>
+                    <h2 class="text-xl font-bold mb-4">Order Note (배송 메모)</h2>
+                    <select id="order-note"
+                        class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:outline-none bg-white">
+                        <option value="">배송 메모를 선택하세요 (선택사항)</option>
+                        <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
+                        <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
+                        <option value="택배함에 넣어주세요">택배함에 넣어주세요</option>
+                        <option value="배송 전 연락 부탁드립니다">배송 전 연락 부탁드립니다</option>
+                        <option value="custom">직접 입력</option>
+                    </select>
+                    <input type="text" id="order-note-custom" placeholder="배송 메모를 입력하세요"
+                        class="w-full border border-gray-300 rounded px-4 py-3 text-sm mt-2 hidden focus:border-black focus:outline-none">
+                </div>
+
+                <!-- Section 4: Payment -->
+                <div class="bg-white p-6 border border-gray-200 rounded-lg">
+                    <h2 class="text-xl font-bold mb-4">Payment (결제 방법)</h2>
                     <p class="text-xs text-gray-500 mb-4">All transactions are secure and encrypted.</p>
 
                     <div class="space-y-3">
-                        <label class="flex items-center p-4 border border-black rounded-lg bg-gray-50 cursor-pointer">
-                            <input type="radio" name="payment" checked class="text-black focus:ring-black">
-                            <span class="ml-3 font-bold text-sm">Credit Card (PG Mock)</span>
+                        <label class="flex items-center p-4 border border-black rounded-lg bg-gray-50 cursor-pointer"
+                            id="pay-card-label">
+                            <input type="radio" name="payment" value="card" checked
+                                class="text-black focus:ring-black" onchange="updatePaymentUI()">
+                            <span class="ml-3 font-bold text-sm">Credit Card (카드 결제)</span>
                         </label>
                         <label
-                            class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-black">
-                            <input type="radio" name="payment" class="text-black focus:ring-black">
-                            <span class="ml-3 font-bold text-sm">Bank Transfer</span>
+                            class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-black"
+                            id="pay-transfer-label">
+                            <input type="radio" name="payment" value="transfer"
+                                class="text-black focus:ring-black" onchange="updatePaymentUI()">
+                            <span class="ml-3 font-bold text-sm">Bank Transfer (계좌이체)</span>
+                        </label>
+                        <label
+                            class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-black"
+                            id="pay-vbank-label">
+                            <input type="radio" name="payment" value="vbank"
+                                class="text-black focus:ring-black" onchange="updatePaymentUI()">
+                            <span class="ml-3 font-bold text-sm">Virtual Account (가상계좌)</span>
                         </label>
                     </div>
                 </div>
 
-                <button onclick="processOrder()"
-                    class="w-full bg-brand-red text-white py-4 font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg">
+                <!-- Terms Agreement -->
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="agree-terms" class="mt-1">
+                    <label for="agree-terms" class="text-xs text-gray-600">
+                        주문 내용을 확인하였으며, <a href="notice.html" class="underline font-bold">이용약관</a> 및 개인정보 처리방침에 동의합니다. *
+                    </label>
+                </div>
+                <p class="text-xs text-red-500 hidden" id="err-terms">약관에 동의해주세요.</p>
+
+                <button onclick="processOrder()" id="pay-btn"
+                    class="w-full bg-brand-red text-white py-4 font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg text-lg">
                     PAY NOW
                 </button>
             </div>
 
             <!-- Side Summary -->
-            <div class="w-full lg:w-96 bg-gray-50 p-8 rounded-lg h-fit">
-                <h2 class="font-bold text-lg mb-6">In Your Cart</h2>
-                <div id="mini-cart" class="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2">
-                    <!-- JS Injected -->
-                </div>
+            <div class="w-full lg:w-96">
+                <div class="bg-gray-50 p-8 rounded-lg sticky top-24">
+                    <h2 class="font-bold text-lg mb-6">In Your Cart</h2>
+                    <div id="mini-cart" class="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2">
+                        <!-- JS Injected -->
+                    </div>
 
-                <div class="border-t border-gray-200 pt-4 text-sm space-y-2">
-                    <div class="flex justify-between">
-                        <span>Subtotal</span>
-                        <span id="order-subtotal">₩ 0</span>
+                    <div class="border-t border-gray-200 pt-4 text-sm space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Subtotal</span>
+                            <span class="font-bold" id="order-subtotal">₩ 0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Shipping</span>
+                            <span class="font-bold" id="order-shipping">₩ 0</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between">
-                        <span>Shipping</span>
-                        <span>Free</span>
+                    <div class="border-t border-gray-200 pt-4 mt-4 flex justify-between items-center">
+                        <span class="font-bold text-lg">Total</span>
+                        <span class="font-bold text-xl text-brand-red" id="order-total">₩ 0</span>
                     </div>
-                </div>
-                <div class="border-t border-gray-200 pt-4 mt-4 flex justify-between items-center">
-                    <span class="font-bold text-lg">Total</span>
-                    <span class="font-bold text-xl text-black" id="order-total">₩ 0</span>
+
+                    <p class="text-xs text-gray-400 mt-4 text-center">
+                        Free shipping on orders over ₩50,000
+                    </p>
                 </div>
             </div>
         </div>
     </main>
 
+    <!-- FOOTER -->
+    <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
+
+    <!-- Scripts -->
     <script src="js/cart.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/header_render.js"></script>
+    <script src="js/chatbot.js"></script>
     <script>
+        // Redirect if cart is empty
         document.addEventListener('DOMContentLoaded', () => {
             const cart = getCart();
+            if (cart.length === 0) {
+                alert('장바구니가 비어있습니다.');
+                location.href = 'basket.html';
+                return;
+            }
+
+            renderMiniCart();
+            setupNoteToggle();
+        });
+
+        function renderMiniCart() {
+            const cart = getCart();
             const container = document.getElementById('mini-cart');
+            container.innerHTML = '';
 
             cart.forEach(item => {
                 const el = document.createElement('div');
                 el.className = 'flex items-center gap-4';
                 el.innerHTML = `
-                    <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden relative border border-gray-200">
+                    <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden relative border border-gray-200 flex-shrink-0">
                         <img src="${item.image}" class="w-full h-full object-cover">
                         <span class="absolute top-0 right-0 bg-gray-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-bl">${item.qty}</span>
                     </div>
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold truncate">${item.name}</p>
-                        <p class="text-[10px] text-gray-500">${item.size}</p>
+                        <p class="text-[10px] text-gray-500">${item.size || 'Free'}</p>
                     </div>
-                    <span class="text-xs font-medium">₩${(item.price * item.qty).toLocaleString()}</span>
+                    <span class="text-xs font-medium flex-shrink-0">₩${(item.price * item.qty).toLocaleString()}</span>
                 `;
                 container.appendChild(el);
             });
 
-            const total = getCartTotal();
-            const formatted = '₩ ' + total.toLocaleString();
-            document.getElementById('order-subtotal').innerText = formatted;
-            document.getElementById('order-total').innerText = formatted;
-        });
+            const subtotal = getCartTotal();
+            const shipping = getShippingCost();
+            const grandTotal = getGrandTotal();
 
+            document.getElementById('order-subtotal').innerText = '₩ ' + subtotal.toLocaleString();
+            document.getElementById('order-shipping').innerText = shipping === 0 ? 'FREE' : '₩ ' + shipping.toLocaleString();
+            document.getElementById('order-shipping').className = shipping === 0 ? 'font-bold text-green-600' : 'font-bold';
+            document.getElementById('order-total').innerText = '₩ ' + grandTotal.toLocaleString();
+        }
+
+        // Daum Postcode API
+        function searchAddress() {
+            new daum.Postcode({
+                oncomplete: function (data) {
+                    document.getElementById('order-postcode').value = data.zonecode;
+                    document.getElementById('order-address').value = data.roadAddress || data.jibunAddress;
+                    document.getElementById('order-address-detail').focus();
+                    document.getElementById('err-address').classList.add('hidden');
+                }
+            }).open();
+        }
+
+        // Custom note toggle
+        function setupNoteToggle() {
+            const noteSelect = document.getElementById('order-note');
+            const customInput = document.getElementById('order-note-custom');
+            noteSelect.addEventListener('change', () => {
+                if (noteSelect.value === 'custom') {
+                    customInput.classList.remove('hidden');
+                    customInput.focus();
+                } else {
+                    customInput.classList.add('hidden');
+                }
+            });
+        }
+
+        // Payment UI toggle
+        function updatePaymentUI() {
+            document.querySelectorAll('input[name="payment"]').forEach(radio => {
+                const label = radio.closest('label');
+                if (radio.checked) {
+                    label.classList.remove('border-gray-200');
+                    label.classList.add('border-black', 'bg-gray-50');
+                } else {
+                    label.classList.remove('border-black', 'bg-gray-50');
+                    label.classList.add('border-gray-200');
+                }
+            });
+        }
+
+        // Form Validation
+        function validateForm() {
+            let valid = true;
+            const fields = [
+                { id: 'order-name', err: 'err-name', check: v => v.trim().length >= 2 },
+                { id: 'order-email', err: 'err-email', check: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) },
+                { id: 'order-phone', err: 'err-phone', check: v => /^[\d-]{10,}$/.test(v.replace(/\s/g, '')) },
+                { id: 'order-address', err: 'err-address', check: v => v.trim().length > 0 },
+            ];
+
+            fields.forEach(f => {
+                const input = document.getElementById(f.id);
+                const errEl = document.getElementById(f.err);
+                if (!f.check(input.value)) {
+                    errEl.classList.remove('hidden');
+                    input.classList.add('border-red-500');
+                    valid = false;
+                } else {
+                    errEl.classList.add('hidden');
+                    input.classList.remove('border-red-500');
+                }
+            });
+
+            // Terms check
+            const termsChecked = document.getElementById('agree-terms').checked;
+            if (!termsChecked) {
+                document.getElementById('err-terms').classList.remove('hidden');
+                valid = false;
+            } else {
+                document.getElementById('err-terms').classList.add('hidden');
+            }
+
+            return valid;
+        }
+
+        // Generate Order Number
+        function generateOrderNumber() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+            return `STIZ-${y}${m}${d}-${rand}`;
+        }
+
+        // PortOne 결제 설정
+        // 실제 운영 시 .env의 PORTONE_STORE_ID, PORTONE_CHANNEL_KEY 사용
+        const PORTONE_CONFIG = {
+            storeId: '',       // PortOne 상점 ID (admin.portone.io에서 확인)
+            channelKey: '',    // PortOne 채널 키
+            isTestMode: true,  // true = 테스트 모드 (실 결제 X)
+        };
+
+        // PG 결제 방법 매핑
+        const PG_METHOD_MAP = {
+            card: 'card',
+            transfer: 'trans',
+            vbank: 'vbank',
+        };
+
+        // PortOne 결제 요청
+        function requestPayment(orderData) {
+            // PortOne 키가 없으면 Mock 결제 처리
+            if (!PORTONE_CONFIG.storeId || !PORTONE_CONFIG.channelKey) {
+                console.log('[Mock Payment] PortOne 키 미설정 — Mock 결제 처리');
+                return handlePaymentSuccess(orderData, { imp_uid: 'mock_' + Date.now(), merchant_uid: orderData.orderNumber });
+            }
+
+            const IMP = window.IMP;
+            IMP.init(PORTONE_CONFIG.storeId);
+
+            const payMethod = PG_METHOD_MAP[orderData.payment] || 'card';
+            const itemNames = orderData.items.map(i => i.name).join(', ');
+            const orderName = orderData.items.length > 1
+                ? `${orderData.items[0].name} 외 ${orderData.items.length - 1}건`
+                : orderData.items[0].name;
+
+            IMP.request_pay({
+                channelKey: PORTONE_CONFIG.channelKey,
+                pay_method: payMethod,
+                merchant_uid: orderData.orderNumber,
+                name: orderName,
+                amount: orderData.total,
+                buyer_email: orderData.customer.email,
+                buyer_name: orderData.customer.name,
+                buyer_tel: orderData.customer.phone,
+                buyer_addr: orderData.shipping.address + ' ' + orderData.shipping.addressDetail,
+                buyer_postcode: orderData.shipping.postcode,
+            }, function (response) {
+                if (response.success) {
+                    handlePaymentSuccess(orderData, response);
+                } else {
+                    handlePaymentFail(response);
+                }
+            });
+        }
+
+        // 결제 성공 처리
+        function handlePaymentSuccess(orderData, paymentResponse) {
+            orderData.paymentId = paymentResponse.imp_uid;
+            orderData.status = 'paid';
+
+            // localStorage 저장
+            const orders = JSON.parse(localStorage.getItem('stiz_orders') || '[]');
+            orders.push(orderData);
+            localStorage.setItem('stiz_orders', JSON.stringify(orders));
+            localStorage.setItem('stiz_last_order', JSON.stringify(orderData));
+
+            clearCart();
+            location.href = 'order_result.html';
+        }
+
+        // 결제 실패 처리
+        function handlePaymentFail(response) {
+            const btn = document.getElementById('pay-btn');
+            btn.innerText = 'PAY NOW';
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            alert('결제에 실패했습니다: ' + (response.error_msg || '알 수 없는 오류'));
+        }
+
+        // Process Order
         function processOrder() {
-            // Mock Processing
-            const btn = document.querySelector('button[onclick="processOrder()"]');
+            if (!validateForm()) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+
+            const btn = document.getElementById('pay-btn');
             btn.innerText = 'Processing...';
             btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
 
-            setTimeout(() => {
-                // Clear cart after order
-                clearCart();
-                // Redirect to success
-                location.href = 'order_result.html';
-            }, 2000);
+            const orderNumber = generateOrderNumber();
+            const noteSelect = document.getElementById('order-note');
+            const note = noteSelect.value === 'custom'
+                ? document.getElementById('order-note-custom').value
+                : noteSelect.value;
+
+            const orderData = {
+                orderNumber: orderNumber,
+                customer: {
+                    name: document.getElementById('order-name').value.trim(),
+                    email: document.getElementById('order-email').value.trim(),
+                    phone: document.getElementById('order-phone').value.trim(),
+                },
+                shipping: {
+                    postcode: document.getElementById('order-postcode').value,
+                    address: document.getElementById('order-address').value,
+                    addressDetail: document.getElementById('order-address-detail').value.trim(),
+                    note: note,
+                },
+                payment: document.querySelector('input[name="payment"]:checked').value,
+                items: getCart(),
+                subtotal: getCartTotal(),
+                shippingCost: getShippingCost(),
+                total: getGrandTotal(),
+                createdAt: new Date().toISOString(),
+            };
+
+            // PortOne 결제 요청 (키 없으면 Mock 처리)
+            requestPayment(orderData);
         }
     </script>
 </body>

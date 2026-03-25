@@ -5,7 +5,15 @@
 document.addEventListener('DOMContentLoaded', () => {
     renderHeader();
     renderFooter();
+    loadAnalytics();
 });
+
+function loadAnalytics() {
+    if (document.querySelector('script[src*="analytics.js"]')) return;
+    const s = document.createElement('script');
+    s.src = 'js/analytics.js';
+    document.head.appendChild(s);
+}
 
 function renderHeader() {
     const isMainPage = document.querySelector('body').classList.contains('page-main');
@@ -35,10 +43,10 @@ function renderHeader() {
             
             <!-- 1. BRAND (STIZ) -->
             <div class="group h-full flex items-center relative">
-                <a href="#" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase">STIZ</a>
+                <a href="index.html" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase">STIZ</a>
                 <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-48 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
-                    <a href="#" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">브랜드 스토리</a>
-                    <a href="#" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">가치 (Values)</a>
+                    <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">브랜드 스토리</a>
+                    <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">가치 (Values)</a>
                     <a href="lookbook.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">룩북 (Lookbook)</a>
                     <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">오시는 길</a>
                 </div>
@@ -120,7 +128,7 @@ function renderHeader() {
                 <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-48 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
                     <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">공지사항</a>
                     <a href="inquiry.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">문의하기 (Q&A)</a>
-                    <a href="#" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">구매 후기 (Review)</a>
+                    <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">구매 후기 (Review)</a>
                 </div>
             </div>
 
@@ -202,6 +210,9 @@ function renderHeader() {
         });
     }
 
+    // Search Functionality
+    initSearchUI();
+
     // Scroll Logic for Main Page
     if (isMainPage) {
         window.addEventListener('scroll', () => {
@@ -265,4 +276,95 @@ function renderFooter() {
             </div>
         </div>
     `;
+}
+
+function initSearchUI() {
+    // Create search overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'search-overlay';
+    overlay.className = 'fixed inset-0 z-[100] hidden';
+    overlay.innerHTML = `
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="search-backdrop"></div>
+        <div class="absolute top-0 left-0 w-full bg-white shadow-lg p-6 transform -translate-y-full transition-transform duration-300" id="search-panel">
+            <div class="container mx-auto max-w-2xl">
+                <div class="flex items-center space-x-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" id="search-input" placeholder="Search products..." class="flex-1 text-lg font-medium border-none outline-none bg-transparent" autocomplete="off">
+                    <button id="search-close" class="text-gray-400 hover:text-black">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="search-results" class="mt-4 max-h-80 overflow-y-auto"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Bind search button
+    const searchBtn = document.querySelector('header button.hover\\:opacity-70');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('search-panel').style.transform = 'translateY(0)';
+                document.getElementById('search-input').focus();
+            }, 10);
+        });
+    }
+
+    const closeSearch = () => {
+        document.getElementById('search-panel').style.transform = 'translateY(-100%)';
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+    };
+
+    document.getElementById('search-close').addEventListener('click', closeSearch);
+    document.getElementById('search-backdrop').addEventListener('click', closeSearch);
+
+    // Live search
+    document.getElementById('search-input').addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        const resultsContainer = document.getElementById('search-results');
+
+        if (query.length < 2) {
+            resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-2">2글자 이상 입력해주세요.</p>';
+            return;
+        }
+
+        if (typeof products === 'undefined') {
+            resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-2">상품 데이터를 불러오는 중...</p>';
+            return;
+        }
+
+        const matches = products.filter(p =>
+            p.name.toLowerCase().includes(query) ||
+            p.category.toLowerCase().includes(query) ||
+            p.description.toLowerCase().includes(query)
+        ).slice(0, 8);
+
+        if (matches.length === 0) {
+            resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-4">검색 결과가 없습니다.</p>';
+            return;
+        }
+
+        resultsContainer.innerHTML = matches.map(p => `
+            <a href="detail.html?id=${p.id}" class="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                <img src="${p.image}" alt="${p.name}" class="w-12 h-12 object-cover rounded">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold truncate">${p.name}</p>
+                    <p class="text-xs text-gray-500">${p.category.toUpperCase()} · ₩${p.price.toLocaleString()}</p>
+                </div>
+            </a>
+        `).join('');
+    });
+
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+            closeSearch();
+        }
+    });
 }

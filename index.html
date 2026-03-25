@@ -5,6 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STIZ - Make Your Team Identity</title>
+    <meta name="description" content="STIZ - Professional custom teamwear and sportswear. Design your team's identity with AI-powered design tools. Soccer, basketball, volleyball uniforms and more.">
+    <meta property="og:title" content="STIZ - Make Your Team Identity">
+    <meta property="og:description" content="Professional Custom Teamwear & Design Lab. AI-powered jersey design for your team.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
 
     <!-- Tailwind CSS (CDN for Dev) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,6 +36,9 @@
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -44,7 +53,7 @@
     <section class="relative h-screen w-full overflow-hidden bg-black text-white">
         <!-- Video Background Placeholder -->
         <div class="absolute inset-0 z-0 opacity-60">
-            <img src="images/hero_bg.jpg" class="w-full h-full object-cover opacity-80" alt="Hero Background">
+            <img src="images/hero_bg.jpg" class="w-full h-full object-cover opacity-80" alt="STIZ Custom Teamwear Hero">
         </div>
 
         <div class="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
@@ -93,7 +102,8 @@
                 </div>
 
                 <!-- Card 2 -->
-                <div class="group relative overflow-hidden h-96 cursor-pointer">
+                <div class="group relative overflow-hidden h-96 cursor-pointer"
+                    onclick="location.href='list.html?category=sportswear'">
                     <img src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=1675&auto=format&fit=crop"
                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         alt="Sportswear">
@@ -122,7 +132,8 @@
                 </div>
 
                 <!-- Card 4 -->
-                <div class="group relative overflow-hidden h-96 cursor-pointer">
+                <div class="group relative overflow-hidden h-96 cursor-pointer"
+                    onclick="location.href='list.html?category=basketball'">
                     <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=1790&auto=format&fit=crop"
                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         alt="Basketball">
@@ -138,8 +149,51 @@
         </div>
     </section>
 
-    <!-- FOOTER (Loaded via JS) -->
-    <!-- FOOTER (Inlined) -->
+    <!-- BEST SELLERS -->
+    <section class="py-24 bg-white">
+        <div class="container mx-auto px-6">
+            <div class="flex justify-between items-end mb-12">
+                <div>
+                    <h2 class="text-3xl font-bold tracking-tight mb-2">BEST SELLERS</h2>
+                    <p class="text-gray-500 text-sm">Our most popular products</p>
+                </div>
+                <a href="list.html" class="text-sm font-bold border-b border-black pb-1 hover:text-gray-600">View All &rarr;</a>
+            </div>
+            <div id="best-sellers-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- JS injected -->
+            </div>
+        </div>
+    </section>
+
+    <!-- NEW ARRIVALS -->
+    <section class="py-24 bg-gray-50">
+        <div class="container mx-auto px-6">
+            <div class="flex justify-between items-end mb-12">
+                <div>
+                    <h2 class="text-3xl font-bold tracking-tight mb-2">NEW ARRIVALS</h2>
+                    <p class="text-gray-500 text-sm">Fresh drops for your team</p>
+                </div>
+                <a href="list.html" class="text-sm font-bold border-b border-black pb-1 hover:text-gray-600">View All &rarr;</a>
+            </div>
+            <div id="new-arrivals-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- JS injected -->
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA BANNER -->
+    <section class="py-20 bg-black text-white text-center">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 tracking-tight">DESIGN YOUR TEAM IDENTITY</h2>
+            <p class="text-gray-400 mb-8 max-w-lg mx-auto">Use our AI-powered Design Lab to create custom teamwear. Free mockup included.</p>
+            <div class="flex justify-center space-x-4">
+                <a href="custom.html" class="bg-white text-black px-8 py-4 font-bold tracking-widest hover:bg-gray-200 transition-colors uppercase">Design Lab</a>
+                <a href="inquiry.html" class="border border-white text-white px-8 py-4 font-bold tracking-widest hover:bg-white hover:text-black transition-colors uppercase">Contact Us</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
     <footer class="bg-black text-white">
         <div class="container mx-auto px-6 py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -151,9 +205,9 @@
                         Design your identity with our premium quality gears.
                     </p>
                     <div class="flex space-x-4">
-                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
-                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-facebook"></i></a>
-                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-youtube"></i></a>
+                        <a href="https://www.instagram.com/stiz_official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
+                        <a href="https://www.facebook.com/stiz.official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><i class="fab fa-facebook"></i></a>
+                        <a href="https://www.youtube.com/@stiz_official" target="_blank" rel="noopener" class="text-gray-400 hover:text-white"><i class="fab fa-youtube"></i></a>
                     </div>
                 </div>
 
@@ -199,15 +253,48 @@
                 <p>&copy; 2024 STIZ Custom Teamwear. All rights reserved.</p>
                 <p class="mt-2 md:mt-0">Seoul, Republic of Korea | Business License: 000-00-00000</p>
             </div>
-            <!-- Chatbot Script (Global) -->
-            <script src="js/chatbot.js"></script>
         </div>
     </footer>
 
     <!-- Scripts -->
+    <script src="js/product-data.js"></script>
+    <script src="js/cart.js"></script>
     <script src="js/main.js"></script>
     <script src="js/header_render.js"></script>
     <script src="js/chatbot.js"></script>
+    <script>
+        function renderProductGrid(items, containerId) {
+            const grid = document.getElementById(containerId);
+            if (!grid || !items.length) return;
+            grid.innerHTML = '';
+
+            items.forEach(p => {
+                const el = document.createElement('div');
+                el.className = 'group cursor-pointer';
+                el.onclick = () => location.href = `detail.html?id=${p.id}`;
+                el.innerHTML = `
+                    <div class="aspect-[3/4] w-full bg-gray-100 overflow-hidden relative mb-3">
+                        <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                        ${p.isNew ? '<span class="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5">NEW</span>' : ''}
+                        ${p.isBest ? '<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5">BEST</span>' : ''}
+                    </div>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">${p.category}</p>
+                    <h3 class="text-sm font-bold truncate group-hover:underline">${p.name}</h3>
+                    <p class="text-sm font-medium mt-1">₩${p.price.toLocaleString()}</p>
+                `;
+                grid.appendChild(el);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof getBestSellers === 'function') {
+                renderProductGrid(getBestSellers(4), 'best-sellers-grid');
+            }
+            if (typeof getNewArrivals === 'function') {
+                renderProductGrid(getNewArrivals(4), 'new-arrivals-grid');
+            }
+        });
+    </script>
 </body>
 
 </html>

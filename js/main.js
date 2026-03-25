@@ -4,11 +4,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('STIZ Main JS Loaded');
-
-    if (logoBlack) logoBlack.classList.add('hidden');
-}
-        });
-    }
+});
 
 // Mobile Menu Toggle
 const menuBtn = document.getElementById('mobile-menu-btn');
@@ -45,5 +41,4 @@ includes.forEach(async (el) => {
     } catch (e) {
         console.error(`Error loading ${file}:`, e);
     }
-});
 });

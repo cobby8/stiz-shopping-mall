@@ -88,20 +88,21 @@
                     <div>
                         <div class="flex justify-between mb-2">
                             <label class="font-bold text-xs uppercase text-gray-500">Select Size</label>
-                            <!-- Size Guide Link will be handled by size_recommender.js injection -->
+                            <a href="notice.html" class="text-xs text-gray-400 underline hover:text-black">Size Guide</a>
                         </div>
-                        <div class="grid grid-cols-5 gap-2">
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">S</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">M</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">L</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">XL</button>
-                            <button
-                                class="border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">2XL</button>
+                        <div id="size-selector" class="grid grid-cols-5 gap-2">
+                            <button data-size="S"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">S</button>
+                            <button data-size="M"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">M</button>
+                            <button data-size="L"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">L</button>
+                            <button data-size="XL"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">XL</button>
+                            <button data-size="2XL"
+                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">2XL</button>
                         </div>
+                        <p id="size-warning" class="text-xs text-red-500 mt-1 hidden">사이즈를 선택해주세요.</p>
                     </div>
                 </div>
 
@@ -132,7 +133,58 @@
             </div>
         </div>
 
-        <!-- Quote Modal (Hidden) - OLD MODAL REMOVED/DEPRECATED in favor of Wizard -->
+        <!-- Product Info Tabs -->
+        <div class="mt-16 border-t border-gray-200">
+            <div class="flex border-b border-gray-200">
+                <button onclick="showDetailTab('desc')" id="dtab-desc" class="detail-tab px-6 py-4 text-sm font-bold border-b-2 border-black">Description</button>
+                <button onclick="showDetailTab('shipping')" id="dtab-shipping" class="detail-tab px-6 py-4 text-sm font-bold text-gray-400 hover:text-black">Shipping & Returns</button>
+                <button onclick="showDetailTab('reviews')" id="dtab-reviews" class="detail-tab px-6 py-4 text-sm font-bold text-gray-400 hover:text-black">Reviews</button>
+            </div>
+            <div id="dtab-content-desc" class="py-8">
+                <p id="detail-full-desc" class="text-sm text-gray-600 leading-relaxed max-w-2xl">Loading...</p>
+            </div>
+            <div id="dtab-content-shipping" class="py-8 hidden">
+                <div class="max-w-2xl space-y-4 text-sm text-gray-600">
+                    <div>
+                        <h4 class="font-bold text-black mb-2">Shipping</h4>
+                        <ul class="space-y-1">
+                            <li>- Free shipping on orders over ₩50,000</li>
+                            <li>- Standard shipping (₩3,000): 2-3 business days</li>
+                            <li>- Custom orders: 3-4 weeks production + shipping</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-black mb-2">Returns & Exchanges</h4>
+                        <ul class="space-y-1">
+                            <li>- Free returns within 7 days of delivery</li>
+                            <li>- Items must be unworn with tags attached</li>
+                            <li>- Custom/personalized items are non-returnable</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div id="dtab-content-reviews" class="py-8 hidden">
+                <p class="text-sm text-gray-400 text-center py-8">No reviews yet. Be the first to review this product.</p>
+            </div>
+        </div>
+
+        <!-- Related Products -->
+        <div class="mt-16">
+            <h2 class="text-2xl font-bold mb-8">You May Also Like</h2>
+            <div id="related-products" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- JS injected -->
+            </div>
+        </div>
+
+        <!-- Quote Modal (Hidden) -->
+        <div id="quote-modal" class="fixed inset-0 z-50 hidden">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeQuoteModal()"></div>
+            <div
+                class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white w-full max-w-md rounded-lg shadow-2xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-xl">⚡ Quick Team Estimate</h3>
+                    <button onclick="closeQuoteModal()" class="text-gray-400 hover:text-black">&times;</button>
+                </div>
 
     </main>
 
@@ -144,7 +196,8 @@
     <script src="js/cart.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/size_recommender.js"></script>>
+    <script src="js/header_render.js"></script>
+    <script src="js/chatbot.js"></script>
     <script>
         // Current Product Price (Global for Modal)
         let currentPrice = 0;
@@ -176,10 +229,11 @@
             document.getElementById('quote-total').innerText = '₩' + total.toLocaleString();
         }
 
+        let selectedSize = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             // Get ID from URL
             const urlParams = new URLSearchParams(window.location.search);
-            // Default to 1 if no ID 
             const productId = urlParams.get('id') || 1;
 
             const product = getProductById(productId);
@@ -189,31 +243,85 @@
                 document.getElementById('product-name').innerText = product.name;
                 document.getElementById('product-price').innerText = '₩ ' + product.price.toLocaleString();
                 document.getElementById('product-desc').innerText = product.description;
+                document.getElementById('detail-full-desc').innerText = product.description;
                 document.getElementById('main-image').src = product.image;
                 document.getElementById('thumb-1').src = product.image;
                 document.title = `${product.name} | STIZ Shop`;
+
+                // Related products
+                if (typeof getProductsByCategory === 'function') {
+                    const related = getProductsByCategory(product.category)
+                        .filter(p => p.id !== product.id).slice(0, 4);
+                    const grid = document.getElementById('related-products');
+                    if (grid && related.length > 0) {
+                        grid.innerHTML = '';
+                        related.forEach(p => {
+                            const el = document.createElement('div');
+                            el.className = 'group cursor-pointer';
+                            el.onclick = () => location.href = `detail.html?id=${p.id}`;
+                            el.innerHTML = `
+                                <div class="aspect-[3/4] w-full bg-gray-100 overflow-hidden mb-3">
+                                    <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                                </div>
+                                <p class="text-[10px] text-gray-400 uppercase">${p.category}</p>
+                                <h3 class="text-xs font-bold truncate group-hover:underline">${p.name}</h3>
+                                <p class="text-xs font-medium mt-1">₩${p.price.toLocaleString()}</p>
+                            `;
+                            grid.appendChild(el);
+                        });
+                    }
+                }
             } else {
                 alert('Product not found');
                 location.href = 'list.html';
             }
 
+            // Size Selection Logic
+            document.querySelectorAll('.size-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.size-btn').forEach(b => {
+                        b.classList.remove('bg-black', 'text-white', 'border-black');
+                        b.classList.add('border-gray-200');
+                    });
+                    btn.classList.add('bg-black', 'text-white', 'border-black');
+                    btn.classList.remove('border-gray-200');
+                    selectedSize = btn.dataset.size;
+                    document.getElementById('size-warning').classList.add('hidden');
+                });
+            });
+
             // Add to Cart Logic
             document.getElementById('add-to-cart-btn').addEventListener('click', () => {
                 if (!product) return;
+                if (!selectedSize) {
+                    document.getElementById('size-warning').classList.remove('hidden');
+                    return;
+                }
                 const qty = document.getElementById('buy-qty').value;
-                // Simple sizing for demo (In real app, get selected size)
-                const size = 'L';
 
                 addToCart({
                     id: product.id,
                     name: product.name,
                     price: product.price,
                     image: product.image,
-                    size: size,
+                    size: selectedSize,
                     qty: qty
                 });
             });
         });
+
+        // Detail tab switching
+        function showDetailTab(tab) {
+            ['desc', 'shipping', 'reviews'].forEach(t => {
+                document.getElementById('dtab-content-' + t).classList.add('hidden');
+                document.getElementById('dtab-' + t).classList.remove('border-b-2', 'border-black', 'text-black');
+                document.getElementById('dtab-' + t).classList.add('text-gray-400');
+            });
+            document.getElementById('dtab-content-' + tab).classList.remove('hidden');
+            const btn = document.getElementById('dtab-' + tab);
+            btn.classList.add('border-b-2', 'border-black', 'text-black');
+            btn.classList.remove('text-gray-400');
+        }
     </script>
 </body>
 
