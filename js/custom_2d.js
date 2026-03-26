@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 서버 포트가 3000이므로 맞춰서 호출 (기존 4000은 오류)
-            const response = await fetch('http://localhost:3000/api/generate', {
+            const response = await fetch('http://localhost:4000/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

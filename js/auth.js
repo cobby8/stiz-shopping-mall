@@ -8,7 +8,7 @@ const AUTH_KEY = 'stiz_user';
 const USERS_KEY = 'stiz_users';
 
 // API base URL (change for production)
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'http://localhost:4000';
 
 // 1. Check Login Status
 function isLoggedIn() {
