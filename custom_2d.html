@@ -45,6 +45,9 @@
     <!-- Fabric.js -->
     <script defer src="https://unpkg.com/fabric@5.3.0/dist/fabric.min.js"></script>
 
+    <!-- Material Symbols (종목 아이콘용) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 
@@ -100,48 +103,51 @@
             <!-- Tab Content -->
             <div class="flex-1 overflow-y-auto p-4 md:p-6" id="tool-panel">
 
-                <!-- Product Tool -->
+                <!-- Product Tool: 종목 선택 + 앞뒤 전환 -->
                 <div id="panel-product" class="space-y-6">
+                    <!-- 종목 선택 그리드 (2x2) -->
                     <div>
-                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Select Base Product</h3>
-                        <div class="grid grid-cols-2 gap-3" id="product-list">
-                            <div class="cursor-pointer border-2 border-black rounded-lg overflow-hidden group"
-                                onclick="changeBaseProduct('images/products/uniform_basket.png', 'Basketball Kit Pro')">
-                                <img src="images/products/uniform_basket.png"
-                                    class="w-full h-auto transition-transform group-hover:scale-105">
-                                <div class="p-2 text-center text-xs font-bold bg-gray-50">Basketball</div>
-                            </div>
-                            <div class="cursor-pointer border border-gray-200 rounded-lg overflow-hidden group hover:border-black"
-                                onclick="changeBaseProduct('images/products/uniform_soccer.png', 'Soccer Kit Elite')">
-                                <img src="images/products/uniform_soccer.png"
-                                    class="w-full h-auto transition-transform group-hover:scale-105">
-                                <div class="p-2 text-center text-xs font-bold bg-gray-50">Soccer</div>
-                            </div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Select Sport</h3>
+                        <div class="grid grid-cols-2 gap-3" id="sport-grid">
+                            <!-- JS에서 동적 생성: 4종목 버튼 (Material Symbols 아이콘 + 종목명) -->
+                        </div>
+                    </div>
+
+                    <!-- 앞/뒤 전환 토글 -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">View Side</h3>
+                        <div class="flex rounded-lg overflow-hidden border border-gray-200">
+                            <button id="btn-front" class="flex-1 py-2.5 text-sm font-bold bg-black text-white transition-colors">FRONT</button>
+                            <button id="btn-back" class="flex-1 py-2.5 text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 transition-colors">BACK</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Color Tool -->
-                <div id="panel-color" class="hidden space-y-8">
-                    <!-- Main Body Color -->
+                <!-- Color Tool: 영역 선택 + 단일 팔레트 -->
+                <div id="panel-color" class="hidden space-y-6">
+                    <!-- 영역 선택 버튼 (종목별 동적 생성) -->
                     <div>
-                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center">
-                            <span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span>
-                            Main Body Color
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Select Zone</h3>
+                        <div class="flex flex-wrap gap-2" id="zone-buttons">
+                            <!-- JS로 생성: 종목별 영역 버튼 -->
+                        </div>
+                    </div>
+
+                    <!-- 통합 색상 팔레트: 선택된 영역의 색상을 변경 -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase" id="color-zone-label">
+                            Body Color
                         </h3>
-                        <div class="grid grid-cols-5 gap-2" id="color-palette-main">
+                        <div class="grid grid-cols-5 gap-2" id="color-palette-zone">
                             <!-- JS Generated -->
                         </div>
                     </div>
 
-                    <!-- Point/Trim Color -->
+                    <!-- 현재 영역별 색상 미리보기 -->
                     <div>
-                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center">
-                            <span class="w-3 h-3 rounded-full border border-gray-400 mr-2"></span>
-                            Point Color (Trim)
-                        </h3>
-                        <div class="grid grid-cols-5 gap-2" id="color-palette-point">
-                            <!-- JS Generated -->
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase">Current Colors</h3>
+                        <div class="space-y-2" id="color-summary">
+                            <!-- JS: 각 영역별 현재 색상 표시 -->
                         </div>
                     </div>
                 </div>
@@ -281,13 +287,17 @@
             <div class="space-y-4 text-sm">
                 <div class="flex justify-between py-2 border-b border-gray-100">
                     <span class="text-gray-500">Base Model</span>
-                    <span class="font-medium">Basketball Kit Pro</span>
+                    <span class="font-medium" id="summary-model-name">축구 저지</span>
+                </div>
+                <!-- 영역별 색상 요약 -->
+                <div id="summary-color" class="py-2 border-b border-gray-100">
+                    <!-- JS가 동적으로 채움 -->
                 </div>
                 <!-- Price -->
                 <div class="mt-8 pt-4 border-t border-black">
                     <div class="flex justify-between items-center mb-6">
                         <span class="font-bold text-lg">Total</span>
-                        <span class="font-bold text-xl text-brand-red">₩ 49,000</span>
+                        <span class="font-bold text-xl text-brand-red" id="summary-price">&#8361;45,000</span>
                     </div>
                     <button
                         class="w-full bg-black text-white py-4 font-bold tracking-wide hover:bg-gray-800 transition-colors">
@@ -310,6 +320,8 @@
         </button>
     </div>
 
+    <!-- SVG 유니폼 템플릿 데이터 (custom_2d.js보다 먼저 로드해야 함) -->
+    <script src="js/jersey-templates.js" defer></script>
     <script src="js/custom_2d.js" defer></script>
     <!-- 챗봇 위젯: 디자인 중 AI 상담 가능 -->
     <script src="js/product-data.js" defer></script>
