@@ -73,4 +73,65 @@ export function deleteById(collection, id) {
     return true;
 }
 
-export default { getAll, saveAll, insert, findOne, findById, updateById, deleteById };
+/**
+ * 필터 조건으로 레코드 검색 (관리자 주문 목록 등에서 사용)
+ * 비유: 엑셀의 필터 기능처럼, 여러 조건을 동시에 걸어서 원하는 데이터만 추출
+ *
+ * @param {string} collection - 컬렉션 이름 (예: 'orders')
+ * @param {object} filters - 필터 조건 { status: 'shipped', manager: '신경록' }
+ * @param {object} options - 정렬/페이지네이션 { sortBy, sortOrder, page, limit, search }
+ * @returns {{ data: array, total: number, page: number, totalPages: number }}
+ */
+export function findByFilter(collection, filters = {}, options = {}) {
+    let data = getAll(collection);
+
+    // 1) 필터 적용 - 각 필터 키에 해당하는 값이 일치하는 레코드만 남김
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+
+        // 중첩 필드 지원 (예: 'customer.teamName' → customer 객체 안의 teamName)
+        data = data.filter(item => {
+            const keys = key.split('.');
+            let val = item;
+            for (const k of keys) {
+                val = val?.[k];
+            }
+            return val === value;
+        });
+    });
+
+    // 2) 텍스트 검색 - 팀명, 주문번호, 고객명에서 키워드 검색
+    if (options.search) {
+        const keyword = options.search.toLowerCase();
+        data = data.filter(item =>
+            (item.orderNumber || '').toLowerCase().includes(keyword) ||
+            (item.customer?.name || '').toLowerCase().includes(keyword) ||
+            (item.customer?.teamName || '').toLowerCase().includes(keyword) ||
+            (item.memo || '').toLowerCase().includes(keyword)
+        );
+    }
+
+    // 3) 전체 건수 (페이지네이션 전)
+    const total = data.length;
+
+    // 4) 정렬 - 기본값은 생성일 내림차순 (최신순)
+    const sortBy = options.sortBy || 'createdAt';
+    const sortOrder = options.sortOrder || 'desc';
+    data.sort((a, b) => {
+        const aVal = a[sortBy] ?? '';
+        const bVal = b[sortBy] ?? '';
+        if (sortOrder === 'asc') return aVal > bVal ? 1 : -1;
+        return aVal < bVal ? 1 : -1;
+    });
+
+    // 5) 페이지네이션 - page와 limit으로 잘라서 반환
+    const page = parseInt(options.page) || 1;
+    const limit = parseInt(options.limit) || 20;
+    const totalPages = Math.ceil(total / limit);
+    const start = (page - 1) * limit;
+    data = data.slice(start, start + limit);
+
+    return { data, total, page, totalPages };
+}
+
+export default { getAll, saveAll, insert, findOne, findById, updateById, deleteById, findByFilter };
