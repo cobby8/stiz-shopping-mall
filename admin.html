@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 주문 관리</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* 관리자 페이지 전용 스타일 */
+        .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        /* 테이블 행 호버 효과 */
+        .order-row { transition: background-color 0.15s; }
+        .order-row:hover { background-color: #f9fafb; }
+
+        /* 상태 배지 색상 */
+        .badge-design { background-color: #dbeafe; color: #1e40af; }
+        .badge-production { background-color: #fef3c7; color: #92400e; }
+        .badge-shipping { background-color: #d1fae5; color: #065f46; }
+        .badge-delivered { background-color: #e5e7eb; color: #374151; }
+
+        /* 필터 드롭다운 */
+        .filter-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+
+        /* 로딩 스피너 */
+        .spinner {
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #111;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 모바일에서 테이블 가로 스크롤 */
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-gray-50 text-gray-900 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- 관리자 헤더 (일반 쇼핑몰 헤더와 분리) -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <!-- 로고 + 관리자 표시 -->
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <!-- 네비게이션 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin.html" class="text-white font-medium border-b-2 border-brand-red pb-1">주문 관리</a>
+                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <!-- 사용자 정보 + 로그아웃 -->
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <button onclick="handleLogout()"
+                    class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠 -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- 페이지 타이틀 -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold">주문 관리</h1>
+                <p class="text-sm text-gray-500 mt-1">Google Sheets 대신 여기서 모든 주문을 관리합니다.</p>
+            </div>
+            <button onclick="loadOrders()" class="flex items-center space-x-1 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+                <span class="material-symbols-outlined text-base">refresh</span>
+                <span>새로고침</span>
+            </button>
+        </div>
+
+        <!-- ===== 상태 요약 카드 4개 ===== -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <!-- 시안 진행중 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100 cursor-pointer"
+                onclick="filterByStatus('design')">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-blue-500">palette</span>
+                    <span id="stat-design" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">시안 진행중</p>
+            </div>
+            <!-- 제작 진행중 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100 cursor-pointer"
+                onclick="filterByStatus('production')">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-amber-500">precision_manufacturing</span>
+                    <span id="stat-production" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">제작 진행중</p>
+            </div>
+            <!-- 배송 준비중 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100 cursor-pointer"
+                onclick="filterByStatus('shipping')">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-green-500">local_shipping</span>
+                    <span id="stat-shipping" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">배송 준비중</p>
+            </div>
+            <!-- 배송 완료 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100 cursor-pointer"
+                onclick="filterByStatus('delivered')">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-gray-400">check_circle</span>
+                    <span id="stat-delivered" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">배송 완료</p>
+            </div>
+        </div>
+
+        <!-- ===== 매출 요약 ===== -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8 flex flex-wrap items-center gap-6">
+            <div>
+                <p class="text-sm text-gray-500">총 주문</p>
+                <p id="stat-total" class="text-xl font-bold">-</p>
+            </div>
+            <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+            <div>
+                <p class="text-sm text-gray-500">총 매출</p>
+                <p id="stat-revenue" class="text-xl font-bold text-brand-red">-</p>
+            </div>
+        </div>
+
+        <!-- ===== 필터 바 ===== -->
+        <div class="bg-white rounded-xl p-4 border border-gray-100 mb-6">
+            <div class="flex flex-wrap gap-3 items-center">
+                <!-- 상태 필터 -->
+                <select id="filter-status" onchange="applyFilters()"
+                    class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <option value="">전체 상태</option>
+                    <option value="design_requested">시안 요청</option>
+                    <option value="draft_done">초안 완료</option>
+                    <option value="revision">수정 중</option>
+                    <option value="design_confirmed">디자인 확정</option>
+                    <option value="payment_pending">결제 대기</option>
+                    <option value="payment_done">결제 완료</option>
+                    <option value="grading">그레이딩</option>
+                    <option value="line_work">라인 작업</option>
+                    <option value="in_production">생산 중</option>
+                    <option value="production_done">생산 완료</option>
+                    <option value="released">출고</option>
+                    <option value="shipped">배송 중</option>
+                    <option value="delivered">배송 완료</option>
+                </select>
+
+                <!-- 담당자 필터 -->
+                <select id="filter-manager" onchange="applyFilters()"
+                    class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <option value="">전체 담당자</option>
+                    <!-- JS에서 동적 생성 -->
+                </select>
+
+                <!-- 종목 필터 -->
+                <select id="filter-sport" onchange="applyFilters()"
+                    class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <option value="">전체 종목</option>
+                    <option value="basketball">농구</option>
+                    <option value="soccer">축구</option>
+                    <option value="volleyball">배구</option>
+                    <option value="baseball">야구</option>
+                </select>
+
+                <!-- 검색 -->
+                <div class="flex-1 min-w-[200px]">
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">search</span>
+                        <input type="text" id="filter-search" placeholder="팀명, 주문번호, 고객명 검색..."
+                            onkeyup="handleSearchKeyup(event)"
+                            class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    </div>
+                </div>
+
+                <!-- 필터 초기화 -->
+                <button onclick="resetFilters()"
+                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors">
+                    <span class="material-symbols-outlined text-base">filter_alt_off</span>
+                    <span>초기화</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== 주문 테이블 ===== -->
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <!-- 로딩 상태 -->
+            <div id="loading" class="flex items-center justify-center py-20">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">주문 목록을 불러오는 중...</span>
+            </div>
+
+            <!-- 빈 상태 -->
+            <div id="empty-state" class="hidden text-center py-20">
+                <span class="material-symbols-outlined text-5xl text-gray-300">inbox</span>
+                <p class="text-gray-500 mt-3">조건에 맞는 주문이 없습니다.</p>
+            </div>
+
+            <!-- 테이블 -->
+            <div id="table-wrapper" class="hidden table-wrapper">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문번호</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">종목</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">상태</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">담당자</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">금액</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">등록일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div id="pagination" class="hidden border-t border-gray-100 px-4 py-3 flex items-center justify-between">
+                <p id="pagination-info" class="text-sm text-gray-500"></p>
+                <div id="pagination-buttons" class="flex items-center space-x-1"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ===== 스크립트 ===== -->
+    <!-- auth.js 제거: admin.js가 자체 인증 로직 보유, const API_BASE 중복 선언 방지 -->
+    <script src="js/admin.js"></script>
+</body>
+
+</html>
