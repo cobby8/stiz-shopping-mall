@@ -34,6 +34,42 @@
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="css/style.css">
+
+    <!-- Material Symbols (아이콘) -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        /* 주문 카드 내 미니 프로그레스 바 스타일 */
+        .mini-progress {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-top: 8px;
+        }
+        .mini-step {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            flex-shrink: 0;
+        }
+        .mini-step.done {
+            background: #111111;
+        }
+        .mini-step.current {
+            background: #111111;
+            box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.2);
+        }
+        .mini-line {
+            flex: 1;
+            height: 2px;
+            background: #e5e7eb;
+        }
+        .mini-line.done {
+            background: #111111;
+        }
+    </style>
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-white">
@@ -69,26 +105,25 @@
                         <p class="text-gray-500 text-sm" id="welcome-date"></p>
                     </div>
 
-                    <!-- Order Status Summary -->
+                    <!-- 주문 상태 요약: 4단계(시안/제작/배송/완료)로 단순화 -->
                     <div>
-                        <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Order Status</h3>
-                        <!-- 모바일: 2열 그리드로 텍스트 잘림 방지 / 데스크탑: 4열 유지 -->
+                        <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">주문 현황</h3>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center py-6">
                             <div>
-                                <div class="text-3xl font-bold mb-1" id="stat-pending">0</div>
-                                <div class="text-xs text-gray-500">Pending</div>
+                                <div class="text-3xl font-bold mb-1 text-yellow-600" id="stat-design">0</div>
+                                <div class="text-xs text-gray-500">시안 진행</div>
                             </div>
                             <div>
-                                <div class="text-3xl font-bold mb-1 text-blue-600" id="stat-processing">0</div>
-                                <div class="text-xs text-gray-500">Processing</div>
+                                <div class="text-3xl font-bold mb-1 text-blue-600" id="stat-production">0</div>
+                                <div class="text-xs text-gray-500">제작 진행</div>
                             </div>
                             <div>
-                                <div class="text-3xl font-bold mb-1" id="stat-shipped">0</div>
-                                <div class="text-xs text-gray-500">Shipped</div>
+                                <div class="text-3xl font-bold mb-1 text-purple-600" id="stat-shipping">0</div>
+                                <div class="text-xs text-gray-500">배송 준비</div>
                             </div>
                             <div>
                                 <div class="text-3xl font-bold mb-1 text-green-600" id="stat-delivered">0</div>
-                                <div class="text-xs text-gray-500">Delivered</div>
+                                <div class="text-xs text-gray-500">배송 완료</div>
                             </div>
                         </div>
                     </div>
@@ -145,12 +180,32 @@
     <script src="js/cart.js" defer></script>
     <script src="js/auth.js" defer></script>
     <script>
-        // Redirect if not logged in
+        // 로그인 안 되어 있으면 로그인 페이지로 이동
         if (!isLoggedIn()) {
             location.href = 'login.html';
         }
 
-        // Tab switching
+        /**
+         * 상태 매핑 함수 (서버의 getCustomerStatus와 동일한 로직)
+         * 서버의 12단계 상태를 고객용 4단계로 변환한다.
+         * 비유: 공장 내부 공정(12단계)을 고객 안내판(4단계)으로 변환
+         */
+        function getCustomerStep(status) {
+            // 시안 관련 상태 -> 1단계
+            const design = ['design_requested', 'draft_done', 'revision', 'design_confirmed', 'pending'];
+            // 제작 관련 상태 -> 2단계
+            const production = ['payment_pending', 'payment_done', 'grading', 'line_work', 'in_production', 'production_done', 'processing'];
+            // 배송 관련 상태 -> 3단계
+            const shipping = ['released', 'shipped'];
+
+            if (design.includes(status)) return { step: 1, label: '시안 진행중' };
+            if (production.includes(status)) return { step: 2, label: '제작 진행중' };
+            if (shipping.includes(status)) return { step: 3, label: '배송 준비중' };
+            if (status === 'delivered') return { step: 4, label: '배송완료' };
+            return { step: 0, label: '확인중' };
+        }
+
+        // 탭 전환 함수
         function showTab(tab) {
             ['dashboard', 'orders', 'profile'].forEach(t => {
                 document.getElementById('content-' + t).classList.add('hidden');
@@ -167,59 +222,130 @@
             const user = getUser();
             if (!user) return;
 
-            // Welcome
+            // 환영 메시지
             document.getElementById('welcome-name').innerText = `Hello, ${user.name}!`;
             const joinDate = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ko-KR') : '';
             document.getElementById('welcome-date').innerText = `Member since ${joinDate}`;
 
-            // Profile
+            // 프로필 정보
             document.getElementById('profile-name').value = user.name;
             document.getElementById('profile-email').value = user.email;
             document.getElementById('profile-joined').value = joinDate;
 
-            // Orders
+            // 주문 데이터 로드 + 4단계 통계 계산
             const orders = getUserOrders();
-            const pending = orders.filter(o => o.status === 'pending').length;
-            document.getElementById('stat-pending').innerText = pending;
-            document.getElementById('stat-processing').innerText = orders.filter(o => o.status === 'processing').length;
-            document.getElementById('stat-delivered').innerText = orders.filter(o => o.status === 'delivered').length;
 
+            // 각 주문의 상태를 4단계로 매핑하여 통계 계산
+            let designCount = 0, productionCount = 0, shippingCount = 0, deliveredCount = 0;
+            orders.forEach(o => {
+                const { step } = getCustomerStep(o.status);
+                if (step === 1) designCount++;
+                else if (step === 2) productionCount++;
+                else if (step === 3) shippingCount++;
+                else if (step === 4) deliveredCount++;
+            });
+
+            document.getElementById('stat-design').innerText = designCount;
+            document.getElementById('stat-production').innerText = productionCount;
+            document.getElementById('stat-shipping').innerText = shippingCount;
+            document.getElementById('stat-delivered').innerText = deliveredCount;
+
+            // 주문 목록 렌더링
             if (orders.length > 0) {
                 renderOrders(orders.slice(0, 3), 'recent-orders');
                 renderOrders(orders, 'all-orders');
             }
         });
 
+        /**
+         * 미니 프로그레스 바 HTML을 생성하는 함수
+         * 4개의 점(step)과 3개의 연결선(line)으로 구성된다.
+         * 비유: 지하철 노선도의 축소판 - 현재 역이 어디인지 표시
+         * @param {number} currentStep - 현재 단계 (1~4)
+         * @returns {string} HTML 문자열
+         */
+        function createMiniProgress(currentStep) {
+            let html = '<div class="mini-progress">';
+            for (let i = 1; i <= 4; i++) {
+                // 단계 점 (dot): 완료=검정, 진행중=검정+그림자, 대기=회색
+                let dotClass = 'mini-step';
+                if (i < currentStep) dotClass += ' done';
+                else if (i === currentStep) dotClass += ' current';
+                html += `<div class="${dotClass}"></div>`;
+
+                // 연결선 (line): 마지막 단계 뒤에는 없음
+                if (i < 4) {
+                    let lineClass = 'mini-line';
+                    if (i < currentStep) lineClass += ' done';
+                    html += `<div class="${lineClass}"></div>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        /**
+         * 주문 카드를 렌더링하는 함수 (프로그레스 바 + 추적 버튼 포함)
+         * 기존 renderOrders를 확장하여 4단계 상태 표시 + 추적 페이지 링크를 추가
+         */
         function renderOrders(orders, containerId) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
 
             orders.forEach(order => {
-                const statusColors = {
-                    pending: 'bg-yellow-100 text-yellow-800',
-                    processing: 'bg-blue-100 text-blue-800',
-                    shipped: 'bg-purple-100 text-purple-800',
-                    delivered: 'bg-green-100 text-green-800',
+                // 4단계 상태 매핑
+                const { step, label } = getCustomerStep(order.status);
+
+                // 상태 배지 색상 (4단계별)
+                const badgeColors = {
+                    1: 'bg-yellow-100 text-yellow-800',
+                    2: 'bg-blue-100 text-blue-800',
+                    3: 'bg-purple-100 text-purple-800',
+                    4: 'bg-green-100 text-green-800'
                 };
-                const statusClass = statusColors[order.status] || statusColors.pending;
+                const statusClass = badgeColors[step] || 'bg-gray-100 text-gray-800';
+
                 const date = new Date(order.createdAt).toLocaleDateString('ko-KR');
                 const itemCount = order.items ? order.items.length : 0;
                 const firstItem = order.items && order.items[0];
 
                 const el = document.createElement('div');
-                el.className = 'border border-gray-200 rounded-lg p-6 flex flex-col sm:flex-row items-center gap-6';
+                el.className = 'border border-gray-200 rounded-lg p-6';
+
                 el.innerHTML = `
-                    ${firstItem ? `
-                    <div class="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                        <img src="${firstItem.image}" class="w-full h-full object-cover">
-                    </div>` : ''}
-                    <div class="flex-1 text-center sm:text-left min-w-0">
-                        <div class="text-xs text-gray-500 mb-1">${date} (Order #${order.orderNumber})</div>
-                        <div class="font-bold text-sm truncate">${firstItem ? firstItem.name : 'Order'}${itemCount > 1 ? ` +${itemCount - 1} more` : ''}</div>
-                        <div class="text-sm text-gray-600">₩${(order.total || 0).toLocaleString()}</div>
-                    </div>
-                    <div class="text-right flex-shrink-0">
-                        <span class="inline-block px-3 py-1 ${statusClass} text-xs font-bold rounded-full capitalize">${order.status || 'pending'}</span>
+                    <div class="flex flex-col sm:flex-row items-start gap-4">
+                        ${firstItem && firstItem.image ? `
+                        <div class="w-16 h-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                            <img src="${firstItem.image}" class="w-full h-full object-cover"
+                                 onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-gray-300\\'><span class=\\'material-symbols-outlined\\'>checkroom</span></div>'">
+                        </div>` : `
+                        <div class="w-16 h-16 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-gray-300">checkroom</span>
+                        </div>`}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <div class="text-xs text-gray-400 mb-0.5">${date}</div>
+                                    <div class="font-bold text-sm truncate">
+                                        ${firstItem ? firstItem.name : 'Order'}${itemCount > 1 ? ` <span class="text-gray-400">+${itemCount - 1}</span>` : ''}
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-0.5">#${order.orderNumber || 'N/A'}</div>
+                                </div>
+                                <span class="inline-block px-2.5 py-1 ${statusClass} text-[11px] font-bold rounded-full whitespace-nowrap">${label}</span>
+                            </div>
+                            <!-- 미니 프로그레스 바: 4단계 진행상황을 점과 선으로 표시 -->
+                            ${createMiniProgress(step)}
+                            <div class="flex items-center justify-between mt-3">
+                                <div class="text-sm font-bold">₩${(order.total || 0).toLocaleString()}</div>
+                                <!-- 주문 추적 버튼: 클릭 시 order-track.html로 이동 -->
+                                ${order.orderNumber ? `
+                                <a href="order-track.html?orderNumber=${encodeURIComponent(order.orderNumber)}"
+                                   class="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black transition border border-gray-300 hover:border-black rounded-full px-3 py-1.5">
+                                    <span class="material-symbols-outlined" style="font-size: 14px;">track_changes</span>
+                                    주문 추적
+                                </a>` : ''}
+                            </div>
+                        </div>
                     </div>
                 `;
                 container.appendChild(el);
