@@ -25,24 +25,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Generate Flow
-    btnGenerate.addEventListener('click', () => {
-        // Show Loader
+    // 3. Generate Flow - 서버 AI API 호출 (실패 시 기존 Mock 이미지 폴백)
+    btnGenerate.addEventListener('click', async () => {
+        // 로딩 표시
         loader.classList.remove('hidden');
-
-        // Hide Placeholder/Result
         resultPlaceholder.classList.add('hidden');
         resultContainer.classList.add('hidden');
 
-        // Simulate AI Processing (3.5s)
-        setTimeout(() => {
-            loader.classList.add('hidden');
-            resultContainer.classList.remove('hidden');
+        // 선택된 모델(Man/Woman) 확인 - active 클래스가 있는 버튼의 data 속성
+        const activeModelBtn = document.querySelector('.model-select-btn.active');
+        // data-model 속성이 없으면 버튼 텍스트에서 추론
+        let model = 'man';
+        if (activeModelBtn) {
+            model = activeModelBtn.dataset.model
+                || (activeModelBtn.textContent.toLowerCase().includes('woman') ? 'woman' : 'man');
+        }
 
-            // Set Result Image
-            // In a real app, this would depend on the selected model + source design
+        try {
+            // 서버의 AI 이미지 생성 API 호출
+            const response = await fetch('http://localhost:3000/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'mockup',
+                    prompt: `Professional sportswear mockup photo, ${model === 'woman' ? 'female' : 'male'} athlete wearing custom team uniform, studio lighting, white background, high quality product photography`,
+                    sourceImage: sourceImg?.src || null
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // 서버에서 받은 이미지 URL 표시
+                resultImg.src = data.imageUrl || data.image || 'images/ai_samples/mockup_result.png';
+            } else {
+                throw new Error('API response not ok');
+            }
+        } catch (e) {
+            // 서버 미실행 또는 API 실패 시 기존 Mock 이미지 표시
             resultImg.src = 'images/ai_samples/mockup_result.png';
+        }
 
-        }, 3500);
+        // 로딩 숨기고 결과 표시
+        loader.classList.add('hidden');
+        resultContainer.classList.remove('hidden');
     });
 });

@@ -324,7 +324,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const fullPrompt = `Team Name: ${teamName}, Slogan: ${slogan}, Established: ${year}, Type: ${style}, Additional: ${userRequest}`;
 
         try {
-            const response = await fetch('http://localhost:4000/api/generate', {
+            // 서버 포트가 3000이므로 맞춰서 호출 (기존 4000은 오류)
+            const response = await fetch('http://localhost:3000/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -423,11 +424,18 @@ document.addEventListener('DOMContentLoaded', () => {
     /* 6. Save & Download */
     window.saveDesign = function () {
         const designId = 'stiz_design_' + Date.now();
-        // Generate Thumbnail (ignore errors if taint)
+        // 캔버스를 PNG로 변환 (외부 이미지가 있으면 CORS로 실패할 수 있음)
         let dataURL = '';
+        let mockupSaved = false; // 목업용 이미지 저장 성공 여부
         try {
             dataURL = canvas.toDataURL({ format: 'png', multiplier: 0.5 });
-        } catch (e) { console.warn('Canvas tainted', e); }
+            // 목업 뷰어에서 사용할 소스 이미지도 함께 저장
+            localStorage.setItem('stiz_mockup_source', dataURL);
+            mockupSaved = true;
+        } catch (e) {
+            // 외부 이미지(Unsplash 등) 포함 시 tainted canvas 오류 발생
+            console.warn('Canvas tainted - 목업 소스 저장 불가', e);
+        }
 
         const designData = {
             id: designId,
@@ -440,6 +448,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedDesigns = JSON.parse(localStorage.getItem('stiz_saved_designs') || '[]');
         savedDesigns.push(designData);
         localStorage.setItem('stiz_saved_designs', JSON.stringify(savedDesigns));
+
+        // 목업 전달 성공 시 이동 여부 확인, 실패 시 안내 메시지
+        if (mockupSaved) {
+            const goMockup = confirm('디자인이 저장되었습니다. 목업에서 확인하시겠습니까?');
+            if (goMockup) {
+                window.location.href = 'custom_mockup.html';
+                return;
+            }
+        } else {
+            alert('디자인이 저장되었습니다.\n(외부 이미지가 포함되어 목업 전달이 불가합니다)');
+            return;
+        }
 
         alert('Design Saved! Check "My Shop".');
     };

@@ -103,22 +103,24 @@ function initChatbot() {
     chatBtn.addEventListener('click', toggleChat);
     document.getElementById('close-chat').addEventListener('click', toggleChat);
 
-    document.getElementById('chat-form').addEventListener('submit', (e) => {
+    // 폼 제출 시 async 처리 (AI 응답 대기 가능)
+    document.getElementById('chat-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
         if (text) {
             addUserMessage(text);
-            processBotResponse(text);
             input.value = '';
+            await processBotResponse(text);
         }
     });
 
-    document.body.addEventListener('click', (e) => {
+    // 추천 키워드 클릭 시에도 async 처리
+    document.body.addEventListener('click', async (e) => {
         if (e.target.classList.contains('quick-reply')) {
             const text = e.target.innerText;
             addUserMessage(text);
-            processBotResponse(text);
+            await processBotResponse(text);
         }
     });
 }
@@ -191,8 +193,9 @@ function renderProductCard(product) {
     `;
 }
 
-// Enhanced response logic
-function processBotResponse(input) {
+// 규칙 기반 응답 + AI Fallback (Gemini 연동)
+// 규칙에 매칭되면 즉시 응답, 안 되면 서버 AI에게 질문
+async function processBotResponse(input) {
     const lower = input.toLowerCase();
 
     // Greetings
@@ -354,14 +357,62 @@ function processBotResponse(input) {
         return;
     }
 
-    // Fallback
+    // Fallback: 규칙에 매칭되지 않으면 Gemini AI에게 질문
+    // 타이핑 인디케이터를 먼저 표시하고, AI 응답 후 교체
+    const container = document.getElementById('chat-messages');
+    const loadingId = 'ai-loading-' + Date.now();
+    const loading = document.createElement('div');
+    loading.id = loadingId;
+    loading.className = 'flex items-start space-x-2';
+    loading.innerHTML = `
+        <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">AI</div>
+        <div class="bg-gray-100 p-3 rounded-r-lg rounded-bl-lg max-w-[80%] flex space-x-1 items-center h-10">
+            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+        </div>
+    `;
+    container.appendChild(loading);
+    container.scrollTop = container.scrollHeight;
+
+    try {
+        // 서버의 Gemini 챗봇 API 호출
+        const response = await fetch('http://localhost:3000/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: input })
+        });
+
+        // 타이핑 인디케이터 제거
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
+
+        if (response.ok) {
+            const data = await response.json();
+            // AI 응답을 메시지로 표시 (딜레이 없이 즉시, 이미 대기했으므로)
+            addBotMessage(escapeHtml(data.reply), 0);
+            return;
+        }
+    } catch (e) {
+        // 서버 미실행 등 네트워크 에러 시 타이핑 인디케이터 제거
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
+    }
+
+    // AI 호출 실패 시 기존 Fallback 메시지 + 추천 키워드
     addBotMessage(`
-        죄송합니다. 해당 질문은 아직 답변 준비 중입니다.
+        죄송합니다, 해당 질문에 대한 답변을 준비 중입니다.
+        <div class="mt-3 text-xs text-gray-500">빠른 상담을 원하시면:</div>
+        <div class="text-xs text-gray-600 space-y-0.5 mb-2">
+            <p>- 카카오톡: @stiz</p>
+            <p>- 이메일: info@stiz.co.kr</p>
+            <p>- 전화: 02-1234-5678</p>
+        </div>
         <div class="mt-2 flex flex-wrap gap-2">
             <button class="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full text-xs font-bold quick-reply">커스텀 제작</button>
             <button class="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full text-xs font-bold quick-reply">배송 안내</button>
             <button class="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full text-xs font-bold quick-reply">사이즈 추천</button>
             <button class="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full text-xs font-bold quick-reply">인기 상품</button>
         </div>
-    `);
+    `, 0);
 }
