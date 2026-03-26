@@ -71,7 +71,7 @@ function checkAdminAuth() {
     if (!token) {
         // 토큰이 없으면 로그인 페이지로 이동
         alert('관리자 로그인이 필요합니다.');
-        window.location.href = 'login.html';
+        window.location.href = 'admin-login.html';
         return;
     }
 
@@ -91,7 +91,7 @@ function checkAdminAuth() {
         // 토큰 파싱 실패 시 로그인 페이지로
         alert('인증 정보가 올바르지 않습니다. 다시 로그인해주세요.');
         localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'login.html';
+        window.location.href = 'admin-login.html';
     }
 }
 
@@ -121,7 +121,7 @@ async function adminFetch(url, options = {}) {
     if (response.status === 401 || response.status === 403) {
         alert('인증이 만료되었습니다. 다시 로그인해주세요.');
         localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'login.html';
+        window.location.href = 'admin-login.html';
         return null;
     }
 
@@ -456,5 +456,5 @@ function escapeHtml(text) {
 function handleLogout() {
     if (!confirm('로그아웃 하시겠습니까?')) return;
     localStorage.removeItem('stiz_admin_token');
-    window.location.href = 'login.html';
+    window.location.href = 'admin-login.html';
 }

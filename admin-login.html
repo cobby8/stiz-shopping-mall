@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 로그인</title>
+    <!-- 검색엔진에 노출되지 않도록 차단 -->
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // admin.html과 동일한 Tailwind 커스텀 설정
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* 배경 그라디언트 — 관리자 페이지 톤에 맞춘 어두운 slate 계열 */
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+
+        /* 로그인 카드 등장 애니메이션 */
+        .login-card {
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 입력 필드 포커스 시 빨간 테두리 효과 */
+        .input-field:focus {
+            border-color: #E63946;
+            box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.15);
+        }
+
+        /* 로딩 스피너 회전 */
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body class="font-sans flex items-center justify-center px-4">
+
+    <!-- 로그인 카드 — 중앙 정렬, 최대 너비 400px -->
+    <div class="login-card w-full max-w-[400px]">
+
+        <!-- 상단 로고 영역 -->
+        <div class="text-center mb-8">
+            <!-- 관리자 아이콘 -->
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-red/10 mb-4">
+                <span class="material-symbols-outlined text-brand-red text-4xl">admin_panel_settings</span>
+            </div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">STIZ Admin</h1>
+            <p class="text-slate-400 text-sm mt-1">관리자 전용 로그인</p>
+        </div>
+
+        <!-- 로그인 폼 카드 -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
+
+            <!-- 에러 메시지 영역 (기본 숨김) -->
+            <div id="error-box" class="hidden mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
+                <span class="material-symbols-outlined text-red-500 text-lg mt-0.5">error</span>
+                <span id="error-message">오류가 발생했습니다.</span>
+            </div>
+
+            <form id="login-form" class="space-y-5" autocomplete="on">
+                <!-- 이메일 입력 -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-700 mb-1.5">이메일</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">mail</span>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            required
+                            autocomplete="email"
+                            placeholder="admin@stiz.co.kr"
+                            class="input-field w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
+                        />
+                    </div>
+                </div>
+
+                <!-- 비밀번호 입력 -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-700 mb-1.5">비밀번호</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">lock</span>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            required
+                            autocomplete="current-password"
+                            placeholder="비밀번호를 입력하세요"
+                            class="input-field w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
+                        />
+                    </div>
+                </div>
+
+                <!-- 로그인 버튼 -->
+                <button
+                    type="submit"
+                    id="login-btn"
+                    class="w-full py-3 bg-brand-red hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span id="btn-text">로그인</span>
+                    <!-- 로딩 스피너 (기본 숨김) -->
+                    <svg id="btn-spinner" class="hidden spinner w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- 하단 안내 -->
+        <p class="text-center text-slate-500 text-xs mt-6">
+            &copy; 2026 STIZ. 관리자 전용 페이지입니다.
+        </p>
+    </div>
+
+    <script>
+        // ============================================================
+        // 상수 정의
+        // ============================================================
+        const API_BASE = 'http://localhost:4000';
+
+        // ============================================================
+        // 페이지 로드 시: 이미 유효한 토큰이 있으면 대시보드로 바로 이동
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('stiz_admin_token');
+            if (token) {
+                try {
+                    // JWT의 payload 부분을 디코딩해서 role 확인
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+
+                    // 토큰 만료 확인 (exp는 초 단위 Unix timestamp)
+                    const now = Math.floor(Date.now() / 1000);
+                    if (payload.role === 'admin' && payload.exp && payload.exp > now) {
+                        // 유효한 관리자 토큰 → 대시보드로 바로 이동
+                        window.location.href = 'admin.html';
+                        return;
+                    }
+                } catch (e) {
+                    // 토큰 파싱 실패 시 그냥 로그인 폼 표시
+                    localStorage.removeItem('stiz_admin_token');
+                }
+            }
+
+            // 이메일 입력창에 자동 포커스
+            document.getElementById('email').focus();
+        });
+
+        // ============================================================
+        // 로그인 폼 제출 처리
+        // ============================================================
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault(); // 폼 기본 동작(페이지 새로고침) 방지
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('login-btn');
+
+            // 에러 메시지 숨기기
+            hideError();
+
+            // 버튼 로딩 상태로 전환 (중복 클릭 방지)
+            setLoading(true);
+
+            try {
+                // 서버에 로그인 요청
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                // 로그인 실패 (잘못된 이메일/비밀번호)
+                if (!response.ok) {
+                    showError(data.error || '이메일 또는 비밀번호가 올바르지 않습니다.');
+                    setLoading(false);
+                    return;
+                }
+
+                // 로그인 성공 — 관리자 권한 확인
+                // JWT 토큰의 payload에서 role 필드를 확인한다
+                const token = data.token;
+                const payload = JSON.parse(atob(token.split('.')[1]));
+
+                if (payload.role !== 'admin') {
+                    // 일반 사용자가 관리자 로그인을 시도한 경우
+                    showError('관리자 계정이 아닙니다. 관리자 권한이 필요합니다.');
+                    setLoading(false);
+                    return;
+                }
+
+                // 관리자 확인 완료 → 토큰 저장 후 대시보드로 이동
+                localStorage.setItem('stiz_admin_token', token);
+                window.location.href = 'admin.html';
+
+            } catch (err) {
+                // 네트워크 오류 등 예외 처리
+                showError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+                setLoading(false);
+            }
+        });
+
+        // ============================================================
+        // UI 헬퍼 함수들
+        // ============================================================
+
+        /** 에러 메시지 표시 */
+        function showError(message) {
+            const box = document.getElementById('error-box');
+            const msg = document.getElementById('error-message');
+            msg.textContent = message;
+            box.classList.remove('hidden');
+        }
+
+        /** 에러 메시지 숨기기 */
+        function hideError() {
+            document.getElementById('error-box').classList.add('hidden');
+        }
+
+        /** 버튼 로딩 상태 토글 (로딩 중이면 클릭 못하게 막는다) */
+        function setLoading(isLoading) {
+            const btn = document.getElementById('login-btn');
+            const text = document.getElementById('btn-text');
+            const spinner = document.getElementById('btn-spinner');
+
+            btn.disabled = isLoading;
+            text.textContent = isLoading ? '로그인 중...' : '로그인';
+            spinner.classList.toggle('hidden', !isLoading);
+        }
+    </script>
+
+</body>
+</html>
