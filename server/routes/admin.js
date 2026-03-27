@@ -40,7 +40,26 @@ router.get('/orders', (req, res) => {
             limit: req.query.limit || 20
         };
 
-        const result = db.findByFilter('orders', filters, options);
+        let result = db.findByFilter('orders', filters, options);
+
+        // 미수금 필터: 결제일이 없고 금액이 있는 주문만 (비유: 외상 장부만 보기)
+        if (req.query.unpaid === 'true') {
+            const allOrders = db.getAll('orders');
+            const unpaidOrders = allOrders.filter(o => {
+                const amount = o.payment?.totalAmount || 0;
+                const paidDate = o.payment?.paidDate;
+                return !paidDate && amount > 0 && o.status !== 'cancelled';
+            });
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 20;
+            const start = (page - 1) * limit;
+            result = {
+                data: unpaidOrders.slice(start, start + limit),
+                total: unpaidOrders.length,
+                page,
+                totalPages: Math.ceil(unpaidOrders.length / limit)
+            };
+        }
 
         res.json({
             success: true,

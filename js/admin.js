@@ -195,6 +195,7 @@ async function loadOrders() {
         if (currentFilters.manager) params.set('manager', currentFilters.manager);
         if (currentFilters.sport) params.set('sport', currentFilters.sport);
         if (currentFilters.search) params.set('search', currentFilters.search);
+        if (currentFilters.unpaid) params.set('unpaid', currentFilters.unpaid);  // 미수금 필터
         params.set('page', currentFilters.page);
         params.set('limit', 20);
 
@@ -386,11 +387,12 @@ function filterByStatus(group) {
  */
 function filterByPaymentStatus(type) {
     if (type === 'unpaid') {
-        // 미수금 필터: payment_status 파라미터를 사용
-        // 서버에서 지원하지 않으므로 클라이언트에서 결제대기 상태로 필터
+        // 미수금 필터: 서버에 unpaid=true 파라미터 전달
+        // 비유: "돈 안 받은 주문만 보기" — 결제일이 비어있고 금액이 있는 주문
         const select = document.getElementById('filter-status');
-        select.value = 'payment_pending';
-        currentFilters.status = 'payment_pending';
+        select.value = '';  // 상태 필터는 초기화
+        currentFilters.status = '';
+        currentFilters.unpaid = 'true';  // 미수금 전용 필터
         currentFilters.page = 1;
         loadOrders();
     }
@@ -401,7 +403,8 @@ function applyFilters() {
     currentFilters.status = document.getElementById('filter-status').value;
     currentFilters.manager = document.getElementById('filter-manager').value;
     currentFilters.sport = document.getElementById('filter-sport').value;
-    currentFilters.page = 1; // 필터 변경 시 첫 페이지로
+    currentFilters.unpaid = '';  // 일반 필터 사용 시 미수금 필터 해제
+    currentFilters.page = 1;
     loadOrders();
 }
 
@@ -421,7 +424,7 @@ function resetFilters() {
     document.getElementById('filter-sport').value = '';
     document.getElementById('filter-search').value = '';
 
-    currentFilters = { status: '', manager: '', sport: '', search: '', page: 1 };
+    currentFilters = { status: '', manager: '', sport: '', search: '', unpaid: '', page: 1 };
     loadOrders();
 }
 
