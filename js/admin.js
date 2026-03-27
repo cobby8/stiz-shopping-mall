@@ -28,6 +28,8 @@ const STATUS_LABELS = {
     released: '출고',
     shipped: '배송 중',
     delivered: '배송 완료',
+    hold: '보류',
+    cancelled: '취소',
     pending: '대기',
     processing: '처리중'
 };
@@ -150,6 +152,10 @@ async function loadStats() {
         // 총 주문 + 매출
         document.getElementById('stat-total').textContent = `${stats.totalOrders}건`;
         document.getElementById('stat-revenue').textContent = formatCurrency(stats.totalRevenue);
+
+        // 미수금 + 보류 카드 업데이트
+        document.getElementById('stat-unpaid').textContent = formatCurrency(stats.unpaidAmount || 0);
+        document.getElementById('stat-hold').textContent = `${stats.holdCount || 0}건`;
 
         // 담당자 필터 옵션 동적 생성
         updateManagerFilter(stats.managerCounts);
@@ -276,6 +282,9 @@ function getStatusBadge(status) {
     if (designStatuses.includes(status)) badgeClass = 'badge-design';       // 파란색
     else if (productionStatuses.includes(status)) badgeClass = 'badge-production'; // 노란색
     else if (shippingStatuses.includes(status)) badgeClass = 'badge-shipping';     // 초록색
+    // 보류: 주황색, 취소: 빨간색 (특수 상태는 별도 인라인 스타일)
+    else if (status === 'hold') badgeClass = 'bg-orange-100 text-orange-700';
+    else if (status === 'cancelled') badgeClass = 'bg-red-100 text-red-700';
 
     return `<span class="${badgeClass} text-xs font-medium px-2 py-1 rounded-full">${label}</span>`;
 }
@@ -350,7 +359,9 @@ function filterByStatus(group) {
         design: 'design_requested',      // 시안 관련 첫 번째 상태
         production: 'payment_pending',    // 제작 관련 첫 번째 상태
         shipping: 'released',            // 배송 관련 첫 번째 상태
-        delivered: 'delivered'
+        delivered: 'delivered',
+        hold: 'hold',                    // 보류
+        cancelled: 'cancelled'           // 취소
     };
 
     // 이미 같은 필터가 적용 중이면 해제 (토글 동작)
@@ -367,6 +378,22 @@ function filterByStatus(group) {
 
     currentFilters.page = 1;
     loadOrders();
+}
+
+/**
+ * 결제 상태로 필터 (미수금 카드 클릭 시)
+ * 비유: "돈 안 받은 주문만 보기" 버튼
+ */
+function filterByPaymentStatus(type) {
+    if (type === 'unpaid') {
+        // 미수금 필터: payment_status 파라미터를 사용
+        // 서버에서 지원하지 않으므로 클라이언트에서 결제대기 상태로 필터
+        const select = document.getElementById('filter-status');
+        select.value = 'payment_pending';
+        currentFilters.status = 'payment_pending';
+        currentFilters.page = 1;
+        loadOrders();
+    }
 }
 
 /** 필터 드롭다운 변경 시 호출 */

@@ -14,11 +14,13 @@
 const API_BASE = 'http://localhost:4000';
 
 // 12단계 상태 흐름 (순서대로)
+// 정상 진행 흐름 + 특수 상태(보류/취소)
 const STATUS_FLOW = [
     'design_requested', 'draft_done', 'revision', 'design_confirmed',
     'payment_pending', 'payment_done',
     'grading', 'line_work', 'in_production', 'production_done',
-    'released', 'shipped', 'delivered'
+    'released', 'shipped', 'delivered',
+    'hold', 'cancelled'
 ];
 
 // 상태 한글 라벨
@@ -36,6 +38,8 @@ const STATUS_LABELS = {
     released: '출고',
     shipped: '배송 중',
     delivered: '배송 완료',
+    hold: '보류',
+    cancelled: '취소',
     pending: '대기',
     processing: '처리중'
 };
@@ -269,6 +273,8 @@ function renderCurrentStatusBadge(status) {
     if (designStatuses.includes(status)) bgColor = 'bg-blue-100 text-blue-800';
     else if (productionStatuses.includes(status)) bgColor = 'bg-amber-100 text-amber-800';
     else if (shippingStatuses.includes(status)) bgColor = 'bg-green-100 text-green-800';
+    else if (status === 'hold') bgColor = 'bg-orange-100 text-orange-700';
+    else if (status === 'cancelled') bgColor = 'bg-red-100 text-red-700';
 
     badge.className = `text-sm font-medium px-3 py-1 rounded-full ${bgColor}`;
     badge.textContent = label;

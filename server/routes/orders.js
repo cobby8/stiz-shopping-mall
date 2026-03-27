@@ -52,7 +52,9 @@ export const STATUS_FLOW = [
     'production_done',    // 생산 완료
     'released',           // 출고
     'shipped',            // 배송 중
-    'delivered'           // 배송 완료
+    'delivered',          // 배송 완료
+    'hold',               // 보류 (고객 사정 등으로 임시 중단)
+    'cancelled'           // 취소
 ];
 
 // 고객에게 보여줄 4단계 매핑
@@ -88,6 +90,8 @@ export const STATUS_LABELS = {
     released: '출고',
     shipped: '배송 중',
     delivered: '배송 완료',
+    hold: '보류',         // 고객 사정 등으로 임시 중단
+    cancelled: '취소',    // 주문 취소
     // 기존 호환
     pending: '대기',
     processing: '처리중'

@@ -162,7 +162,7 @@
             </div>
         </div>
 
-        <!-- ===== 매출 요약 ===== -->
+        <!-- ===== 매출 요약 + 미수금/보류 ===== -->
         <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8 flex flex-wrap items-center gap-6">
             <div>
                 <p class="text-sm text-gray-500">총 주문</p>
@@ -172,6 +172,18 @@
             <div>
                 <p class="text-sm text-gray-500">총 매출</p>
                 <p id="stat-revenue" class="text-xl font-bold text-brand-red">-</p>
+            </div>
+            <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+            <!-- 미수금: 결제일 없고 금액이 있는 주문의 총액 -->
+            <div class="cursor-pointer" onclick="filterByPaymentStatus('unpaid')">
+                <p class="text-sm text-gray-500">미수금</p>
+                <p id="stat-unpaid" class="text-xl font-bold text-orange-500">-</p>
+            </div>
+            <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+            <!-- 보류: hold 상태인 주문 건수 -->
+            <div class="cursor-pointer" onclick="filterByStatus('hold')">
+                <p class="text-sm text-gray-500">보류</p>
+                <p id="stat-hold" class="text-xl font-bold text-gray-400">-</p>
             </div>
         </div>
 
@@ -195,6 +207,8 @@
                     <option value="released">출고</option>
                     <option value="shipped">배송 중</option>
                     <option value="delivered">배송 완료</option>
+                    <option value="hold">보류</option>
+                    <option value="cancelled">취소</option>
                 </select>
 
                 <!-- 담당자 필터 -->

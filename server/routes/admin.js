@@ -231,6 +231,13 @@ router.get('/stats', (req, res) => {
         // 5) 총 매출
         let totalRevenue = 0;
 
+        // 6) 미수금 (결제일 없는 주문의 총금액 합산)
+        // 비유: 물건은 보냈는데 아직 돈을 안 받은 금액 합계
+        let unpaidAmount = 0;
+
+        // 7) 보류 건수
+        let holdCount = 0;
+
         orders.forEach(order => {
             // 4단계 집계
             const cs = getCustomerStatus(order.status);
@@ -252,7 +259,16 @@ router.get('/stats', (req, res) => {
             sportCounts[sport] = (sportCounts[sport] || 0) + 1;
 
             // 매출 합산
-            totalRevenue += order.payment?.totalAmount || order.total || 0;
+            const orderAmount = order.payment?.totalAmount || order.total || 0;
+            totalRevenue += orderAmount;
+
+            // 미수금 집계: 결제일(paidDate)이 비어있고, 금액이 있는 주문
+            if (!order.payment?.paidDate && orderAmount > 0 && order.status !== 'cancelled') {
+                unpaidAmount += orderAmount;
+            }
+
+            // 보류 건수
+            if (order.status === 'hold') holdCount++;
         });
 
         res.json({
@@ -260,10 +276,12 @@ router.get('/stats', (req, res) => {
             stats: {
                 totalOrders: orders.length,
                 statusCounts,              // 4단계 요약
-                detailedStatusCounts,      // 12단계 상세
+                detailedStatusCounts,      // 12단계 상세 (hold, cancelled 포함)
                 managerCounts,             // 담당자별
                 sportCounts,               // 종목별
-                totalRevenue               // 총 매출
+                totalRevenue,              // 총 매출
+                unpaidAmount,              // 미수금 합계
+                holdCount                  // 보류 건수
             }
         });
     } catch (error) {
