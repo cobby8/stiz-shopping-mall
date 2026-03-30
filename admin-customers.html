@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 고객 관리</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* 통계 카드 호버 효과 */
+        .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        /* 테이블 행 호버 효과 */
+        .customer-row { transition: background-color 0.15s; }
+        .customer-row:hover { background-color: #f9fafb; }
+
+        /* 필터 드롭다운 커스텀 화살표 */
+        .filter-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+
+        /* 로딩 스피너 */
+        .spinner {
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #111;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 모바일에서 테이블 가로 스크롤 */
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        /* 모달 배경 */
+        .modal-overlay {
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px);
+        }
+
+        /* 거래유형 배지 색상 */
+        .badge-club { background-color: #dbeafe; color: #1e40af; }
+        .badge-univ { background-color: #ede9fe; color: #5b21b6; }
+        .badge-school { background-color: #fef3c7; color: #92400e; }
+        .badge-pro { background-color: #d1fae5; color: #065f46; }
+        .badge-etc { background-color: #e5e7eb; color: #374151; }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-gray-50 text-gray-900 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- 관리자 헤더 -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <!-- 로고 + 관리자 표시 -->
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <!-- 네비게이션: 고객 관리가 활성 상태 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin.html" class="text-gray-400 hover:text-white transition-colors">주문 관리</a>
+                <a href="admin-customers.html" class="text-white font-medium border-b-2 border-brand-red pb-1">고객 관리</a>
+                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <!-- 사용자 정보 + 로그아웃 -->
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <button onclick="handleLogout()"
+                    class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠 -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- 페이지 타이틀 -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold">고객 관리</h1>
+                <p class="text-sm text-gray-500 mt-1">주문에서 자동 추출된 고객 데이터를 관리합니다.</p>
+            </div>
+            <button onclick="loadCustomers()" class="flex items-center space-x-1 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+                <span class="material-symbols-outlined text-base">refresh</span>
+                <span>새로고침</span>
+            </button>
+        </div>
+
+        <!-- ===== 통계 카드 4개 ===== -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <!-- 전체 고객 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-blue-500">groups</span>
+                    <span id="stat-total" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">전체 고객</p>
+            </div>
+            <!-- 재주문 고객 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-green-500">repeat</span>
+                    <span id="stat-repeat" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">재주문 고객</p>
+            </div>
+            <!-- 재주문율 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-amber-500">trending_up</span>
+                    <span id="stat-rate" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">재주문율</p>
+            </div>
+            <!-- 거래유형 수 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-purple-500">category</span>
+                    <span id="stat-types" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">거래유형</p>
+            </div>
+        </div>
+
+        <!-- ===== 필터 바 ===== -->
+        <div class="bg-white rounded-xl p-4 border border-gray-100 mb-6">
+            <div class="flex flex-wrap gap-3 items-center">
+                <!-- 거래유형 필터 -->
+                <select id="filter-dealType" onchange="applyFilters()"
+                    class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <option value="">전체 유형</option>
+                    <!-- JS에서 동적 생성 -->
+                </select>
+
+                <!-- 정렬 기준 -->
+                <select id="filter-sort" onchange="applyFilters()"
+                    class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <option value="orderCount">주문 많은 순</option>
+                    <option value="totalSpent">매출 높은 순</option>
+                    <option value="name">이름순</option>
+                    <option value="createdAt">등록일순</option>
+                </select>
+
+                <!-- 검색 -->
+                <div class="flex-1 min-w-[200px]">
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">search</span>
+                        <input type="text" id="filter-search" placeholder="고객명, 팀명, 연락처 검색..."
+                            onkeyup="handleSearchKeyup(event)"
+                            class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    </div>
+                </div>
+
+                <!-- 필터 초기화 -->
+                <button onclick="resetFilters()"
+                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors">
+                    <span class="material-symbols-outlined text-base">filter_alt_off</span>
+                    <span>초기화</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== 고객 테이블 ===== -->
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <!-- 로딩 상태 -->
+            <div id="loading" class="flex items-center justify-center py-20">
+                <div class="spinner"></div>
+                <span class="ml-3 text-sm text-gray-500">고객 목록을 불러오는 중...</span>
+            </div>
+
+            <!-- 빈 상태 -->
+            <div id="empty-state" class="hidden text-center py-20">
+                <span class="material-symbols-outlined text-5xl text-gray-300">person_off</span>
+                <p class="text-gray-500 mt-3">조건에 맞는 고객이 없습니다.</p>
+            </div>
+
+            <!-- 테이블 -->
+            <div id="table-wrapper" class="hidden table-wrapper">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">거래유형</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">연락처</th>
+                            <th class="text-center px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문수</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">총 매출</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">최근 주문</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customers-tbody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div id="pagination" class="hidden border-t border-gray-100 px-4 py-3 flex items-center justify-between">
+                <p id="pagination-info" class="text-sm text-gray-500"></p>
+                <div id="pagination-buttons" class="flex items-center space-x-1"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 고객 상세 모달 -->
+    <!-- ========================================== -->
+    <div id="customer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <!-- 모달 헤더 -->
+            <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                <h3 class="font-bold text-lg">고객 상세</h3>
+                <button onclick="closeCustomerModal()" class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- 모달 본문 -->
+            <div class="px-6 py-5">
+                <!-- 고객 기본 정보 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">고객명</p>
+                        <p id="modal-name" class="text-sm font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">팀명</p>
+                        <p id="modal-teamName" class="text-sm font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">연락처</p>
+                        <p id="modal-phone" class="text-sm">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">이메일</p>
+                        <p id="modal-email" class="text-sm">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">거래유형</p>
+                        <p id="modal-dealType" class="text-sm">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">등록일</p>
+                        <p id="modal-createdAt" class="text-sm">-</p>
+                    </div>
+                </div>
+
+                <!-- 통계 카드 -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold" id="modal-orderCount">-</p>
+                        <p class="text-xs text-gray-500 mt-1">총 주문</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-brand-red" id="modal-totalSpent">-</p>
+                        <p class="text-xs text-gray-500 mt-1">총 매출</p>
+                    </div>
+                </div>
+
+                <!-- 메모 편집 -->
+                <div class="mb-6">
+                    <p class="text-xs text-gray-500 mb-1">메모</p>
+                    <textarea id="modal-memo" rows="2" placeholder="고객에 대한 메모를 입력하세요..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black resize-none"></textarea>
+                </div>
+
+                <!-- 연결된 주문 목록 -->
+                <div>
+                    <h4 class="font-bold text-sm mb-3 flex items-center">
+                        <span class="material-symbols-outlined mr-1 text-gray-400 text-base">receipt_long</span>
+                        주문 이력
+                    </h4>
+                    <div id="modal-orders" class="space-y-2">
+                        <p class="text-sm text-gray-400">로딩 중...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 모달 하단 버튼 -->
+            <div class="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex items-center justify-between rounded-b-2xl">
+                <button onclick="closeCustomerModal()"
+                    class="border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
+                    닫기
+                </button>
+                <button onclick="saveCustomerMemo()"
+                    class="bg-brand-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
+                    메모 저장
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 스크립트 ===== -->
+    <script src="js/admin-customers.js"></script>
+</body>
+
+</html>
