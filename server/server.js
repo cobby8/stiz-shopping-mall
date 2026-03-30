@@ -17,6 +17,7 @@ import authRoutes from './routes/auth.js';
 import orderRoutes from './routes/orders.js';
 import aiRoutes from './routes/ai.js';
 import adminRoutes from './routes/admin.js';
+import customerRoutes from './routes/customers.js';
 import { adminAuth } from './middleware/adminAuth.js';
 
 app.get('/', (req, res) => {
@@ -37,6 +38,11 @@ app.get('/', (req, res) => {
             'PATCH /api/admin/orders/:id/status (admin only)',
             'GET  /api/admin/orders/:id/history (admin only)',
             'GET  /api/admin/stats           (admin only)',
+            'GET  /api/admin/customers       (admin only)',
+            'GET  /api/admin/customers/:id   (admin only)',
+            'PUT  /api/admin/customers/:id   (admin only)',
+            'POST /api/admin/customers/merge (admin only)',
+            'GET  /api/admin/customers/stats/summary (admin only)',
             'POST /api/generate',
         ]
     });
@@ -51,10 +57,13 @@ app.use('/api/generate', aiRoutes);
 // adminAuth를 통과한 요청만 admin 라우트에 도달
 app.use('/api/admin', adminAuth, adminRoutes);
 
+// 고객 관리 라우트 - 관리자 전용 (adminAuth 적용)
+app.use('/api/admin/customers', adminAuth, customerRoutes);
+
 // Start Server
 app.listen(port, () => {
     console.log(`\nSTIZ Server running at http://localhost:${port}`);
-    console.log(`  Routes: /api/auth, /api/orders, /api/admin, /api/generate`);
+    console.log(`  Routes: /api/auth, /api/orders, /api/admin, /api/admin/customers, /api/generate`);
     console.log(`  DB: JSON file-based (./data/)`);
     console.log(`  Auth: JWT + bcrypt`);
     console.log(`  AI: ${process.env.GOOGLE_API_KEY ? 'Online' : 'Offline (No Key)'}\n`);
