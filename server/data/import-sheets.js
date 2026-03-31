@@ -19,16 +19,28 @@ const BACKUP_FILE = path.join(__dirname, 'orders.json.bak');
 // Google Sheets CSV 다운로드 URL (공개 시트)
 // 비유: 하나의 엑셀 파일에 여러 시트(탭)가 있는 것처럼,
 //       gid 값이 다르면 다른 시트를 가리킨다
-const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/1nKKsSwhEG5vl0XWXshQ34dajs7bc4_CpsVXml1QaBAw/export?format=csv';
-
-// 탭별 gid (Google Sheets에서 시트 탭마다 고유한 번호가 있음)
-// gid 확인 방법: 브라우저에서 해당 탭 클릭 후 URL의 gid=XXXXXX 값 복사
-// 현재 추가 탭 gid는 미확인 상태 → 확인 후 아래 값을 교체할 것
-const SHEET_TABS = [
-    { gid: '0', name: '진행주문', defaultStatus: null },                    // 상태는 시트 데이터에서 판단
-    { gid: '618544926', name: '완료주문(미수)', defaultStatus: 'delivered' },  // 배송완료 but 미수금 (payment.paidDate가 비어있으면 미수금으로 분류)
-    { gid: '1160190509', name: '완료주문', defaultStatus: 'delivered' },     // 완전 완료
-    { gid: '1148162040', name: '주문보류', defaultStatus: 'hold' },          // 보류
+// 여러 시트 파일을 순회하며 임포트 (연도별 시트가 다름)
+const SHEET_SOURCES = [
+    {
+        name: '2026년 주문진행상황',
+        base: 'https://docs.google.com/spreadsheets/d/1nKKsSwhEG5vl0XWXshQ34dajs7bc4_CpsVXml1QaBAw/export?format=csv',
+        tabs: [
+            { gid: '0', name: '2026-진행주문', defaultStatus: null },
+            { gid: '618544926', name: '2026-완료주문(미수)', defaultStatus: 'delivered' },
+            { gid: '1160190509', name: '2026-완료주문', defaultStatus: 'delivered' },
+            { gid: '1148162040', name: '2026-주문보류', defaultStatus: 'hold' },
+        ]
+    },
+    {
+        name: '2025년 주문진행상황',
+        base: 'https://docs.google.com/spreadsheets/d/1ZqUlr-yj6i7CJ7QpPiCv_-KbLixkf6uzZpNJx03eM1k/export?format=csv',
+        tabs: [
+            // gid=0 (진행주문)은 비어있으므로 제외
+            { gid: '618544926', name: '2025-완료주문(미수)', defaultStatus: 'delivered' },
+            { gid: '1160190509', name: '2025-완료주문', defaultStatus: 'delivered' },
+            { gid: '1148162040', name: '2025-주문보류', defaultStatus: 'hold' },
+        ]
+    }
 ];
 
 // ============================================================
@@ -458,11 +470,18 @@ async function main() {
     const allOrders = [];      // 모든 탭의 주문을 합칠 배열
     let globalIndex = 0;       // 전체 인덱스 (ID 중복 방지)
 
-    // 각 탭을 순회하면서 CSV 다운로드 + 파싱 + 변환
-    for (let t = 0; t < SHEET_TABS.length; t++) {
-        const tab = SHEET_TABS[t];
-        const tabUrl = `${SHEET_BASE}&gid=${tab.gid}`;
-        console.log(`\n[탭 ${t + 1}/${SHEET_TABS.length}] "${tab.name}" (gid=${tab.gid})`);
+    // 모든 시트 소스의 탭을 순회하면서 CSV 다운로드 + 파싱 + 변환
+    const allTabs = [];
+    for (const source of SHEET_SOURCES) {
+        for (const tab of source.tabs) {
+            allTabs.push({ ...tab, base: source.base, sourceName: source.name });
+        }
+    }
+
+    for (let t = 0; t < allTabs.length; t++) {
+        const tab = allTabs[t];
+        const tabUrl = `${tab.base}&gid=${tab.gid}`;
+        console.log(`\n[탭 ${t + 1}/${allTabs.length}] "${tab.name}" (gid=${tab.gid})`);
 
         // CSV 다운로드
         let csvText;
@@ -529,7 +548,7 @@ async function main() {
 
     // 결과 요약
     console.log('\n=== 임포트 완료 ===');
-    console.log(`  총 ${allOrders.length}건 임포트 (${SHEET_TABS.length}개 탭)`);
+    console.log(`  총 ${allOrders.length}건 임포트 (${allTabs.length}개 탭)`);
     if (allOrders.length > 0) {
         console.log(`  주문번호 범위: ${allOrders[0]?.orderNumber} ~ ${allOrders[allOrders.length - 1]?.orderNumber}`);
     }
