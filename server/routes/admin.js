@@ -31,6 +31,10 @@ router.get('/orders', (req, res) => {
         if (req.query.sport) filters['items.0.sport'] = req.query.sport; // 첫 번째 아이템의 종목
         if (req.query.dealType) filters['customer.dealType'] = req.query.dealType;
 
+        // 완료 주문 제외 여부 (기본값: true = 진행중만 표시)
+        // 비유: 기본으로 "이미 끝난 주문"은 숨기고, "전체" 탭 클릭 시에만 전부 표시
+        const excludeCompleted = req.query.excludeCompleted !== 'false';
+
         // 정렬/페이지네이션/검색 옵션 + 범위 필터
         const options = {
             search: req.query.search || '',
@@ -43,8 +47,17 @@ router.get('/orders', (req, res) => {
             dateTo: req.query.dateTo || '',
             // 금액 범위 필터 (예: ?amountMin=500000&amountMax=1000000)
             amountMin: req.query.amountMin || '',
-            amountMax: req.query.amountMax || ''
+            amountMax: req.query.amountMax || '',
+            // 완료 상태 제외: delivered(배송완료), cancelled(취소)를 목록에서 빼기
+            excludeStatuses: excludeCompleted ? ['delivered', 'cancelled'] : []
         };
+
+        // 탭 건수 계산용: 동일 필터 조건에서 진행중/전체 각각의 건수를 구한다
+        // 비유: "진행중 (309건)" / "전체 (8,073건)" 표시를 위해 두 가지 건수 모두 필요
+        const optionsAll = { ...options, excludeStatuses: [], page: 1, limit: 1 };
+        const resultAll = db.findByFilter('orders', filters, optionsAll);
+        const optionsActive = { ...options, excludeStatuses: ['delivered', 'cancelled'], page: 1, limit: 1 };
+        const resultActive = db.findByFilter('orders', filters, optionsActive);
 
         let result = db.findByFilter('orders', filters, options);
 
@@ -74,7 +87,12 @@ router.get('/orders', (req, res) => {
                 total: result.total,
                 page: result.page,
                 totalPages: result.totalPages,
-                limit: parseInt(options.limit)
+                limit: parseInt(options.limit),
+                // totalAll: 현재 필터 조건에서 상태 제외 없이 센 전체 건수
+                // totalActive: 완료/취소 제외한 진행중 건수
+                // 비유: "진행중 탭"과 "전체 탭"에 각각 표시할 건수
+                totalAll: resultAll.total,
+                totalActive: resultActive.total
             }
         });
     } catch (error) {
@@ -234,7 +252,18 @@ router.get('/orders/:id/history', (req, res) => {
 // ============================================================
 router.get('/stats', (req, res) => {
     try {
-        const orders = db.getAll('orders');
+        const allOrders = db.getAll('orders');
+
+        // 연도 파라미터: 기본값은 현재 연도 (예: 2026)
+        // 비유: "올해 매출만 보기" — 연도 드롭다운에서 선택한 연도의 주문만 집계
+        const year = req.query.year || new Date().getFullYear().toString();
+
+        // createdAt 필드로 해당 연도 주문만 필터링
+        // createdAt 형식: "2025-11-04T00:00:00.000Z" (ISO)
+        const orders = allOrders.filter(order => {
+            if (!order.createdAt) return false;
+            return order.createdAt.startsWith(year);
+        });
 
         // 1) 상태별 건수 - 고객용 4단계 기준으로 집계
         const statusCounts = {
@@ -306,6 +335,7 @@ router.get('/stats', (req, res) => {
         res.json({
             success: true,
             stats: {
+                year,                          // 선택된 연도 (프론트에서 표시용)
                 totalOrders: orders.length,
                 statusCounts,              // 4단계 요약
                 detailedStatusCounts,      // 12단계 상세 (hold, cancelled 포함)

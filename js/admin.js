@@ -47,12 +47,13 @@ let currentFilters = {
     status: '',
     manager: '',
     sport: '',
-    dealType: '',       // 거래유형 필터 추가
+    dealType: '',           // 거래유형 필터 추가
     search: '',
-    dateFrom: '',       // 날짜 범위 시작 (예: 2026-01-01)
-    dateTo: '',         // 날짜 범위 끝 (예: 2026-03-31)
-    amountMin: '',      // 금액 범위 최소
-    amountMax: '',      // 금액 범위 최대
+    dateFrom: '',           // 날짜 범위 시작 (예: 2026-01-01)
+    dateTo: '',             // 날짜 범위 끝 (예: 2026-03-31)
+    amountMin: '',          // 금액 범위 최소
+    amountMax: '',          // 금액 범위 최대
+    excludeCompleted: true, // 기본값: 완료 주문 숨김 (진행중 탭)
     page: 1
 };
 
@@ -62,8 +63,20 @@ let currentFilters = {
 document.addEventListener('DOMContentLoaded', () => {
     // 1) 관리자 인증 확인
     checkAdminAuth();
-    // 2) 데이터 로드
-    loadStats();
+
+    // 2) 연도 드롭다운 이벤트 리스너 등록
+    // 비유: 연도를 바꾸면 해당 연도의 매출/건수 등 통계가 갱신됨
+    const yearSelect = document.getElementById('stats-year-select');
+    if (yearSelect) {
+        yearSelect.addEventListener('change', () => {
+            loadStats(yearSelect.value);
+        });
+    }
+
+    // 3) 데이터 로드 — 현재 연도 기준 통계 + 주문 목록
+    const currentYear = new Date().getFullYear().toString();
+    if (yearSelect) yearSelect.value = currentYear; // 드롭다운 기본값을 현재 연도로
+    loadStats(currentYear);
     loadOrders();
 });
 
@@ -138,15 +151,28 @@ async function adminFetch(url, options = {}) {
 // ============================================================
 // 통계 로드
 // ============================================================
-async function loadStats() {
+/**
+ * 통계 로드 (연도별)
+ * @param {string} year - 조회할 연도 (예: '2026'). 미지정 시 현재 연도
+ * 비유: "올해 성적표"를 서버에서 가져와 대시보드에 표시
+ */
+async function loadStats(year) {
     try {
-        const res = await adminFetch('/api/admin/stats');
+        // 연도 파라미터가 없으면 현재 연도 사용
+        const selectedYear = year || new Date().getFullYear().toString();
+
+        // 연도를 쿼리파라미터로 전달하여 해당 연도 통계만 요청
+        const res = await adminFetch(`/api/admin/stats?year=${selectedYear}`);
         if (!res) return;
 
         const data = await res.json();
         if (!data.success) return;
 
         const stats = data.stats;
+
+        // 연도 타이틀 업데이트 — "2026년 주문 현황"
+        const yearLabel = document.getElementById('stats-year-label');
+        if (yearLabel) yearLabel.textContent = stats.year || selectedYear;
 
         // 상태별 카드 숫자 업데이트
         document.getElementById('stat-design').textContent = stats.statusCounts.design || 0;
@@ -231,6 +257,8 @@ async function loadOrders() {
         if (currentFilters.dateTo) params.set('dateTo', currentFilters.dateTo);
         if (currentFilters.amountMin) params.set('amountMin', currentFilters.amountMin);
         if (currentFilters.amountMax) params.set('amountMax', currentFilters.amountMax);
+        // 완료 주문 제외 여부 — "진행중" 탭이면 true, "전체" 탭이면 false
+        params.set('excludeCompleted', currentFilters.excludeCompleted);
         params.set('page', currentFilters.page);
         params.set('limit', 20);
 
@@ -252,6 +280,8 @@ async function loadOrders() {
         renderOrdersTable(data.orders);
         // 페이지네이션 렌더링
         renderPagination(data.pagination);
+        // 탭 건수 업데이트 — 진행중 건수와 전체 건수를 탭에 표시
+        updateTabCounts(data.pagination);
     } catch (error) {
         console.error('[Admin] 주문 로드 실패:', error);
         showEmpty();
@@ -382,8 +412,54 @@ function createPageButton(label, page) {
 }
 
 // ============================================================
-// 필터 함수들
+// 탭 전환 함수들 (진행중 / 전체)
 // ============================================================
+
+/**
+ * 탭 UI만 업데이트 (loadOrders 호출 없이 버튼 스타일만 변경)
+ * applyFilters에서 상태 필터 변경 시 자동 탭 전환할 때 사용
+ */
+function switchTabUI(tab) {
+    const tabActive = document.getElementById('tab-active');
+    const tabAll = document.getElementById('tab-all');
+
+    if (tab === 'active') {
+        tabActive.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-900 text-white';
+        tabAll.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+    } else {
+        tabAll.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-900 text-white';
+        tabActive.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+    }
+}
+
+/**
+ * 탭 전환: "진행중" 또는 "전체" 탭 클릭 시 호출
+ * 비유: 서랍을 바꾸는 것 — "진행중 서랍"에는 작업 중인 주문만, "전체 서랍"에는 모든 주문
+ */
+function switchTab(tab) {
+    if (tab === 'active') {
+        currentFilters.excludeCompleted = true;
+    } else {
+        currentFilters.excludeCompleted = false;
+    }
+
+    switchTabUI(tab); // 탭 버튼 스타일 변경
+    currentFilters.page = 1;
+    loadOrders();
+}
+
+/**
+ * 탭 건수 업데이트: 서버 응답의 totalActive/totalAll로 양쪽 탭에 건수 표시
+ * 비유: "진행중 (309건)" / "전체 (8,073건)" 식으로 숫자가 바뀜
+ */
+function updateTabCounts(pagination) {
+    const activeCountEl = document.getElementById('tab-active-count');
+    const allCountEl = document.getElementById('tab-all-count');
+
+    // 서버가 항상 totalActive(진행중)와 totalAll(전체)을 보내주므로 단순 표시
+    if (activeCountEl) activeCountEl.textContent = `(${pagination.totalActive})`;
+    if (allCountEl) allCountEl.textContent = `(${pagination.totalAll})`;
+}
 
 /** 상태 카드 클릭 시 해당 상태 그룹으로 필터 */
 function filterByStatus(group) {
@@ -410,6 +486,12 @@ function filterByStatus(group) {
         // (서버에서 정확한 status 값으로 필터링)
         select.value = statusMap[group] || '';
         currentFilters.status = select.value;
+    }
+
+    // 배송완료/취소 상태 카드 클릭 시 자동으로 "전체" 탭 전환
+    if (['delivered', 'cancelled'].includes(currentFilters.status)) {
+        currentFilters.excludeCompleted = false;
+        switchTabUI('all');
     }
 
     currentFilters.page = 1;
@@ -444,6 +526,14 @@ function applyFilters() {
     currentFilters.amountMin = document.getElementById('filter-amountMin').value;     // 금액 최소
     currentFilters.amountMax = document.getElementById('filter-amountMax').value;     // 금액 최대
     currentFilters.unpaid = '';  // 일반 필터 사용 시 미수금 필터 해제
+
+    // 배송완료/취소 상태를 선택하면 자동으로 "전체" 탭으로 전환
+    // 비유: 완료 주문을 보려고 선택했는데 "진행중" 탭이면 결과가 0건 → 자동 전환
+    if (['delivered', 'cancelled'].includes(currentFilters.status)) {
+        currentFilters.excludeCompleted = false;
+        switchTabUI('all'); // 탭 UI만 업데이트 (loadOrders는 아래에서 호출)
+    }
+
     currentFilters.page = 1;
     loadOrders();
 }
@@ -475,8 +565,11 @@ function resetFilters() {
         status: '', manager: '', sport: '', dealType: '',
         search: '', unpaid: '',
         dateFrom: '', dateTo: '', amountMin: '', amountMax: '',
+        excludeCompleted: true, // 초기화 시 "진행중" 탭으로 복원
         page: 1
     };
+    // 탭 UI도 "진행중"으로 복원
+    switchTabUI('active');
     loadOrders();
 }
 

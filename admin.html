@@ -123,6 +123,22 @@
             </button>
         </div>
 
+        <!-- ===== 연도 선택 헤더 ===== -->
+        <!-- 비유: 연간 보고서의 연도 탭 — 드롭다운으로 해당 연도 통계만 조회 -->
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="stats-year-title" class="text-lg font-bold text-gray-800">
+                <span id="stats-year-label">2026</span>년 주문 현황
+            </h2>
+            <select id="stats-year-select"
+                class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium
+                       focus:outline-none focus:ring-2 focus:ring-brand-black bg-white">
+                <option value="2026">2026년</option>
+                <option value="2025">2025년</option>
+                <option value="2024">2024년</option>
+                <option value="2023">2023년</option>
+            </select>
+        </div>
+
         <!-- ===== 상태 요약 카드 4개 ===== -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <!-- 시안 진행중 -->
@@ -186,6 +202,23 @@
                 <p class="text-sm text-gray-500">보류</p>
                 <p id="stat-hold" class="text-xl font-bold text-gray-400">-</p>
             </div>
+        </div>
+
+        <!-- ===== 진행중/전체 탭 ===== -->
+        <!-- 비유: 식당에서 "조리중 주문"과 "전체 주문"을 탭으로 분리 -->
+        <div class="flex items-center space-x-1 mb-3">
+            <!-- 진행중 탭 (기본 활성) -->
+            <button id="tab-active" onclick="switchTab('active')"
+                class="px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                       bg-gray-900 text-white">
+                진행중 <span id="tab-active-count" class="ml-1 opacity-70">(-)</span>
+            </button>
+            <!-- 전체 탭 -->
+            <button id="tab-all" onclick="switchTab('all')"
+                class="px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                       bg-gray-100 text-gray-600 hover:bg-gray-200">
+                전체 <span id="tab-all-count" class="ml-1 opacity-70">(-)</span>
+            </button>
         </div>
 
         <!-- ===== 필터 바 ===== -->

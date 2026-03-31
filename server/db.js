@@ -127,6 +127,12 @@ export function findByFilter(collection, filters = {}, options = {}) {
         data = data.filter(item => (item.payment?.totalAmount || 0) <= max);
     }
 
+    // 1-d) 상태 제외 필터 — 비유: "배송완료/취소 주문은 빼고 보기"
+    // excludeStatuses 배열에 포함된 상태의 레코드를 결과에서 제외한다
+    if (options.excludeStatuses && Array.isArray(options.excludeStatuses) && options.excludeStatuses.length > 0) {
+        data = data.filter(item => !options.excludeStatuses.includes(item.status));
+    }
+
     // 2) 텍스트 검색 - 팀명, 주문번호, 고객명에서 키워드 검색
     if (options.search) {
         const keyword = options.search.toLowerCase();
