@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 dotenv.config();
 
@@ -10,7 +12,10 @@ const port = process.env.PORT || 4000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('../')); // Serve frontend files from root
+// __dirname: server/ 폴더 → 한 단계 위(프로젝트 루트)를 정적 파일로 서빙
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, '..')));
 
 // Routes
 import authRoutes from './routes/auth.js';
