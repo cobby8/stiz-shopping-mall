@@ -49,6 +49,17 @@ const SHEET_SOURCES = [
             { gid: '1160190509', name: '2024-완료주문', defaultStatus: 'delivered' },       // ~453건
             { gid: '1148162040', name: '2024-주문보류', defaultStatus: 'hold' },            // 30건
         ]
+    },
+    {
+        name: '2023년 주문진행상황',
+        base: 'https://docs.google.com/spreadsheets/d/15lFEfsvl1zQxD7I5Z9DHSaM6ulo-uvAQVBi7bNwJWIM/export?format=csv',
+        tabs: [
+            // gid=0 (진행주문)은 비어있으므로 제외
+            // 2023년은 gid가 다른 연도와 다름!
+            { gid: '1580172219', name: '2023-완료주문(미수)', defaultStatus: 'delivered' },  // ~280건
+            { gid: '2141413091', name: '2023-완료주문', defaultStatus: 'delivered' },        // ~300건
+            { gid: '1986947150', name: '2023-주문보류', defaultStatus: 'hold' },             // 40건
+        ]
     }
 ];
 
