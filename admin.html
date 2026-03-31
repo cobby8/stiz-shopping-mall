@@ -190,6 +190,7 @@
 
         <!-- ===== 필터 바 ===== -->
         <div class="bg-white rounded-xl p-4 border border-gray-100 mb-6">
+            <!-- 1줄: 상태, 담당자, 종목, 검색, 초기화 -->
             <div class="flex flex-wrap gap-3 items-center">
                 <!-- 상태 필터 -->
                 <select id="filter-status" onchange="applyFilters()"
@@ -229,6 +230,13 @@
                     <option value="baseball">야구</option>
                 </select>
 
+                <!-- 거래유형 필터 -->
+                <select id="filter-dealType" onchange="applyFilters()"
+                    class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <option value="">전체 거래유형</option>
+                    <!-- JS에서 동적 생성 -->
+                </select>
+
                 <!-- 검색 -->
                 <div class="flex-1 min-w-[200px]">
                     <div class="relative">
@@ -245,6 +253,35 @@
                     <span class="material-symbols-outlined text-base">filter_alt_off</span>
                     <span>초기화</span>
                 </button>
+            </div>
+
+            <!-- 2줄: 날짜 범위 + 금액 범위 -->
+            <div class="flex flex-wrap gap-3 items-center mt-3 pt-3 border-t border-gray-100">
+                <!-- 날짜 범위: 시작일 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500 whitespace-nowrap">주문일</span>
+                    <input type="date" id="filter-dateFrom" onchange="applyFilters()"
+                        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <span class="text-xs text-gray-400">~</span>
+                    <!-- 날짜 범위: 종료일 -->
+                    <input type="date" id="filter-dateTo" onchange="applyFilters()"
+                        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                </div>
+
+                <!-- 구분선 -->
+                <div class="w-px h-6 bg-gray-200 hidden md:block"></div>
+
+                <!-- 금액 범위: 최소 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500 whitespace-nowrap">금액</span>
+                    <input type="number" id="filter-amountMin" placeholder="최소" onchange="applyFilters()"
+                        class="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <span class="text-xs text-gray-400">~</span>
+                    <!-- 금액 범위: 최대 -->
+                    <input type="number" id="filter-amountMax" placeholder="최대" onchange="applyFilters()"
+                        class="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <span class="text-xs text-gray-400">원</span>
+                </div>
             </div>
         </div>
 

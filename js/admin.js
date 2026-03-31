@@ -47,7 +47,12 @@ let currentFilters = {
     status: '',
     manager: '',
     sport: '',
+    dealType: '',       // 거래유형 필터 추가
     search: '',
+    dateFrom: '',       // 날짜 범위 시작 (예: 2026-01-01)
+    dateTo: '',         // 날짜 범위 끝 (예: 2026-03-31)
+    amountMin: '',      // 금액 범위 최소
+    amountMax: '',      // 금액 범위 최대
     page: 1
 };
 
@@ -159,6 +164,8 @@ async function loadStats() {
 
         // 담당자 필터 옵션 동적 생성
         updateManagerFilter(stats.managerCounts);
+        // 거래유형 필터 옵션 동적 생성
+        updateDealTypeFilter(stats.dealTypeCounts || {});
     } catch (error) {
         console.error('[Admin] 통계 로드 실패:', error);
     }
@@ -182,6 +189,28 @@ function updateManagerFilter(managerCounts) {
     });
 }
 
+/**
+ * 거래유형 필터 드롭다운을 동적으로 채운다
+ * API에서 받은 거래유형별 건수 데이터를 이용
+ * 비유: 동호회, 대학동아리 등 유형별로 몇 건인지 보여주는 메뉴
+ */
+function updateDealTypeFilter(dealTypeCounts) {
+    const select = document.getElementById('filter-dealType');
+    if (!select) return;
+    // 기존 옵션 중 "전체 거래유형"만 남기고 제거
+    select.innerHTML = '<option value="">전체 거래유형</option>';
+
+    // 건수 많은 순으로 정렬해서 옵션 추가
+    Object.entries(dealTypeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([name, count]) => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = `${name} (${count})`;
+            select.appendChild(option);
+        });
+}
+
 // ============================================================
 // 주문 목록 로드
 // ============================================================
@@ -194,8 +223,14 @@ async function loadOrders() {
         if (currentFilters.status) params.set('status', currentFilters.status);
         if (currentFilters.manager) params.set('manager', currentFilters.manager);
         if (currentFilters.sport) params.set('sport', currentFilters.sport);
+        if (currentFilters.dealType) params.set('dealType', currentFilters.dealType);     // 거래유형
         if (currentFilters.search) params.set('search', currentFilters.search);
-        if (currentFilters.unpaid) params.set('unpaid', currentFilters.unpaid);  // 미수금 필터
+        if (currentFilters.unpaid) params.set('unpaid', currentFilters.unpaid);            // 미수금 필터
+        // 범위 필터: 날짜와 금액 (값이 있을 때만 서버로 전달)
+        if (currentFilters.dateFrom) params.set('dateFrom', currentFilters.dateFrom);
+        if (currentFilters.dateTo) params.set('dateTo', currentFilters.dateTo);
+        if (currentFilters.amountMin) params.set('amountMin', currentFilters.amountMin);
+        if (currentFilters.amountMax) params.set('amountMax', currentFilters.amountMax);
         params.set('page', currentFilters.page);
         params.set('limit', 20);
 
@@ -398,11 +433,16 @@ function filterByPaymentStatus(type) {
     }
 }
 
-/** 필터 드롭다운 변경 시 호출 */
+/** 필터 드롭다운/입력 변경 시 호출 */
 function applyFilters() {
     currentFilters.status = document.getElementById('filter-status').value;
     currentFilters.manager = document.getElementById('filter-manager').value;
     currentFilters.sport = document.getElementById('filter-sport').value;
+    currentFilters.dealType = document.getElementById('filter-dealType').value;       // 거래유형
+    currentFilters.dateFrom = document.getElementById('filter-dateFrom').value;       // 날짜 시작
+    currentFilters.dateTo = document.getElementById('filter-dateTo').value;           // 날짜 끝
+    currentFilters.amountMin = document.getElementById('filter-amountMin').value;     // 금액 최소
+    currentFilters.amountMax = document.getElementById('filter-amountMax').value;     // 금액 최대
     currentFilters.unpaid = '';  // 일반 필터 사용 시 미수금 필터 해제
     currentFilters.page = 1;
     loadOrders();
@@ -419,12 +459,24 @@ function handleSearchKeyup(event) {
 
 /** 모든 필터 초기화 */
 function resetFilters() {
+    // 1줄 필터 초기화
     document.getElementById('filter-status').value = '';
     document.getElementById('filter-manager').value = '';
     document.getElementById('filter-sport').value = '';
+    document.getElementById('filter-dealType').value = '';
     document.getElementById('filter-search').value = '';
+    // 2줄 범위 필터 초기화
+    document.getElementById('filter-dateFrom').value = '';
+    document.getElementById('filter-dateTo').value = '';
+    document.getElementById('filter-amountMin').value = '';
+    document.getElementById('filter-amountMax').value = '';
 
-    currentFilters = { status: '', manager: '', sport: '', search: '', unpaid: '', page: 1 };
+    currentFilters = {
+        status: '', manager: '', sport: '', dealType: '',
+        search: '', unpaid: '',
+        dateFrom: '', dateTo: '', amountMin: '', amountMax: '',
+        page: 1
+    };
     loadOrders();
 }
 

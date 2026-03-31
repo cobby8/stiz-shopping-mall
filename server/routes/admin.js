@@ -31,13 +31,19 @@ router.get('/orders', (req, res) => {
         if (req.query.sport) filters['items.0.sport'] = req.query.sport; // 첫 번째 아이템의 종목
         if (req.query.dealType) filters['customer.dealType'] = req.query.dealType;
 
-        // 정렬/페이지네이션/검색 옵션
+        // 정렬/페이지네이션/검색 옵션 + 범위 필터
         const options = {
             search: req.query.search || '',
             sortBy: req.query.sortBy || 'createdAt',
             sortOrder: req.query.sortOrder || 'desc',
             page: req.query.page || 1,
-            limit: req.query.limit || 20
+            limit: req.query.limit || 20,
+            // 날짜 범위 필터 (예: ?dateFrom=2026-01-01&dateTo=2026-03-31)
+            dateFrom: req.query.dateFrom || '',
+            dateTo: req.query.dateTo || '',
+            // 금액 범위 필터 (예: ?amountMin=500000&amountMax=1000000)
+            amountMin: req.query.amountMin || '',
+            amountMax: req.query.amountMax || ''
         };
 
         let result = db.findByFilter('orders', filters, options);
@@ -247,6 +253,9 @@ router.get('/stats', (req, res) => {
         // 4) 종목별 건수
         const sportCounts = {};
 
+        // 4-b) 거래유형별 건수 (동호회, 대학동아리, 학원SC 등)
+        const dealTypeCounts = {};
+
         // 5) 총 매출
         let totalRevenue = 0;
 
@@ -277,6 +286,10 @@ router.get('/stats', (req, res) => {
             const sport = order.items?.[0]?.sport || 'unknown';
             sportCounts[sport] = (sportCounts[sport] || 0) + 1;
 
+            // 거래유형 집계 (customer.dealType 기준)
+            const dealType = order.customer?.dealType || '미분류';
+            dealTypeCounts[dealType] = (dealTypeCounts[dealType] || 0) + 1;
+
             // 매출 합산
             const orderAmount = order.payment?.totalAmount || order.total || 0;
             totalRevenue += orderAmount;
@@ -298,6 +311,7 @@ router.get('/stats', (req, res) => {
                 detailedStatusCounts,      // 12단계 상세 (hold, cancelled 포함)
                 managerCounts,             // 담당자별
                 sportCounts,               // 종목별
+                dealTypeCounts,            // 거래유형별
                 totalRevenue,              // 총 매출
                 unpaidAmount,              // 미수금 합계
                 holdCount                  // 보류 건수
