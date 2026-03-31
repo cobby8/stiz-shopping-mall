@@ -35,10 +35,19 @@ const SHEET_SOURCES = [
         name: '2025년 주문진행상황',
         base: 'https://docs.google.com/spreadsheets/d/1ZqUlr-yj6i7CJ7QpPiCv_-KbLixkf6uzZpNJx03eM1k/export?format=csv',
         tabs: [
-            // gid=0 (진행주문)은 비어있으므로 제외
             { gid: '618544926', name: '2025-완료주문(미수)', defaultStatus: 'delivered' },
             { gid: '1160190509', name: '2025-완료주문', defaultStatus: 'delivered' },
             { gid: '1148162040', name: '2025-주문보류', defaultStatus: 'hold' },
+        ]
+    },
+    {
+        name: '2024년 주문진행상황',
+        base: 'https://docs.google.com/spreadsheets/d/1ckL_zeukVj4pM1keqSwacgoEaHr4Netw72qG2iDABHw/export?format=csv',
+        tabs: [
+            { gid: '0', name: '2024-진행주문', defaultStatus: 'delivered' },        // 13건 (오래된 진행건 → 완료 처리)
+            { gid: '618544926', name: '2024-완료주문(미수)', defaultStatus: 'delivered' },  // 6건
+            { gid: '1160190509', name: '2024-완료주문', defaultStatus: 'delivered' },       // ~453건
+            { gid: '1148162040', name: '2024-주문보류', defaultStatus: 'hold' },            // 30건
         ]
     }
 ];
