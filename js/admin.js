@@ -42,6 +42,9 @@ const SPORT_LABELS = {
     baseball: '야구'
 };
 
+// 월별 매출 차트 인스턴스 (업데이트 시 기존 차트를 파괴 후 재생성하기 위해 전역 관리)
+let monthlyChartInstance = null;
+
 // 현재 필터 상태를 저장하는 객체 (비유: 검색 조건표)
 let currentFilters = {
     status: '',
@@ -65,18 +68,24 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAdminAuth();
 
     // 2) 연도 드롭다운 이벤트 리스너 등록
-    // 비유: 연도를 바꾸면 해당 연도의 매출/건수 등 통계가 갱신됨
+    // 비유: 연도를 바꾸면 해당 연도의 매출/건수 등 통계 + 차트가 함께 갱신됨
     const yearSelect = document.getElementById('stats-year-select');
     if (yearSelect) {
         yearSelect.addEventListener('change', () => {
             loadStats(yearSelect.value);
+            loadMonthlyChart(yearSelect.value);  // 차트도 연도에 맞게 갱신
+            loadStaffStats(yearSelect.value);    // 담당자별 실적도 연도에 맞게 갱신
+            loadTopCustomers(yearSelect.value);  // 고객별 매출 랭킹도 연도에 맞게 갱신
         });
     }
 
-    // 3) 데이터 로드 — 현재 연도 기준 통계 + 주문 목록
+    // 3) 데이터 로드 — 현재 연도 기준 통계 + 차트 + 주문 목록
     const currentYear = new Date().getFullYear().toString();
     if (yearSelect) yearSelect.value = currentYear; // 드롭다운 기본값을 현재 연도로
     loadStats(currentYear);
+    loadMonthlyChart(currentYear);  // 월별 매출 차트 초기 로드
+    loadStaffStats(currentYear);    // 담당자별 실적 초기 로드
+    loadTopCustomers(currentYear);  // 고객별 매출 랭킹 초기 로드
     loadOrders();
 });
 
@@ -311,8 +320,6 @@ function renderOrdersTable(orders) {
     orders.forEach(order => {
         const row = document.createElement('tr');
         row.className = 'order-row border-b border-gray-50 cursor-pointer';
-        // 클릭 시 주문 상세 페이지로 이동 (id를 URL 파라미터로 전달)
-        row.onclick = () => window.location.href = `admin-order.html?id=${order.id}`;
 
         // 팀명 (customer.teamName이 없으면 고객명 표시)
         const teamName = order.customer?.teamName || '-';
@@ -328,6 +335,11 @@ function renderOrdersTable(orders) {
         const createdDate = order.createdAt ? formatDate(order.createdAt) : '-';
 
         row.innerHTML = `
+            <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
+                <input type="checkbox" class="order-checkbox w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer"
+                    data-order-id="${order.id}"
+                    onchange="onOrderCheckboxChange()">
+            </td>
             <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">${order.orderNumber || '-'}</td>
             <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}</td>
             <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
@@ -337,8 +349,17 @@ function renderOrdersTable(orders) {
             <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${formatCurrency(amount)}</td>
             <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${createdDate}</td>
         `;
+
+        // 행 클릭 시 주문 상세 페이지로 이동 (체크박스 영역은 stopPropagation으로 제외)
+        row.onclick = () => window.location.href = `admin-order.html?id=${order.id}`;
+
         tbody.appendChild(row);
     });
+
+    // 전체 선택 체크박스 초기화 + 일괄 작업 바 숨김
+    const selectAllCb = document.getElementById('select-all-checkbox');
+    if (selectAllCb) selectAllCb.checked = false;
+    updateBulkActionBar();
 
     // 테이블 표시, 로딩/빈상태 숨김
     showTable();
@@ -630,6 +651,405 @@ async function loadUnpaidSummary() {
     }
 }
 
+// ============================================================
+// 월별 매출 차트 (D-1)
+// ============================================================
+
+/**
+ * 금액을 읽기 쉬운 단위로 포맷 (차트 축 표시용)
+ * 비유: 675000000 → "6.8억", 45000000 → "4,500만"
+ * @param {number} value - 원 단위 금액
+ * @returns {string} - 읽기 쉬운 한국어 금액
+ */
+function formatChartAmount(value) {
+    if (value >= 100000000) {
+        // 1억 이상: 억 단위 (소수점 1자리)
+        return (value / 100000000).toFixed(1) + '억';
+    } else if (value >= 10000) {
+        // 1만 이상: 만 단위 (정수)
+        return Math.round(value / 10000).toLocaleString('ko-KR') + '만';
+    }
+    return value.toLocaleString('ko-KR');
+}
+
+/**
+ * 월별 매출 차트 로드 및 렌더링
+ * API에서 월별 데이터를 가져와 Chart.js 복합 차트(막대+라인) 생성
+ * 비유: 월별 매출 막대그래프 위에 주문수 꺾은선을 겹쳐 그려서 추이를 한눈에 파악
+ * @param {string} year - 조회할 연도 (예: '2026')
+ */
+async function loadMonthlyChart(year) {
+    const chartLoading = document.getElementById('chart-loading');
+    const chartTitle = document.getElementById('chart-title');
+
+    try {
+        // 로딩 표시
+        if (chartLoading) chartLoading.classList.remove('hidden');
+
+        const selectedYear = year || new Date().getFullYear().toString();
+
+        // 차트 제목 업데이트 — "2026년 월별 매출 추이"
+        if (chartTitle) chartTitle.textContent = `${selectedYear}년 월별 매출 추이`;
+
+        // API 호출: 월별 매출/주문수 데이터 가져오기
+        const res = await adminFetch(`/api/admin/stats/monthly?year=${selectedYear}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        const monthly = data.monthly; // [{month:1, revenue:금액, orders:건수}, ...]
+
+        // X축 라벨: 1월~12월
+        const labels = monthly.map(m => `${m.month}월`);
+        // 막대 데이터: 월별 매출
+        const revenueData = monthly.map(m => m.revenue);
+        // 라인 데이터: 월별 주문수
+        const ordersData = monthly.map(m => m.orders);
+
+        // 기존 차트가 있으면 파괴 (메모리 누수 방지)
+        if (monthlyChartInstance) {
+            monthlyChartInstance.destroy();
+            monthlyChartInstance = null;
+        }
+
+        // 캔버스 요소 가져오기
+        const ctx = document.getElementById('monthlyChart');
+        if (!ctx) return;
+
+        // Chart.js 복합 차트 생성
+        // 막대(bar): 매출 → 왼쪽 Y축
+        // 라인(line): 주문수 → 오른쪽 Y축
+        monthlyChartInstance = new Chart(ctx, {
+            data: {
+                labels,
+                datasets: [
+                    {
+                        // 막대 차트: 월별 매출
+                        type: 'bar',
+                        label: '매출',
+                        data: revenueData,
+                        backgroundColor: 'rgba(230, 57, 70, 0.7)',   // brand-red 계열 (반투명)
+                        borderColor: 'rgba(230, 57, 70, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,                              // 모서리 둥글게
+                        yAxisID: 'y-revenue',                         // 왼쪽 Y축에 연결
+                        order: 2                                      // 막대가 라인 뒤에 (겹칠 때)
+                    },
+                    {
+                        // 라인 차트: 월별 주문수
+                        type: 'line',
+                        label: '주문수',
+                        data: ordersData,
+                        borderColor: '#111111',                       // brand-black
+                        backgroundColor: 'rgba(17, 17, 17, 0.1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#111111',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.3,                                 // 부드러운 곡선
+                        yAxisID: 'y-orders',                          // 오른쪽 Y축에 연결
+                        order: 1                                      // 라인이 막대 위에
+                    }
+                ]
+            },
+            options: {
+                responsive: true,                  // 컨테이너에 맞게 크기 자동 조절
+                maintainAspectRatio: false,         // 높이를 컨테이너에 맞춤
+                interaction: {
+                    mode: 'index',                 // 같은 X축 위치의 모든 데이터셋 동시 표시
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 16,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        // 툴팁에서 매출은 원화 형식, 주문수는 건 단위로 표시
+                        callbacks: {
+                            label: function(context) {
+                                if (context.dataset.label === '매출') {
+                                    return '매출: ' + context.raw.toLocaleString('ko-KR') + '원';
+                                }
+                                return '주문수: ' + context.raw + '건';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false }   // X축 격자선 숨김 (깔끔하게)
+                    },
+                    // 왼쪽 Y축: 매출 (원 단위 → 억/만 단위로 표시)
+                    'y-revenue': {
+                        type: 'linear',
+                        position: 'left',
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            callback: function(value) {
+                                return formatChartAmount(value);
+                            },
+                            font: { size: 11 }
+                        },
+                        title: {
+                            display: true,
+                            text: '매출',
+                            font: { size: 11, weight: 'bold' },
+                            color: '#E63946'        // brand-red
+                        }
+                    },
+                    // 오른쪽 Y축: 주문수 (건)
+                    'y-orders': {
+                        type: 'linear',
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },  // 오른쪽 축 격자선은 그리지 않음
+                        ticks: {
+                            callback: function(value) {
+                                return value + '건';
+                            },
+                            font: { size: 11 }
+                        },
+                        title: {
+                            display: true,
+                            text: '주문수',
+                            font: { size: 11, weight: 'bold' },
+                            color: '#111111'        // brand-black
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('[Admin] 월별 차트 로드 실패:', error);
+    } finally {
+        // 로딩 표시 숨김
+        if (chartLoading) chartLoading.classList.add('hidden');
+    }
+}
+
+// ============================================================
+// 담당자별 실적 (D-2)
+// ============================================================
+
+/**
+ * 담당자별 실적 데이터를 로드하여 테이블에 렌더링
+ * API에서 담당자별 주문수/매출/완료율/평균 처리일을 가져와 표시
+ * 비유: 직원별 성적표를 서버에서 가져와 테이블로 정리해 보여주는 것
+ * @param {string} year - 조회할 연도 (예: '2026')
+ */
+async function loadStaffStats(year) {
+    const staffLoading = document.getElementById('staff-loading');
+    const staffTitle = document.getElementById('staff-title');
+    const tbody = document.getElementById('staff-stats-tbody');
+    const emptyEl = document.getElementById('staff-empty');
+
+    if (!tbody) return;
+
+    try {
+        // 로딩 표시
+        if (staffLoading) staffLoading.classList.remove('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        const selectedYear = year || new Date().getFullYear().toString();
+
+        // 제목 업데이트 — "2026년 담당자별 실적"
+        if (staffTitle) staffTitle.textContent = `${selectedYear}년 담당자별 실적`;
+
+        // API 호출: 담당자별 실적 데이터 가져오기
+        const res = await adminFetch(`/api/admin/stats/staff?year=${selectedYear}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        const staffList = data.staff || [];
+
+        // 데이터 없으면 빈 상태 표시
+        if (staffList.length === 0) {
+            tbody.innerHTML = '';
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        // 테이블 렌더링
+        tbody.innerHTML = staffList.map(s => {
+            // 매출 포맷: 1억 이상이면 "X.X억", 1만 이상이면 "X,XXX만원", 그 외 원 단위
+            const revenueText = formatStaffRevenue(s.revenue);
+
+            // 완료율 색상: 80% 이상 초록, 50~80% 노랑, 50% 미만 빨강
+            // 비유: 신호등 색깔로 성과를 직관적으로 표시
+            let rateColor = 'text-gray-600'; // 기본
+            if (s.completionRate >= 80) {
+                rateColor = 'text-green-600';
+            } else if (s.completionRate >= 50) {
+                rateColor = 'text-amber-600';
+            } else if (s.completionRate > 0) {
+                rateColor = 'text-red-500';
+            }
+
+            // 평균 처리일: 데이터가 없으면 "-" 표시
+            const avgDaysText = s.avgDays !== null ? `${s.avgDays}일` : '-';
+
+            return `
+                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(s.name)}</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">${s.orders.toLocaleString('ko-KR')}건</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${revenueText}</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap font-medium ${rateColor}">${s.completionRate}%</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap text-gray-600">${avgDaysText}</td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('[Admin] 담당자별 실적 로드 실패:', error);
+    } finally {
+        // 로딩 표시 숨김
+        if (staffLoading) staffLoading.classList.add('hidden');
+    }
+}
+
+/**
+ * 담당자별 매출 금액을 읽기 쉬운 단위로 포맷
+ * 비유: 큰 숫자를 "2.3억" 또는 "4,500만원" 같이 한눈에 볼 수 있게 변환
+ * @param {number} amount - 원 단위 금액
+ * @returns {string} - 포맷된 금액 문자열
+ */
+function formatStaffRevenue(amount) {
+    if (!amount && amount !== 0) return '-';
+    if (amount >= 100000000) {
+        // 1억 이상: "X.X억" (소수점 1자리)
+        return (amount / 100000000).toFixed(1) + '억';
+    } else if (amount >= 10000000) {
+        // 1천만 이상: "X,XXX만원"
+        return Math.round(amount / 10000).toLocaleString('ko-KR') + '만원';
+    } else if (amount >= 10000) {
+        // 1만 이상: "XXX만원"
+        return Math.round(amount / 10000).toLocaleString('ko-KR') + '만원';
+    }
+    // 1만 미만: 원 단위
+    return amount.toLocaleString('ko-KR') + '원';
+}
+
+// ============================================================
+// 고객별 매출 랭킹 TOP 20 (D-3)
+// ============================================================
+
+/**
+ * 고객별 매출 랭킹 데이터를 로드하여 테이블에 렌더링
+ * API에서 매출 TOP 20 고객 + 재주문율을 가져와 표시
+ * 비유: VIP 고객 순위표 — 누가 가장 많이 사고, 단골인지 한눈에 파악
+ * @param {string} year - 조회할 연도 (예: '2026')
+ */
+async function loadTopCustomers(year) {
+    const loading = document.getElementById('top-customers-loading');
+    const title = document.getElementById('top-customers-title');
+    const tbody = document.getElementById('top-customers-tbody');
+    const emptyEl = document.getElementById('top-customers-empty');
+    const repeatBadge = document.getElementById('top-customers-repeat');
+
+    if (!tbody) return;
+
+    try {
+        // 로딩 표시
+        if (loading) loading.classList.remove('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        if (repeatBadge) repeatBadge.classList.add('hidden');
+
+        const selectedYear = year || new Date().getFullYear().toString();
+
+        // 제목 업데이트 — "2026년 고객별 매출 랭킹 TOP 20"
+        if (title) title.textContent = `${selectedYear}년 고객별 매출 랭킹 TOP 20`;
+
+        // API 호출: 고객별 매출 TOP 20 데이터 가져오기
+        const res = await adminFetch(`/api/admin/stats/top-customers?year=${selectedYear}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        const customers = data.customers || [];
+
+        // 재주문율 배지 표시 — "재주문율 42% (126/300명)"
+        if (repeatBadge && data.totalCustomers > 0) {
+            repeatBadge.textContent = `재주문율 ${data.repeatRate}% (${data.repeatCount}/${data.totalCustomers}명)`;
+            repeatBadge.classList.remove('hidden');
+        }
+
+        // 데이터 없으면 빈 상태 표시
+        if (customers.length === 0) {
+            tbody.innerHTML = '';
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        // 거래유형별 배지 색상 매핑
+        // 비유: 고객 유형마다 다른 색 이름표를 달아주는 것
+        const dealTypeColors = {
+            '동호회': 'bg-blue-50 text-blue-700',
+            '대학동아리': 'bg-purple-50 text-purple-700',
+            '학원SC': 'bg-green-50 text-green-700',
+            '프로스포츠구단': 'bg-red-50 text-red-700',
+            '재고': 'bg-gray-100 text-gray-600',
+            '기타': 'bg-gray-50 text-gray-500',
+            '미분류': 'bg-gray-50 text-gray-400'
+        };
+
+        // 테이블 렌더링
+        tbody.innerHTML = customers.map((c, idx) => {
+            // 매출 포맷 (D-2의 formatStaffRevenue 재활용)
+            const revenueText = formatStaffRevenue(c.revenue);
+
+            // 순위 메달: 1~3위는 금/은/동 색상으로 강조
+            let rankDisplay = `${idx + 1}`;
+            if (idx === 0) rankDisplay = '<span class="text-amber-500 font-bold">1</span>';
+            else if (idx === 1) rankDisplay = '<span class="text-gray-400 font-bold">2</span>';
+            else if (idx === 2) rankDisplay = '<span class="text-amber-700 font-bold">3</span>';
+
+            // 거래유형 배지 색상
+            const dealColor = dealTypeColors[c.dealType] || 'bg-gray-50 text-gray-500';
+
+            // 재주문 여부 표시: 단골이면 초록 체크, 신규면 회색 X
+            const repeatIcon = c.isRepeat
+                ? '<span class="text-green-500 text-xs font-medium">단골</span>'
+                : '<span class="text-gray-300 text-xs">신규</span>';
+
+            // 최근 주문일 포맷: "03/26" 형태
+            const lastDate = c.lastOrderDate ? formatDate(c.lastOrderDate) : '-';
+
+            return `
+                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td class="px-3 py-3 text-center whitespace-nowrap">${rankDisplay}</td>
+                    <td class="px-3 py-3 font-medium whitespace-nowrap">${escapeHtml(c.name)}</td>
+                    <td class="px-3 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(c.teamName)}</td>
+                    <td class="px-3 py-3 whitespace-nowrap">
+                        <span class="${dealColor} text-xs px-2 py-0.5 rounded-full">${escapeHtml(c.dealType)}</span>
+                    </td>
+                    <td class="px-3 py-3 text-right whitespace-nowrap">${c.orders}건</td>
+                    <td class="px-3 py-3 text-right whitespace-nowrap font-medium">${revenueText}</td>
+                    <td class="px-3 py-3 text-center whitespace-nowrap">${repeatIcon}</td>
+                    <td class="px-3 py-3 text-gray-500 text-xs whitespace-nowrap">${lastDate}</td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('[Admin] 고객별 매출 랭킹 로드 실패:', error);
+    } finally {
+        // 로딩 표시 숨김
+        if (loading) loading.classList.add('hidden');
+    }
+}
+
 /** 모든 필터 초기화 */
 function resetFilters() {
     // 1줄 필터 초기화
@@ -713,9 +1133,253 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ============================================================
+// CSV 내보내기 (D-5)
+// ============================================================
+
+/**
+ * 현재 필터 조건의 주문 데이터를 CSV 파일로 다운로드
+ * 비유: 현재 화면에 보이는 주문 목록을 엑셀용 파일로 저장하는 것
+ *
+ * 동작 방식:
+ * 1. 현재 필터 조건 그대로 서버에 요청 (단, limit을 크게 잡아 전체 데이터 확보)
+ * 2. 주문 데이터를 CSV 텍스트로 변환 (한글 헤더 + BOM 포함)
+ * 3. 브라우저가 자동으로 파일 다운로드 시작
+ */
+async function exportToCSV() {
+    try {
+        // --- 1단계: 현재 필터 조건으로 전체 데이터 요청 ---
+        // 페이지네이션 무시하고 최대 10,000건까지 가져옴
+        const params = new URLSearchParams();
+        if (currentFilters.status) params.set('status', currentFilters.status);
+        if (currentFilters.manager) params.set('manager', currentFilters.manager);
+        if (currentFilters.sport) params.set('sport', currentFilters.sport);
+        if (currentFilters.dealType) params.set('dealType', currentFilters.dealType);
+        if (currentFilters.search) params.set('search', currentFilters.search);
+        if (currentFilters.unpaid) params.set('unpaid', currentFilters.unpaid);
+        if (currentFilters.dateFrom) params.set('dateFrom', currentFilters.dateFrom);
+        if (currentFilters.dateTo) params.set('dateTo', currentFilters.dateTo);
+        if (currentFilters.amountMin) params.set('amountMin', currentFilters.amountMin);
+        if (currentFilters.amountMax) params.set('amountMax', currentFilters.amountMax);
+        params.set('excludeCompleted', currentFilters.excludeCompleted);
+        params.set('page', 1);
+        params.set('limit', 10000); // 페이지네이션 무시: 전체 데이터 요청
+
+        const res = await adminFetch(`/api/admin/orders?${params.toString()}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success || !data.orders || data.orders.length === 0) {
+            alert('내보낼 주문 데이터가 없습니다.');
+            return;
+        }
+
+        // --- 2단계: CSV 문자열 생성 ---
+        // 한글 헤더 (엑셀에서 열었을 때 바로 이해 가능)
+        const headers = ['주문번호', '주문일', '고객명', '팀명', '거래유형', '상태', '종목', '담당자', '금액', '결제상태'];
+
+        // 각 주문을 CSV 행으로 변환
+        const rows = data.orders.map(order => {
+            // 주문번호
+            const orderNumber = order.orderNumber || '';
+            // 주문일 (YYYY-MM-DD 형식)
+            const createdAt = order.createdAt ? order.createdAt.substring(0, 10) : '';
+            // 고객 정보
+            const customerName = order.customer?.name || '';
+            const teamName = order.customer?.teamName || '';
+            // 거래유형 (customer 객체 또는 주문 자체에 있을 수 있음)
+            const dealType = order.customer?.dealType || order.dealType || '';
+            // 상태를 한글로 변환
+            const status = STATUS_LABELS[order.status] || order.status || '';
+            // 종목 한글 변환
+            const sport = SPORT_LABELS[order.items?.[0]?.sport] || order.items?.[0]?.sport || '';
+            // 담당자
+            const manager = order.manager || '';
+            // 금액 (숫자만, 쉼표 없이 — 엑셀에서 숫자로 인식하도록)
+            const amount = order.payment?.totalAmount || order.total || 0;
+            // 결제상태: 결제일이 있으면 "결제완료", 없으면 "미결제"
+            const paymentStatus = order.payment?.paidDate ? '결제완료' : (amount > 0 ? '미결제' : '-');
+
+            // CSV에서 쉼표/줄바꿈이 포함된 값은 큰따옴표로 감싸야 함
+            return [orderNumber, createdAt, customerName, teamName, dealType, status, sport, manager, amount, paymentStatus]
+                .map(val => csvEscape(val))
+                .join(',');
+        });
+
+        // 헤더 + 데이터 행을 줄바꿈으로 연결
+        const csvContent = [headers.join(','), ...rows].join('\n');
+
+        // --- 3단계: BOM 추가 후 다운로드 ---
+        // BOM(Byte Order Mark): 엑셀이 UTF-8 한글을 제대로 인식하게 하는 마법의 3바이트
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+        // 파일명: "주문목록_2026-03-31.csv" 형식
+        const today = new Date();
+        const dateStr = today.getFullYear() + '-'
+            + String(today.getMonth() + 1).padStart(2, '0') + '-'
+            + String(today.getDate()).padStart(2, '0');
+        const fileName = `주문목록_${dateStr}.csv`;
+
+        // 다운로드 트리거: 임시 링크를 만들어 클릭 시뮬레이션
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        // 메모리 정리
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('[Admin] CSV 내보내기 실패:', error);
+        alert('CSV 내보내기 중 오류가 발생했습니다.');
+    }
+}
+
+/**
+ * CSV 값 이스케이프 처리
+ * 값에 쉼표, 큰따옴표, 줄바꿈이 있으면 큰따옴표로 감싸고, 내부 큰따옴표는 두 번으로 치환
+ * 비유: 셀 안에 쉼표가 있으면 엑셀이 다음 컬럼으로 착각하니까, 따옴표로 보호하는 것
+ */
+function csvEscape(value) {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    // 쉼표, 큰따옴표, 줄바꿈이 있으면 큰따옴표로 감싸기
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
 /** 로그아웃 */
 function handleLogout() {
     if (!confirm('로그아웃 하시겠습니까?')) return;
     localStorage.removeItem('stiz_admin_token');
     window.location.href = 'admin-login.html';
+}
+
+// ============================================================
+// 일괄 상태 변경 (D-4)
+// 비유: 이메일에서 여러 건을 체크한 후 "읽음 처리" 하는 것처럼
+//       여러 주문을 선택해서 한번에 상태를 바꾸는 기능
+// ============================================================
+
+/**
+ * 전체 선택/해제 토글
+ * 헤더의 체크박스 클릭 시 현재 페이지의 모든 주문 체크박스를 on/off
+ */
+function toggleSelectAll(headerCheckbox) {
+    const checkboxes = document.querySelectorAll('.order-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = headerCheckbox.checked;
+    });
+    // 선택 건수 업데이트 + 일괄 작업 바 표시/숨김
+    updateBulkActionBar();
+}
+
+/**
+ * 개별 체크박스 변경 시 호출
+ * 선택 건수를 업데이트하고, 전체 선택 체크박스 상태도 동기화
+ */
+function onOrderCheckboxChange() {
+    const checkboxes = document.querySelectorAll('.order-checkbox');
+    const selectAllCb = document.getElementById('select-all-checkbox');
+    const checkedCount = document.querySelectorAll('.order-checkbox:checked').length;
+
+    // 전체 선택 체크박스: 모든 개별 체크박스가 선택됐으면 체크, 아니면 해제
+    if (selectAllCb) {
+        selectAllCb.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+    }
+
+    updateBulkActionBar();
+}
+
+/**
+ * 일괄 작업 바 표시/숨김 + 선택 건수 텍스트 갱신
+ * 비유: 선택한 항목이 있을 때만 하단에 "N건 선택됨" 바가 나타나는 것
+ */
+function updateBulkActionBar() {
+    const bar = document.getElementById('bulk-action-bar');
+    const countSpan = document.getElementById('bulk-selected-count');
+    const checkedCount = document.querySelectorAll('.order-checkbox:checked').length;
+
+    if (checkedCount > 0) {
+        // 선택된 항목이 있으면 바 표시
+        bar.classList.remove('hidden');
+        countSpan.textContent = `${checkedCount}건 선택됨`;
+    } else {
+        // 선택된 항목이 없으면 바 숨김
+        bar.classList.add('hidden');
+    }
+}
+
+/**
+ * 모든 체크박스 선택 해제
+ * "선택 해제" 버튼 클릭 시 호출
+ */
+function clearAllCheckboxes() {
+    const checkboxes = document.querySelectorAll('.order-checkbox');
+    checkboxes.forEach(cb => { cb.checked = false; });
+    const selectAllCb = document.getElementById('select-all-checkbox');
+    if (selectAllCb) selectAllCb.checked = false;
+    updateBulkActionBar();
+}
+
+/**
+ * 선택된 주문들의 상태를 일괄 변경
+ * 드롭다운에서 선택한 상태로 체크된 모든 주문의 상태를 한번에 변경
+ */
+async function bulkUpdateStatus() {
+    // 1) 선택된 주문 ID 수집
+    const checkedBoxes = document.querySelectorAll('.order-checkbox:checked');
+    const orderIds = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.orderId));
+
+    if (orderIds.length === 0) {
+        alert('변경할 주문을 선택하세요.');
+        return;
+    }
+
+    // 2) 변경할 상태 확인
+    const statusSelect = document.getElementById('bulk-status-select');
+    const newStatus = statusSelect.value;
+    if (!newStatus) {
+        alert('변경할 상태를 선택하세요.');
+        return;
+    }
+
+    // 3) 사용자 확인 (실수 방지)
+    const statusLabel = STATUS_LABELS[newStatus] || newStatus;
+    if (!confirm(`${orderIds.length}건의 주문을 "${statusLabel}" 상태로 변경하시겠습니까?`)) {
+        return;
+    }
+
+    // 4) 서버 API 호출
+    try {
+        const res = await adminFetch('/api/admin/orders/bulk-status', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderIds, status: newStatus })
+        });
+
+        if (!res) return;
+
+        const data = await res.json();
+        if (data.success) {
+            alert(`${data.updated}건 변경 완료` + (data.failed > 0 ? ` (${data.failed}건 실패)` : ''));
+            // 성공 시: 드롭다운 초기화 + 체크박스 해제 + 목록 새로고침
+            statusSelect.value = '';
+            clearAllCheckboxes();
+            loadOrders();
+            // 통계도 갱신 (상태가 바뀌면 카드 숫자도 변해야 하므로)
+            const yearSelect = document.getElementById('stats-year-select');
+            if (yearSelect) loadStats(yearSelect.value);
+        } else {
+            alert('일괄 변경 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[Admin] 일괄 상태 변경 실패:', error);
+        alert('일괄 상태 변경 중 오류가 발생했습니다.');
+    }
 }

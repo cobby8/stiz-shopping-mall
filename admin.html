@@ -204,6 +204,100 @@
             </div>
         </div>
 
+        <!-- ===== 월별 매출 차트 (D-1) ===== -->
+        <!-- 비유: 월별 매출 막대그래프 + 주문수 라인 — 한눈에 매출 추이 파악 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-brand-red">bar_chart</span>
+                    <span id="chart-title">월별 매출 추이</span>
+                </h3>
+                <!-- 차트 로딩 표시 -->
+                <span id="chart-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+            </div>
+            <!-- 반응형 차트 캔버스: 컨테이너 크기에 맞게 자동 조절 -->
+            <div style="position: relative; height: 320px;">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ===== 담당자별 실적 (D-2) ===== -->
+        <!-- 비유: 직원별 성적표 — 누가 얼마나 일했고 매출은 얼마인지 한눈에 비교 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-blue-500">groups</span>
+                    <span id="staff-title">담당자별 실적</span>
+                </h3>
+                <!-- 로딩 표시 -->
+                <span id="staff-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+            </div>
+            <!-- 담당자 실적 테이블 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">담당자</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문수</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">매출</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">완료율</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">평균 처리일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-stats-tbody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- 데이터 없을 때 표시 -->
+            <div id="staff-empty" class="hidden text-center py-8 text-sm text-gray-400">
+                담당자 실적 데이터가 없습니다.
+            </div>
+        </div>
+
+        <!-- ===== 고객별 매출 랭킹 TOP 20 (D-3) ===== -->
+        <!-- 비유: VIP 고객 순위표 — 매출이 높은 단골 고객을 한눈에 파악 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-amber-500">emoji_events</span>
+                    <span id="top-customers-title">고객별 매출 랭킹 TOP 20</span>
+                </h3>
+                <div class="flex items-center gap-3">
+                    <!-- 재주문율 요약 배지 -->
+                    <span id="top-customers-repeat" class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full hidden">
+                        재주문율 -
+                    </span>
+                    <!-- 로딩 표시 -->
+                    <span id="top-customers-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+                </div>
+            </div>
+            <!-- 고객 매출 랭킹 테이블 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="text-center px-3 py-3 font-medium text-gray-500 whitespace-nowrap w-12">순위</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">거래유형</th>
+                            <th class="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">주문수</th>
+                            <th class="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">총매출</th>
+                            <th class="text-center px-3 py-3 font-medium text-gray-500 whitespace-nowrap">재주문</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">최근주문</th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-customers-tbody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- 데이터 없을 때 표시 -->
+            <div id="top-customers-empty" class="hidden text-center py-8 text-sm text-gray-400">
+                고객 매출 데이터가 없습니다.
+            </div>
+        </div>
+
         <!-- ===== 진행중/전체/미수금 탭 ===== -->
         <!-- 비유: 식당에서 "조리중 주문"과 "전체 주문"과 "외상 주문"을 탭으로 분리 -->
         <div class="flex items-center space-x-1 mb-3">
@@ -317,6 +411,13 @@
                     <span class="material-symbols-outlined text-base">filter_alt_off</span>
                     <span>초기화</span>
                 </button>
+
+                <!-- CSV 내보내기 버튼 (D-5): 현재 필터 조건의 주문을 CSV로 다운로드 -->
+                <button onclick="exportToCSV()"
+                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors ml-2 border border-gray-200 rounded-lg px-3 py-2">
+                    <span class="material-symbols-outlined text-base">download</span>
+                    <span>CSV 다운로드</span>
+                </button>
             </div>
 
             <!-- 2줄: 날짜 범위 + 금액 범위 -->
@@ -349,6 +450,48 @@
             </div>
         </div>
 
+        <!-- ===== 일괄 작업 바 (체크박스 선택 시에만 표시) ===== -->
+        <!-- 비유: 이메일에서 여러 건 선택 후 "읽음 처리" 같은 일괄 동작 바 -->
+        <div id="bulk-action-bar" class="hidden bg-gray-900 text-white rounded-xl px-5 py-3 mb-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="material-symbols-outlined text-base">check_box</span>
+                <span id="bulk-selected-count" class="text-sm font-medium">0건 선택됨</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <!-- 상태 변경 드롭다운 -->
+                <select id="bulk-status-select"
+                    class="bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-white">
+                    <option value="">상태 선택...</option>
+                    <option value="design_requested">시안 요청</option>
+                    <option value="draft_done">초안 완료</option>
+                    <option value="revision">수정 중</option>
+                    <option value="design_confirmed">디자인 확정</option>
+                    <option value="payment_pending">결제 대기</option>
+                    <option value="payment_done">결제 완료</option>
+                    <option value="grading">그레이딩</option>
+                    <option value="line_work">라인 작업</option>
+                    <option value="in_production">생산 중</option>
+                    <option value="production_done">생산 완료</option>
+                    <option value="released">출고</option>
+                    <option value="shipped">배송 중</option>
+                    <option value="delivered">배송 완료</option>
+                    <option value="hold">보류</option>
+                    <option value="cancelled">취소</option>
+                </select>
+                <!-- 일괄 변경 버튼 -->
+                <button onclick="bulkUpdateStatus()"
+                    class="bg-brand-red hover:bg-red-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+                    일괄 변경
+                </button>
+                <!-- 선택 해제 버튼 -->
+                <button onclick="clearAllCheckboxes()"
+                    class="text-gray-400 hover:text-white text-sm transition-colors">
+                    선택 해제
+                </button>
+            </div>
+        </div>
+
         <!-- ===== 주문 테이블 ===== -->
         <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
             <!-- 로딩 상태 -->
@@ -368,6 +511,12 @@
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 border-b border-gray-100">
                         <tr>
+                            <!-- 전체 선택 체크박스 -->
+                            <th class="px-3 py-3 w-10">
+                                <input type="checkbox" id="select-all-checkbox"
+                                    onchange="toggleSelectAll(this)"
+                                    class="w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer">
+                            </th>
                             <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문번호</th>
                             <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
                             <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
@@ -394,6 +543,8 @@
     </main>
 
     <!-- ===== 스크립트 ===== -->
+    <!-- Chart.js CDN: 월별 매출 차트용 (D-1) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- auth.js 제거: admin.js가 자체 인증 로직 보유, const API_BASE 중복 선언 방지 -->
     <script src="js/admin.js"></script>
 </body>

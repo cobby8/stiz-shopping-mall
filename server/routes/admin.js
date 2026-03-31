@@ -225,6 +225,91 @@ router.patch('/orders/:id/status', (req, res) => {
 });
 
 // ============================================================
+// PATCH /api/admin/orders/bulk-status - 주문 일괄 상태 변경
+// 비유: 체크리스트에서 여러 항목을 한번에 체크하고 상태를 일괄 변경하는 것
+// ============================================================
+router.patch('/orders/bulk-status', (req, res) => {
+    try {
+        const { orderIds, status } = req.body;
+
+        // 필수 파라미터 검증
+        if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+            return res.status(400).json({ success: false, error: '변경할 주문 ID 목록을 지정하세요.' });
+        }
+        if (!status) {
+            return res.status(400).json({ success: false, error: '변경할 상태를 지정하세요.' });
+        }
+
+        // 유효한 상태값인지 확인
+        if (!STATUS_FLOW.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: `유효하지 않은 상태입니다. 가능한 값: ${STATUS_FLOW.join(', ')}`
+            });
+        }
+
+        // 각 주문을 순회하며 상태 변경 + 이력 기록
+        const results = [];
+        let updated = 0;
+        let failed = 0;
+
+        orderIds.forEach(orderId => {
+            const id = parseInt(orderId);
+            const existing = db.findById('orders', id);
+
+            if (!existing) {
+                // 주문을 찾을 수 없는 경우
+                results.push({ id, success: false, error: '주문 없음' });
+                failed++;
+                return;
+            }
+
+            const fromStatus = existing.status;
+
+            // 이미 같은 상태면 건너뛰기 (불필요한 이력 방지)
+            if (fromStatus === status) {
+                results.push({ id, success: true, skipped: true, orderNumber: existing.orderNumber });
+                updated++;
+                return;
+            }
+
+            // 상태 업데이트
+            db.updateById('orders', id, {
+                status,
+                updatedAt: new Date().toISOString()
+            });
+
+            // 상태 변경 이력 기록
+            db.insert('order-history', {
+                orderId: id,
+                orderNumber: existing.orderNumber,
+                fromStatus,
+                toStatus: status,
+                changedBy: `admin_${req.user.name}`,
+                memo: `일괄 변경 (${orderIds.length}건 중)`,
+                createdAt: new Date().toISOString()
+            });
+
+            results.push({ id, success: true, orderNumber: existing.orderNumber, fromStatus, toStatus: status });
+            updated++;
+        });
+
+        console.log(`[Admin] Bulk status change: ${updated} updated, ${failed} failed → ${status} by ${req.user.name}`);
+
+        res.json({
+            success: true,
+            updated,
+            failed,
+            results,
+            statusLabel: STATUS_LABELS[status]
+        });
+    } catch (error) {
+        console.error('[Admin] Bulk status change error:', error);
+        res.status(500).json({ success: false, error: '일괄 상태 변경 실패' });
+    }
+});
+
+// ============================================================
 // GET /api/admin/orders/:id/history - 상태 변경 이력 조회
 // ============================================================
 router.get('/orders/:id/history', (req, res) => {
@@ -385,6 +470,241 @@ router.get('/stats', (req, res) => {
     } catch (error) {
         console.error('[Admin] Stats error:', error);
         res.status(500).json({ success: false, error: '통계 조회 실패' });
+    }
+});
+
+// ============================================================
+// GET /api/admin/stats/monthly - 월별 매출/주문수 집계
+// 비유: 매출 보고서를 월별로 나눠 차트에 그릴 데이터를 만드는 것
+// ============================================================
+router.get('/stats/monthly', (req, res) => {
+    try {
+        const allOrders = db.getAll('orders');
+
+        // 연도 파라미터: 기본값은 현재 연도
+        const year = req.query.year || new Date().getFullYear().toString();
+
+        // 해당 연도 주문만 필터링 (createdAt 기준)
+        const orders = allOrders.filter(order => {
+            if (!order.createdAt) return false;
+            return order.createdAt.startsWith(year);
+        });
+
+        // 1~12월 월별 데이터 초기화
+        // 비유: 12칸짜리 빈 성적표를 먼저 만들어놓고, 주문을 하나씩 해당 월 칸에 넣기
+        const monthly = [];
+        for (let m = 1; m <= 12; m++) {
+            monthly.push({ month: m, revenue: 0, orders: 0 });
+        }
+
+        // 각 주문을 해당 월에 집계
+        orders.forEach(order => {
+            // createdAt에서 월 추출 (ISO 형식: "2025-11-04T00:00:00.000Z")
+            const monthStr = order.createdAt.substring(5, 7); // "11" 같은 문자열
+            const monthIdx = parseInt(monthStr, 10) - 1;      // 0부터 시작하는 인덱스
+            if (monthIdx >= 0 && monthIdx < 12) {
+                const amount = order.payment?.totalAmount || order.total || 0;
+                monthly[monthIdx].revenue += amount;
+                monthly[monthIdx].orders += 1;
+            }
+        });
+
+        res.json({
+            success: true,
+            year,
+            monthly
+        });
+    } catch (error) {
+        console.error('[Admin] Monthly stats error:', error);
+        res.status(500).json({ success: false, error: '월별 통계 조회 실패' });
+    }
+});
+
+// ============================================================
+// GET /api/admin/stats/staff - 담당자별 실적 집계
+// 비유: 직원별 성적표 — 누가 몇 건을 처리했고, 매출은 얼마이며, 완료율은 어떤지
+// ============================================================
+router.get('/stats/staff', (req, res) => {
+    try {
+        const allOrders = db.getAll('orders');
+
+        // 연도 파라미터: 기본값은 현재 연도
+        const year = req.query.year || new Date().getFullYear().toString();
+
+        // 해당 연도 주문만 필터 (createdAt 기준)
+        const orders = allOrders.filter(order => {
+            if (!order.createdAt) return false;
+            return order.createdAt.startsWith(year);
+        });
+
+        // 담당자별 집계 맵: { "김현서": { orders, revenue, delivered, totalDays, daysCount } }
+        const staffMap = {};
+
+        orders.forEach(order => {
+            const name = order.manager || '미배정';
+
+            // 담당자 데이터 초기화
+            if (!staffMap[name]) {
+                staffMap[name] = {
+                    name,
+                    orders: 0,        // 총 주문수
+                    revenue: 0,       // 총 매출
+                    delivered: 0,     // 배송완료 건수 (완료율 계산용)
+                    totalDays: 0,     // 처리일 합계 (평균 계산용)
+                    daysCount: 0      // 처리일을 계산할 수 있는 건수
+                };
+            }
+
+            const staff = staffMap[name];
+            staff.orders += 1;
+            staff.revenue += order.payment?.totalAmount || order.total || 0;
+
+            // 완료율: delivered 상태인 주문 비율
+            if (order.status === 'delivered') {
+                staff.delivered += 1;
+            }
+
+            // 평균 처리일: createdAt ~ shipping.shippedDate 또는 updatedAt(delivered)
+            // 비유: 주문 접수일부터 배송완료일까지 며칠 걸렸는지 평균
+            if (order.status === 'delivered' && order.createdAt) {
+                const startDate = new Date(order.createdAt);
+                // 배송일이 있으면 배송일, 없으면 updatedAt 사용
+                const endDateStr = order.shipping?.shippedDate || order.updatedAt;
+                if (endDateStr) {
+                    const endDate = new Date(endDateStr);
+                    const diffDays = Math.max(0, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)));
+                    // 비정상 데이터 필터 (365일 이상은 제외)
+                    if (diffDays <= 365) {
+                        staff.totalDays += diffDays;
+                        staff.daysCount += 1;
+                    }
+                }
+            }
+        });
+
+        // 집계 결과를 배열로 변환 + 완료율/평균 처리일 계산
+        const staff = Object.values(staffMap)
+            .map(s => ({
+                name: s.name,
+                orders: s.orders,
+                revenue: s.revenue,
+                // 완료율: 배송완료 건수 / 전체 건수 (백분율, 소수점 1자리)
+                completionRate: s.orders > 0
+                    ? Math.round((s.delivered / s.orders) * 1000) / 10
+                    : 0,
+                // 평균 처리일: 처리일 합계 / 처리일 계산 가능 건수 (소수점 1자리)
+                avgDays: s.daysCount > 0
+                    ? Math.round((s.totalDays / s.daysCount) * 10) / 10
+                    : null  // 데이터 없으면 null
+            }))
+            // 매출 내림차순 정렬 (가장 많이 번 담당자가 위에)
+            .sort((a, b) => b.revenue - a.revenue);
+
+        res.json({
+            success: true,
+            year,
+            staff
+        });
+    } catch (error) {
+        console.error('[Admin] Staff stats error:', error);
+        res.status(500).json({ success: false, error: '담당자별 실적 조회 실패' });
+    }
+});
+
+// ============================================================
+// GET /api/admin/stats/top-customers - 고객별 매출 랭킹 TOP 20
+// 비유: VIP 고객 순위표 — 누가 가장 많이 주문하고 매출이 높은지 한눈에 파악
+// ============================================================
+router.get('/stats/top-customers', (req, res) => {
+    try {
+        const allOrders = db.getAll('orders');
+        const allCustomers = db.getAll('customers');
+
+        // 연도 파라미터: 기본값은 현재 연도
+        const year = req.query.year || new Date().getFullYear().toString();
+
+        // 해당 연도 주문만 필터 (createdAt 기준)
+        const orders = allOrders.filter(order => {
+            if (!order.createdAt) return false;
+            return order.createdAt.startsWith(year);
+        });
+
+        // 고객별 매출 집계 맵
+        // 키: customerId (없으면 고객명 fallback)
+        // 비유: 고객마다 통장을 만들어서, 주문이 들어올 때마다 금액을 적어넣는 것
+        const customerMap = {};
+
+        orders.forEach(order => {
+            // customerId가 있으면 우선 사용, 없으면 고객명으로 그룹핑
+            const key = order.customerId || order.customer?.name || '미상';
+            const amount = order.payment?.totalAmount || order.total || 0;
+
+            if (!customerMap[key]) {
+                customerMap[key] = {
+                    customerId: order.customerId || null,
+                    name: order.customer?.name || '미상',
+                    teamName: order.customer?.teamName || '-',
+                    dealType: order.customer?.dealType || '미분류',
+                    orders: 0,           // 해당 연도 주문수
+                    revenue: 0,          // 해당 연도 매출 합계
+                    lastOrderDate: null   // 해당 연도 최근 주문일
+                };
+            }
+
+            const c = customerMap[key];
+            c.orders += 1;
+            c.revenue += amount;
+
+            // 최근 주문일 갱신 (더 최신 날짜로 교체)
+            if (!c.lastOrderDate || order.createdAt > c.lastOrderDate) {
+                c.lastOrderDate = order.createdAt;
+            }
+        });
+
+        // customers.json에서 전체 주문수(orderCount) 가져와 재주문율 계산
+        // 재주문율: 해당 고객의 총 주문 횟수가 2회 이상이면 "재주문 고객"
+        // 비유: 단골 여부 — 한 번만 온 손님(1회)과 여러 번 온 단골(2회+)을 구분
+        const result = Object.values(customerMap).map(c => {
+            // customers.json에서 해당 고객의 전체 주문수 조회
+            let totalOrderCount = c.orders; // 기본: 이번 연도 주문수
+            if (c.customerId) {
+                const customerRecord = allCustomers.find(cust => cust.id === c.customerId);
+                if (customerRecord) {
+                    totalOrderCount = customerRecord.orderCount || c.orders;
+                }
+            }
+
+            return {
+                ...c,
+                // 재주문 여부: 전체 주문 2회 이상이면 true
+                isRepeat: totalOrderCount >= 2,
+                totalOrderCount  // 전체 기간 주문수 (참고용)
+            };
+        });
+
+        // 매출 내림차순 정렬 후 TOP 20
+        const topCustomers = result
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 20);
+
+        // 재주문 고객 비율 (전체 고객 중)
+        const totalCustomerCount = Object.keys(customerMap).length;
+        const repeatCount = result.filter(c => c.isRepeat).length;
+        const repeatRate = totalCustomerCount > 0
+            ? Math.round((repeatCount / totalCustomerCount) * 100)
+            : 0;
+
+        res.json({
+            success: true,
+            year,
+            totalCustomers: totalCustomerCount,  // 해당 연도 주문한 총 고객수
+            repeatCount,                          // 재주문 고객수 (2회+ 전체 기간)
+            repeatRate,                           // 재주문율 (%)
+            customers: topCustomers
+        });
+    } catch (error) {
+        console.error('[Admin] Top customers stats error:', error);
+        res.status(500).json({ success: false, error: '고객별 매출 랭킹 조회 실패' });
     }
 });
 
