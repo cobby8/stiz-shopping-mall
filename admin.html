@@ -204,8 +204,8 @@
             </div>
         </div>
 
-        <!-- ===== 진행중/전체 탭 ===== -->
-        <!-- 비유: 식당에서 "조리중 주문"과 "전체 주문"을 탭으로 분리 -->
+        <!-- ===== 진행중/전체/미수금 탭 ===== -->
+        <!-- 비유: 식당에서 "조리중 주문"과 "전체 주문"과 "외상 주문"을 탭으로 분리 -->
         <div class="flex items-center space-x-1 mb-3">
             <!-- 진행중 탭 (기본 활성) -->
             <button id="tab-active" onclick="switchTab('active')"
@@ -219,6 +219,37 @@
                        bg-gray-100 text-gray-600 hover:bg-gray-200">
                 전체 <span id="tab-all-count" class="ml-1 opacity-70">(-)</span>
             </button>
+            <!-- 미수금 탭: 빨간/주황 강조색으로 미수금 건수와 금액 동시 표시 -->
+            <button id="tab-unpaid" onclick="switchTab('unpaid')"
+                class="px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                       bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200">
+                미수금 <span id="tab-unpaid-count" class="ml-1 opacity-70">(-)</span>
+            </button>
+        </div>
+
+        <!-- ===== 미수금 요약 패널 ===== -->
+        <!-- 미수금 탭 클릭 시에만 표시. 고객별 미수금 TOP 리스트 -->
+        <div id="unpaid-summary-panel" class="hidden bg-white rounded-xl p-5 border border-orange-200 mb-6">
+            <h3 class="font-bold text-sm text-orange-700 mb-3 flex items-center">
+                <span class="material-symbols-outlined mr-2 text-orange-500">account_balance_wallet</span>
+                고객별 미수금 TOP
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-orange-50 border-b border-orange-100">
+                        <tr>
+                            <th class="text-left px-3 py-2 font-medium text-orange-700 whitespace-nowrap">순위</th>
+                            <th class="text-left px-3 py-2 font-medium text-orange-700 whitespace-nowrap">고객명</th>
+                            <th class="text-left px-3 py-2 font-medium text-orange-700 whitespace-nowrap">팀명</th>
+                            <th class="text-right px-3 py-2 font-medium text-orange-700 whitespace-nowrap">건수</th>
+                            <th class="text-right px-3 py-2 font-medium text-orange-700 whitespace-nowrap">미수금액</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unpaid-summary-tbody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- ===== 필터 바 ===== -->

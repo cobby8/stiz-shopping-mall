@@ -188,6 +188,18 @@ async function loadStats(year) {
         document.getElementById('stat-unpaid').textContent = formatCurrency(stats.unpaidAmount || 0);
         document.getElementById('stat-hold').textContent = `${stats.holdCount || 0}건`;
 
+        // 미수금 탭 건수/금액 업데이트 — "미수금 (138건 / 6,910만원)" 형태
+        const unpaidCountEl = document.getElementById('tab-unpaid-count');
+        if (unpaidCountEl) {
+            const unpaidCnt = stats.unpaidCount || 0;
+            const unpaidAmt = stats.unpaidAmount || 0;
+            // 금액이 큰 경우 만원 단위로 표시 (가독성)
+            const amtText = unpaidAmt >= 10000
+                ? Math.round(unpaidAmt / 10000).toLocaleString('ko-KR') + '만원'
+                : unpaidAmt.toLocaleString('ko-KR') + '원';
+            unpaidCountEl.textContent = `(${unpaidCnt}건 / ${amtText})`;
+        }
+
         // 담당자 필터 옵션 동적 생성
         updateManagerFilter(stats.managerCounts);
         // 거래유형 필터 옵션 동적 생성
@@ -422,25 +434,52 @@ function createPageButton(label, page) {
 function switchTabUI(tab) {
     const tabActive = document.getElementById('tab-active');
     const tabAll = document.getElementById('tab-all');
+    const tabUnpaid = document.getElementById('tab-unpaid');
 
+    // 기본 스타일 (비활성 상태)
+    const inactiveClass = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+    const activeClass = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-900 text-white';
+    // 미수금 탭 전용 스타일
+    const unpaidInactiveClass = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200';
+    const unpaidActiveClass = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-orange-500 text-white border border-orange-500';
+
+    // 모든 탭 비활성화
+    tabActive.className = inactiveClass;
+    tabAll.className = inactiveClass;
+    if (tabUnpaid) tabUnpaid.className = unpaidInactiveClass;
+
+    // 선택된 탭만 활성화
     if (tab === 'active') {
-        tabActive.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-900 text-white';
-        tabAll.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
-    } else {
-        tabAll.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-900 text-white';
-        tabActive.className = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+        tabActive.className = activeClass;
+    } else if (tab === 'all') {
+        tabAll.className = activeClass;
+    } else if (tab === 'unpaid' && tabUnpaid) {
+        tabUnpaid.className = unpaidActiveClass;
     }
 }
 
 /**
- * 탭 전환: "진행중" 또는 "전체" 탭 클릭 시 호출
- * 비유: 서랍을 바꾸는 것 — "진행중 서랍"에는 작업 중인 주문만, "전체 서랍"에는 모든 주문
+ * 탭 전환: "진행중" / "전체" / "미수금" 탭 클릭 시 호출
+ * 비유: 서랍을 바꾸는 것 — "진행중 서랍", "전체 서랍", "외상 서랍"
  */
 function switchTab(tab) {
+    // 미수금 요약 패널은 미수금 탭에서만 표시
+    const unpaidPanel = document.getElementById('unpaid-summary-panel');
+    if (unpaidPanel) unpaidPanel.classList.add('hidden');
+
     if (tab === 'active') {
         currentFilters.excludeCompleted = true;
-    } else {
+        currentFilters.unpaid = '';  // 미수금 필터 해제
+    } else if (tab === 'all') {
         currentFilters.excludeCompleted = false;
+        currentFilters.unpaid = '';  // 미수금 필터 해제
+    } else if (tab === 'unpaid') {
+        // 미수금 탭: 결제일 없고 금액 있는 주문만 표시
+        currentFilters.excludeCompleted = false;
+        currentFilters.unpaid = 'true';
+        // 미수금 요약 패널 표시 + 데이터 로드
+        if (unpaidPanel) unpaidPanel.classList.remove('hidden');
+        loadUnpaidSummary();
     }
 
     switchTabUI(tab); // 탭 버튼 스타일 변경
@@ -450,7 +489,7 @@ function switchTab(tab) {
 
 /**
  * 탭 건수 업데이트: 서버 응답의 totalActive/totalAll로 양쪽 탭에 건수 표시
- * 비유: "진행중 (309건)" / "전체 (8,073건)" 식으로 숫자가 바뀜
+ * 비유: "진행중 (309건)" / "전체 (8,073건)" / "미수금 (138건)" 식으로 숫자가 바뀜
  */
 function updateTabCounts(pagination) {
     const activeCountEl = document.getElementById('tab-active-count');
@@ -459,6 +498,9 @@ function updateTabCounts(pagination) {
     // 서버가 항상 totalActive(진행중)와 totalAll(전체)을 보내주므로 단순 표시
     if (activeCountEl) activeCountEl.textContent = `(${pagination.totalActive})`;
     if (allCountEl) allCountEl.textContent = `(${pagination.totalAll})`;
+
+    // 미수금 탭 건수는 stats에서 가져오므로 여기서는 건수만 있을 때만 업데이트
+    // (stats 로드 시 별도로 updateUnpaidTabCount 호출)
 }
 
 /** 상태 카드 클릭 시 해당 상태 그룹으로 필터 */
@@ -547,6 +589,47 @@ function handleSearchKeyup(event) {
     }
 }
 
+/**
+ * 미수금 요약 패널에 고객별 미수금 TOP 리스트를 렌더링
+ * GET /api/admin/stats에서 unpaidByCustomer 데이터를 가져와 테이블에 표시
+ * 비유: 외상 장부에서 누가 가장 많이 밀렸는지 순위를 매기는 것
+ */
+async function loadUnpaidSummary() {
+    try {
+        // 현재 연도 선택값을 가져와서 해당 연도 미수금 집계 요청
+        const yearSelect = document.getElementById('stats-year-select');
+        const selectedYear = yearSelect ? yearSelect.value : new Date().getFullYear().toString();
+
+        const res = await adminFetch(`/api/admin/stats?year=${selectedYear}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        const unpaidList = data.stats.unpaidByCustomer || [];
+        const tbody = document.getElementById('unpaid-summary-tbody');
+        if (!tbody) return;
+
+        if (unpaidList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-sm text-gray-400">미수금 내역이 없습니다.</td></tr>';
+            return;
+        }
+
+        // 고객별 미수금 테이블 렌더링
+        tbody.innerHTML = unpaidList.map((item, idx) => `
+            <tr class="border-b border-orange-50 hover:bg-orange-25">
+                <td class="px-3 py-2 text-gray-500 font-medium">${idx + 1}</td>
+                <td class="px-3 py-2 font-medium">${escapeHtml(item.customerName)}</td>
+                <td class="px-3 py-2 text-gray-600">${escapeHtml(item.teamName)}</td>
+                <td class="px-3 py-2 text-right">${item.count}건</td>
+                <td class="px-3 py-2 text-right font-bold text-orange-600">${formatCurrency(item.totalAmount)}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('[Admin] 미수금 요약 로드 실패:', error);
+    }
+}
+
 /** 모든 필터 초기화 */
 function resetFilters() {
     // 1줄 필터 초기화
@@ -570,6 +653,9 @@ function resetFilters() {
     };
     // 탭 UI도 "진행중"으로 복원
     switchTabUI('active');
+    // 미수금 요약 패널 숨기기
+    const unpaidPanel = document.getElementById('unpaid-summary-panel');
+    if (unpaidPanel) unpaidPanel.classList.add('hidden');
     loadOrders();
 }
 

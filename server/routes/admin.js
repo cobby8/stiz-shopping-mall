@@ -332,6 +332,39 @@ router.get('/stats', (req, res) => {
             if (order.status === 'hold') holdCount++;
         });
 
+        // 8) 고객별 미수금 집계 — 비유: "외상 장부"를 고객별로 정리한 것
+        // paidDate가 없고, 금액이 있고, 취소가 아닌 주문을 고객별로 모아서 합산
+        const unpaidByCustomerMap = {};
+        orders.forEach(order => {
+            const amount = order.payment?.totalAmount || 0;
+            const paidDate = order.payment?.paidDate;
+            if (!paidDate && amount > 0 && order.status !== 'cancelled') {
+                // 고객명을 키로 사용 (같은 이름의 고객은 합산)
+                const key = order.customer?.name || '미상';
+                if (!unpaidByCustomerMap[key]) {
+                    unpaidByCustomerMap[key] = {
+                        customerName: order.customer?.name || '미상',
+                        teamName: order.customer?.teamName || '-',
+                        count: 0,
+                        totalAmount: 0
+                    };
+                }
+                unpaidByCustomerMap[key].count++;
+                unpaidByCustomerMap[key].totalAmount += amount;
+            }
+        });
+
+        // 금액 내림차순 정렬 후 상위 20명만 반환
+        const unpaidByCustomer = Object.values(unpaidByCustomerMap)
+            .sort((a, b) => b.totalAmount - a.totalAmount)
+            .slice(0, 20);
+
+        // 미수금 건수 합계 (탭 표시용)
+        const unpaidCount = orders.filter(o => {
+            const amt = o.payment?.totalAmount || 0;
+            return !o.payment?.paidDate && amt > 0 && o.status !== 'cancelled';
+        }).length;
+
         res.json({
             success: true,
             stats: {
@@ -344,12 +377,56 @@ router.get('/stats', (req, res) => {
                 dealTypeCounts,            // 거래유형별
                 totalRevenue,              // 총 매출
                 unpaidAmount,              // 미수금 합계
+                unpaidCount,               // 미수금 건수
+                unpaidByCustomer,          // 고객별 미수금 TOP 20
                 holdCount                  // 보류 건수
             }
         });
     } catch (error) {
         console.error('[Admin] Stats error:', error);
         res.status(500).json({ success: false, error: '통계 조회 실패' });
+    }
+});
+
+// ============================================================
+// PATCH /api/admin/orders/:id/payment - 입금 확인 (미수금 → 입금 완료 처리)
+// 비유: 외상 장부에서 "입금 완료" 도장을 찍는 것
+// ============================================================
+router.patch('/orders/:id/payment', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const existing = db.findById('orders', id);
+
+        if (!existing) {
+            return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
+        }
+
+        // 요청에서 입금 정보 추출
+        const { paidDate, paidAmount, paymentNote } = req.body;
+
+        if (!paidDate) {
+            return res.status(400).json({ success: false, error: '입금일(paidDate)을 지정하세요.' });
+        }
+
+        // 기존 payment 객체에 입금 정보 병합
+        const updatedPayment = {
+            ...existing.payment,
+            paidDate,                              // 입금 확인 날짜
+            paidAmount: paidAmount || existing.payment?.totalAmount || 0,  // 입금액 (미지정 시 전체 금액)
+            paymentNote: paymentNote || ''          // 입금 메모 (선택)
+        };
+
+        const updated = db.updateById('orders', id, {
+            payment: updatedPayment,
+            updatedAt: new Date().toISOString()
+        });
+
+        console.log(`[Admin] Payment confirmed: ${existing.orderNumber} / ${paidDate} / ${paidAmount || 'full'} by ${req.user.name}`);
+
+        res.json({ success: true, order: updated });
+    } catch (error) {
+        console.error('[Admin] Payment update error:', error);
+        res.status(500).json({ success: false, error: '입금 확인 처리 실패' });
     }
 });
 

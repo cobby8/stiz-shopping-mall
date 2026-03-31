@@ -188,6 +188,9 @@ function renderOrderDetail() {
 
     // 아이템 목록 렌더링
     renderItems();
+
+    // 입금 확인 영역 렌더링 (금융 탭 내)
+    renderPaymentConfirmSection();
 }
 
 /**
@@ -679,6 +682,132 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ============================================================
+// 입금 확인 기능 (미수금 관리)
+// ============================================================
+
+/**
+ * 금융 탭 하단에 입금 확인 버튼 또는 완료 표시를 렌더링
+ * 비유: 외상 장부에 "입금 확인" 도장을 찍거나, 이미 찍힌 도장을 보여주는 것
+ *
+ * - paidDate가 없는 경우: "입금 확인" 버튼 + 입금액 입력 폼
+ * - paidDate가 있는 경우: "입금 완료 (날짜)" 표시
+ */
+function renderPaymentConfirmSection() {
+    const section = document.getElementById('payment-confirm-section');
+    if (!section || !currentOrder) return;
+
+    const payment = currentOrder.payment || {};
+    const totalAmount = payment.totalAmount || 0;
+
+    // 이미 입금된 주문: 완료 표시
+    if (payment.paidDate) {
+        const paidDateStr = payment.paidDate.includes('T')
+            ? payment.paidDate.split('T')[0]   // ISO 형식이면 날짜만 추출
+            : payment.paidDate;
+        const paidAmt = payment.paidAmount || totalAmount;
+        section.innerHTML = `
+            <div class="flex items-center space-x-2 text-green-700 bg-green-50 rounded-lg px-4 py-3">
+                <span class="material-symbols-outlined">check_circle</span>
+                <div>
+                    <p class="font-medium text-sm">입금 완료 (${escapeHtml(paidDateStr)})</p>
+                    <p class="text-xs text-green-600 mt-0.5">입금액: ${formatCurrency(paidAmt)}</p>
+                    ${payment.paymentNote ? `<p class="text-xs text-green-600 mt-0.5">메모: ${escapeHtml(payment.paymentNote)}</p>` : ''}
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // 금액이 없거나 취소된 주문: 입금 확인 불필요
+    if (totalAmount <= 0 || currentOrder.status === 'cancelled') {
+        section.innerHTML = '';
+        return;
+    }
+
+    // 미수금 주문: 입금 확인 버튼 + 입력 폼
+    section.innerHTML = `
+        <div class="bg-orange-50 rounded-lg px-4 py-3 border border-orange-200">
+            <p class="text-sm font-medium text-orange-700 mb-3 flex items-center">
+                <span class="material-symbols-outlined mr-1 text-base">warning</span>
+                미수금: ${formatCurrency(totalAmount)}
+            </p>
+            <!-- 입금 확인 폼: 날짜(기본 오늘) + 금액(기본 전체금액) + 메모 -->
+            <div id="payment-confirm-form" class="space-y-2">
+                <div class="flex flex-wrap gap-2 items-end">
+                    <div>
+                        <label class="text-xs text-gray-500 block mb-1">입금일</label>
+                        <input type="date" id="confirm-paid-date" value="${new Date().toISOString().split('T')[0]}"
+                            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 block mb-1">입금액</label>
+                        <input type="number" id="confirm-paid-amount" value="${totalAmount}" min="0"
+                            class="w-32 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="text-xs text-gray-500 block mb-1">메모 (선택)</label>
+                        <input type="text" id="confirm-payment-note" placeholder="입금 메모..."
+                            class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                    </div>
+                </div>
+                <button onclick="confirmPayment()"
+                    class="mt-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">account_balance_wallet</span>
+                    <span>입금 확인</span>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 입금 확인 API 호출
+ * PATCH /api/admin/orders/:id/payment
+ * 비유: 외상 장부에 "입금 완료" 도장을 찍고 서버에 저장하는 것
+ */
+async function confirmPayment() {
+    const paidDate = document.getElementById('confirm-paid-date').value;
+    const paidAmount = document.getElementById('confirm-paid-amount').value;
+    const paymentNote = document.getElementById('confirm-payment-note').value.trim();
+
+    if (!paidDate) {
+        alert('입금일을 선택해주세요.');
+        return;
+    }
+
+    const totalAmount = currentOrder.payment?.totalAmount || 0;
+    const label = formatCurrency(parseInt(paidAmount) || totalAmount);
+
+    if (!confirm(`입금 확인 처리하시겠습니까?\n\n입금일: ${paidDate}\n입금액: ${label}`)) return;
+
+    try {
+        const res = await adminFetch(`/api/admin/orders/${currentOrder.id}/payment`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                paidDate,
+                paidAmount: parseInt(paidAmount) || totalAmount,
+                paymentNote
+            })
+        });
+
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success) {
+            alert('입금 확인이 완료되었습니다.');
+            // 업데이트된 데이터로 화면 갱신
+            currentOrder = data.order;
+            renderOrderDetail();
+        } else {
+            alert('입금 확인 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[AdminOrder] 입금 확인 실패:', error);
+        alert('입금 확인 중 오류가 발생했습니다.');
+    }
 }
 
 /** 로그아웃 */
