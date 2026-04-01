@@ -188,10 +188,23 @@ router.get('/:id', (req, res) => {
             }))
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+        // 요약 카드용 통계 계산 (모달 상단에 한눈에 보여줄 핵심 수치)
+        const totalOrders = customerOrders.length;
+        const totalRevenue = customerOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        const avgOrderAmount = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+        const lastOrderDate = customerOrders.length > 0 ? customerOrders[0].createdAt : null;
+
         res.json({
             success: true,
             customer,
-            orders: customerOrders
+            orders: customerOrders,
+            // 요약 카드 데이터 (프론트에서 별도 계산 없이 바로 표시)
+            summary: {
+                totalOrders,
+                totalRevenue,
+                avgOrderAmount,
+                lastOrderDate
+            }
         });
     } catch (error) {
         console.error('[Admin] Customer detail error:', error);

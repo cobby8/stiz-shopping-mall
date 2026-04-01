@@ -39,6 +39,42 @@ const STATUS_LABELS = {
 // 월별 매출 차트 인스턴스 (업데이트 시 기존 차트를 파괴 후 재생성하기 위해 전역 관리)
 let monthlyChartInstance = null;
 
+// 종목별 도넛 차트 인스턴스
+let sportChartInstance = null;
+
+// 종목별 색상 매핑 — 각 종목을 직관적인 색상으로 구분
+// 비유: 농구공=주황, 축구장=초록, 배구=파랑 처럼 종목 이미지에 맞는 색상
+const SPORT_COLORS = {
+    basketball: '#F97316',   // 주황 (농구공 색)
+    soccer:     '#22C55E',   // 초록 (잔디)
+    volleyball: '#3B82F6',   // 파랑
+    baseball:   '#EF4444',   // 빨강
+    badminton:  '#A855F7',   // 보라
+    futsal:     '#14B8A6',   // 청록
+    handball:   '#F59E0B',   // 호박
+    tennis:     '#84CC16',   // 라임
+    tabletennis:'#EC4899',   // 핑크
+    hockey:     '#6366F1',   // 인디고
+    etc:        '#9CA3AF',   // 회색
+    unknown:    '#D1D5DB'    // 연회색
+};
+
+// 종목 영문→한글 라벨 (서버에서도 제공하지만, 프론트 폴백용)
+const SPORT_LABELS = {
+    basketball: '농구',
+    soccer:     '축구',
+    volleyball: '배구',
+    baseball:   '야구',
+    badminton:  '배드민턴',
+    futsal:     '풋살',
+    handball:   '핸드볼',
+    tennis:     '테니스',
+    tabletennis:'탁구',
+    hockey:     '하키',
+    etc:        '기타',
+    unknown:    '미분류'
+};
+
 // ============================================================
 // 초기화: 페이지 로드 시 실행
 // ============================================================
@@ -54,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedYear = yearSelect.value;
             loadStats(selectedYear);         // 통계 카드 갱신
             loadMonthlyChart(selectedYear);  // 월별 매출 차트 갱신
+            loadSportChart(selectedYear);    // 종목별 매출 차트 갱신
             loadStaffStats(selectedYear);    // 담당자별 실적 갱신
             loadTopCustomers(selectedYear);  // 고객별 매출 랭킹 갱신
         });
@@ -64,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (yearSelect) yearSelect.value = currentYear; // 드롭다운 기본값을 현재 연도로
     loadStats(currentYear);
     loadMonthlyChart(currentYear);
+    loadSportChart(currentYear);     // 종목별 매출 차트 초기 로드
     loadStaffStats(currentYear);
     loadTopCustomers(currentYear);
 });
@@ -583,6 +621,140 @@ async function loadTopCustomers(year) {
 
     } catch (error) {
         console.error('[Analytics] 고객별 매출 랭킹 로드 실패:', error);
+    } finally {
+        if (loading) loading.classList.add('hidden');
+    }
+}
+
+// ============================================================
+// 종목별 매출 도넛 차트
+// ============================================================
+
+/**
+ * 종목별 매출 데이터를 로드하여 도넛 차트 + 상세 테이블로 렌더링
+ * 비유: "어떤 종목이 매출에 가장 많이 기여하는지" 파이 차트로 한눈에 비교
+ * @param {string} year - 조회할 연도
+ */
+async function loadSportChart(year) {
+    const loading = document.getElementById('sport-chart-loading');
+    const title = document.getElementById('sport-chart-title');
+    const tbody = document.getElementById('sport-stats-tbody');
+    const emptyEl = document.getElementById('sport-chart-empty');
+
+    try {
+        if (loading) loading.classList.remove('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        const selectedYear = year || new Date().getFullYear().toString();
+
+        // 제목 업데이트
+        if (title) title.textContent = `${selectedYear}년 종목별 매출`;
+
+        // API 호출
+        const res = await adminFetch(`/api/admin/stats/by-sport?year=${selectedYear}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        const sports = data.sports || [];
+
+        // 데이터 없으면 빈 상태 표시
+        if (sports.length === 0) {
+            if (tbody) tbody.innerHTML = '';
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            // 기존 차트 파괴
+            if (sportChartInstance) {
+                sportChartInstance.destroy();
+                sportChartInstance = null;
+            }
+            return;
+        }
+
+        // 총 매출 계산 (비중 % 계산용)
+        const totalRevenue = sports.reduce((sum, s) => sum + s.revenue, 0);
+
+        // ── 도넛 차트 렌더링 ──
+        // 기존 차트 파괴 (메모리 누수 방지)
+        if (sportChartInstance) {
+            sportChartInstance.destroy();
+            sportChartInstance = null;
+        }
+
+        const ctx = document.getElementById('sportChart');
+        if (ctx) {
+            // 각 종목의 색상 배열 생성 — SPORT_COLORS에서 매핑, 없으면 기본 회색
+            const bgColors = sports.map(s => SPORT_COLORS[s.sport] || '#9CA3AF');
+
+            sportChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: sports.map(s => s.label),
+                    datasets: [{
+                        data: sports.map(s => s.revenue),
+                        backgroundColor: bgColors,
+                        borderColor: '#ffffff',
+                        borderWidth: 2,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '55%',  // 도넛 가운데 구멍 크기
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 12,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const pct = totalRevenue > 0
+                                        ? ((value / totalRevenue) * 100).toFixed(1)
+                                        : 0;
+                                    return `${context.label}: ${value.toLocaleString('ko-KR')}원 (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── 상세 테이블 렌더링 ──
+        if (tbody) {
+            tbody.innerHTML = sports.map(s => {
+                // 비중(%) 계산
+                const pct = totalRevenue > 0
+                    ? ((s.revenue / totalRevenue) * 100).toFixed(1)
+                    : '0.0';
+
+                // 종목 색상 점 (테이블에서 차트 색상과 매칭)
+                const dotColor = SPORT_COLORS[s.sport] || '#9CA3AF';
+                const revenueText = formatStaffRevenue(s.revenue);
+
+                return `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 font-medium whitespace-nowrap flex items-center gap-2">
+                            <span class="inline-block w-3 h-3 rounded-full flex-shrink-0" style="background:${dotColor}"></span>
+                            ${escapeHtml(s.label)}
+                        </td>
+                        <td class="px-4 py-3 text-right whitespace-nowrap">${s.orders.toLocaleString('ko-KR')}건</td>
+                        <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${revenueText}</td>
+                        <td class="px-4 py-3 text-right whitespace-nowrap text-gray-600">${pct}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+    } catch (error) {
+        console.error('[Analytics] 종목별 매출 차트 로드 실패:', error);
     } finally {
         if (loading) loading.classList.add('hidden');
     }

@@ -880,6 +880,76 @@ router.get('/stats/top-customers', (req, res) => {
 });
 
 // ============================================================
+// GET /api/admin/stats/by-sport - 종목별 매출 집계
+// 비유: "농구팀 유니폼이 가장 잘 팔린다" 같은 종목별 매출 비교 데이터
+// ============================================================
+router.get('/stats/by-sport', (req, res) => {
+    try {
+        const allOrders = db.getAll('orders');
+
+        // 연도 파라미터: 기본값은 현재 연도
+        const year = req.query.year || new Date().getFullYear().toString();
+
+        // 해당 연도 주문만 필터 (매출 기준일 기준)
+        const orders = allOrders.filter(order => {
+            const revenueDate = getRevenueDate(order);
+            if (!revenueDate) return false;
+            return revenueDate.startsWith(year);
+        });
+
+        // 종목별 집계 맵 — 종목(sport)을 키로 주문수와 매출을 합산
+        const sportMap = {};
+
+        orders.forEach(order => {
+            // 첫 번째 아이템의 종목을 기준으로 분류 (기존 sportCounts 로직과 동일)
+            const sport = order.items?.[0]?.sport || 'unknown';
+            const amount = order.payment?.totalAmount || order.total || 0;
+
+            if (!sportMap[sport]) {
+                sportMap[sport] = { orders: 0, revenue: 0 };
+            }
+            sportMap[sport].orders += 1;
+            sportMap[sport].revenue += amount;
+        });
+
+        // 종목 영문→한글 매핑 (프론트에서도 사용하지만 서버에서도 제공)
+        const SPORT_LABELS = {
+            basketball: '농구',
+            soccer: '축구',
+            volleyball: '배구',
+            baseball: '야구',
+            badminton: '배드민턴',
+            futsal: '풋살',
+            handball: '핸드볼',
+            tennis: '테니스',
+            tabletennis: '탁구',
+            hockey: '하키',
+            etc: '기타',
+            unknown: '미분류'
+        };
+
+        // 배열로 변환 + 매출 내림차순 정렬
+        const sports = Object.entries(sportMap)
+            .map(([sport, data]) => ({
+                sport,
+                label: SPORT_LABELS[sport] || sport,  // 한글 라벨 (매핑 없으면 원본 그대로)
+                orders: data.orders,
+                revenue: data.revenue
+            }))
+            .sort((a, b) => b.revenue - a.revenue);
+
+        res.json({
+            success: true,
+            year,
+            sports
+        });
+    } catch (error) {
+        console.error('[Admin] Sport stats error:', error);
+        res.status(500).json({ success: false, error: '종목별 매출 조회 실패' });
+    }
+});
+
+// ============================================================
 // PATCH /api/admin/orders/:id/payment - 입금 확인 (미수금 → 입금 완료 처리)
 // 비유: 외상 장부에서 "입금 완료" 도장을 찍는 것
 // ============================================================

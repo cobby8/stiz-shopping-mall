@@ -204,6 +204,45 @@
             </div>
         </div>
 
+        <!-- ===== 종목별 매출 ===== -->
+        <!-- 비유: 파이 차트로 "어떤 종목이 가장 잘 팔리는지" 한눈에 비교 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-orange-500">sports_basketball</span>
+                    <span id="sport-chart-title">종목별 매출</span>
+                </h3>
+                <span id="sport-chart-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+            </div>
+            <!-- 차트 + 테이블을 가로 배치 (모바일에서는 세로) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 도넛 차트 -->
+                <div class="flex items-center justify-center" style="min-height: 280px;">
+                    <canvas id="sportChart"></canvas>
+                </div>
+                <!-- 종목별 상세 테이블 -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500">종목</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">주문수</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">매출</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">비중</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sport-stats-tbody">
+                            <!-- JS에서 동적 렌더링 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- 데이터 없을 때 -->
+            <div id="sport-chart-empty" class="hidden text-center py-8 text-sm text-gray-400">
+                종목별 매출 데이터가 없습니다.
+            </div>
+        </div>
+
         <!-- ===== 담당자별 실적 ===== -->
         <!-- 비유: 직원별 성적표 -- 누가 얼마나 일했고 매출은 얼마인지 한눈에 비교 -->
         <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">

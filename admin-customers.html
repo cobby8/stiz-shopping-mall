@@ -280,16 +280,47 @@
 
             <!-- 모달 본문 -->
             <div class="px-6 py-5">
+
+                <!-- ===== 고객 요약 카드 (B-4) ===== -->
+                <!-- 핵심 지표를 한눈에 보여주는 상단 영역 -->
+                <div class="bg-gray-50 rounded-xl p-5 mb-6 border border-gray-100">
+                    <!-- 고객명 + 등급 배지 -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="material-symbols-outlined text-gray-400">person</span>
+                            <span id="modal-name" class="text-lg font-bold">-</span>
+                            <span id="modal-grade"></span>
+                        </div>
+                        <span id="modal-teamName-badge" class="text-sm text-gray-500">-</span>
+                    </div>
+
+                    <!-- 4칸 그리드: 총주문 / 총매출 / 평균주문액 / 최근주문일 -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <!-- 총 주문수 -->
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-100">
+                            <p class="text-2xl font-bold text-blue-600" id="modal-totalOrders">-</p>
+                            <p class="text-xs text-gray-500 mt-1">총 주문</p>
+                        </div>
+                        <!-- 총 매출 -->
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-100">
+                            <p class="text-xl font-bold text-brand-red" id="modal-totalRevenue">-</p>
+                            <p class="text-xs text-gray-500 mt-1">총 매출</p>
+                        </div>
+                        <!-- 평균 주문액 -->
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-100">
+                            <p class="text-xl font-bold text-green-600" id="modal-avgOrderAmount">-</p>
+                            <p class="text-xs text-gray-500 mt-1">평균 주문액</p>
+                        </div>
+                        <!-- 최근 주문일 -->
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-100">
+                            <p class="text-lg font-bold text-gray-700" id="modal-lastOrderDate">-</p>
+                            <p class="text-xs text-gray-500 mt-1">최근 주문</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 고객 기본 정보 -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <p class="text-xs text-gray-500 mb-1">고객명</p>
-                        <p class="text-sm font-medium"><span id="modal-name">-</span> <span id="modal-grade"></span></p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500 mb-1">팀명</p>
-                        <p id="modal-teamName" class="text-sm font-medium">-</p>
-                    </div>
                     <div>
                         <p class="text-xs text-gray-500 mb-1">연락처</p>
                         <p id="modal-phone" class="text-sm">-</p>
@@ -305,18 +336,6 @@
                     <div>
                         <p class="text-xs text-gray-500 mb-1">등록일</p>
                         <p id="modal-createdAt" class="text-sm">-</p>
-                    </div>
-                </div>
-
-                <!-- 통계 카드 -->
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-gray-50 rounded-lg p-4 text-center">
-                        <p class="text-2xl font-bold" id="modal-orderCount">-</p>
-                        <p class="text-xs text-gray-500 mt-1">총 주문</p>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4 text-center">
-                        <p class="text-2xl font-bold text-brand-red" id="modal-totalSpent">-</p>
-                        <p class="text-xs text-gray-500 mt-1">총 매출</p>
                     </div>
                 </div>
 

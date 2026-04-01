@@ -404,19 +404,26 @@ async function openCustomerModal(customerId) {
 
         const customer = data.customer;
         const orders = data.orders || [];
+        const summary = data.summary || {};
 
-        // 기본 정보 채우기 (등급 배지도 고객명 옆에 표시)
+        // === 요약 카드 렌더링 (B-4: 모달 상단 핵심 지표) ===
         document.getElementById('modal-name').textContent = customer.name || '-';
         document.getElementById('modal-grade').innerHTML = getGradeBadge(customer.grade);
-        document.getElementById('modal-teamName').textContent = customer.teamName || '-';
+        // 팀명은 요약 카드 우측 상단에 표시
+        document.getElementById('modal-teamName-badge').textContent = customer.teamName || '-';
+
+        // 4칸 그리드 숫자 채우기 (서버에서 계산한 summary 사용)
+        document.getElementById('modal-totalOrders').textContent = summary.totalOrders || 0;
+        document.getElementById('modal-totalRevenue').textContent = formatCurrency(summary.totalRevenue || 0);
+        document.getElementById('modal-avgOrderAmount').textContent = formatCurrency(summary.avgOrderAmount || 0);
+        document.getElementById('modal-lastOrderDate').textContent =
+            summary.lastOrderDate ? formatFullDate(summary.lastOrderDate) : '없음';
+
+        // === 기본 정보 채우기 ===
         document.getElementById('modal-phone').textContent = customer.phone || '-';
         document.getElementById('modal-email').textContent = customer.email || '-';
         document.getElementById('modal-dealType').textContent = customer.dealType || '미분류';
         document.getElementById('modal-createdAt').textContent = customer.createdAt ? formatFullDate(customer.createdAt) : '-';
-
-        // 통계
-        document.getElementById('modal-orderCount').textContent = customer.orderCount || 0;
-        document.getElementById('modal-totalSpent').textContent = formatCurrency(customer.totalSpent || 0);
 
         // 메모
         document.getElementById('modal-memo').value = customer.memo || '';
