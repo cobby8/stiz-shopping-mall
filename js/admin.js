@@ -573,15 +573,14 @@ function switchStatusTab(statusCode) {
  * @param {string} activeCode - 현재 활성 상태 코드
  */
 function highlightStatusTab(activeCode) {
+    // 새 카드형 탭: active 클래스 토글로 스타일 전환 (CSS에서 처리)
     const btns = document.querySelectorAll('.status-sub-tab');
     btns.forEach(btn => {
         const code = btn.dataset.statusCode || '';
         if (code === activeCode) {
-            // 활성: 진한 배경
-            btn.className = 'status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-800 text-white';
+            btn.classList.add('active');    // 활성: 흰색 배경 + 파란 하단 보더
         } else {
-            // 비활성: 연한 배경
-            btn.className = 'status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200';
+            btn.classList.remove('active'); // 비활성: 투명 배경 + 회색 글씨
         }
     });
 }
@@ -600,18 +599,18 @@ function updateTabCounts(pagination) {
 
     // 상태별 하위 탭 건수 업데이트 — "시안요청 (12)" 형태
     if (pagination.statusCounts) {
-        // "전체 진행중" 탭의 건수 = totalActive
+        // "전체 진행중" 탭의 건수 = totalActive (2줄 구조: tab-label + tab-count)
         const allActiveBtn = document.querySelector('.status-sub-tab[data-status-code=""]');
         if (allActiveBtn) {
-            allActiveBtn.innerHTML = `전체 진행중 <span class="opacity-70">${pagination.totalActive}</span>`;
+            allActiveBtn.innerHTML = `<span class="tab-label">전체 진행중</span><span class="tab-count">${pagination.totalActive}</span>`;
         }
-        // 각 상태별 건수 표시
+        // 각 상태별 건수 표시 (동일한 2줄 구조)
         STATUS_TABS.forEach(tab => {
             if (!tab.code) return; // "전체 진행중"은 위에서 처리
             const btn = document.querySelector(`.status-sub-tab[data-status-code="${tab.code}"]`);
             if (btn) {
                 const count = pagination.statusCounts[tab.code] || 0;
-                btn.innerHTML = `${tab.label} <span class="opacity-70">${count}</span>`;
+                btn.innerHTML = `<span class="tab-label">${tab.label}</span><span class="tab-count">${count}</span>`;
             }
         });
     }

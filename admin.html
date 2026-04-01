@@ -71,6 +71,61 @@
 
         /* 모바일에서 테이블 가로 스크롤 */
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        /* ===== 상태별 탭 바 — 넓직한 카드형 디자인 ===== */
+        /* 비유: 엑셀 시트 하단의 탭처럼, 각 상태가 넓은 버튼으로 한눈에 보임 */
+        .status-tab-bar {
+            background: #f9fafb;               /* 연한 회색 배경으로 영역 구분 */
+            border-radius: 12px;
+            padding: 4px;                      /* 안쪽 여백 — 탭 사이 틈새 역할 */
+            gap: 2px;
+        }
+        .status-tab-bar .status-sub-tab {
+            flex: 1;                           /* 균등 너비 분할 */
+            display: flex;
+            flex-direction: column;            /* 상태명 위, 건수 아래 (2줄 구조) */
+            align-items: center;
+            justify-content: center;
+            padding: 10px 8px;                 /* 넉넉한 클릭 영역 */
+            min-height: 56px;                  /* 최소 높이 — 넓직하게 */
+            border-radius: 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border-bottom: 3px solid transparent; /* 하단 보더 공간 확보 */
+        }
+        /* 탭 라벨(상태명) — 비활성 */
+        .status-tab-bar .status-sub-tab .tab-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #9ca3af;                    /* 회색 글씨 */
+            line-height: 1.2;
+        }
+        /* 탭 건수 — 비활성 */
+        .status-tab-bar .status-sub-tab .tab-count {
+            font-size: 18px;
+            font-weight: 700;
+            color: #9ca3af;                    /* 회색 */
+            line-height: 1.3;
+        }
+        /* 호버 상태 — 약간 배경색 변경 */
+        .status-tab-bar .status-sub-tab:hover {
+            background: #f3f4f6;
+        }
+        /* 활성 탭 — 흰색 배경 + 하단 파란 보더 + 그림자 */
+        .status-tab-bar .status-sub-tab.active {
+            background: #ffffff;
+            border-bottom: 3px solid #2563eb;  /* 파란색 하단 보더 — 현재 선택 표시 */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .status-tab-bar .status-sub-tab.active .tab-label {
+            color: #111827;                    /* 검정 글씨 */
+            font-weight: 600;
+        }
+        .status-tab-bar .status-sub-tab.active .tab-count {
+            color: #2563eb;                    /* 파란색 — 브랜드 강조 */
+        }
     </style>
 </head>
 
@@ -229,39 +284,48 @@
         </div>
 
         <!-- ===== 상태별 하위 탭 (진행중 탭 선택 시에만 표시) ===== -->
-        <!-- 비유: "진행중" 서랍 안의 칸막이 — 시안요청, 제작중 등 세부 상태별로 필터 -->
-        <div id="status-tabs-row" class="flex items-center gap-1 mb-3 flex-wrap">
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-800 text-white"
+        <!-- 비유: "진행중" 서랍 안의 칸막이 — 넓직한 카드형 탭으로 한눈에 상태별 건수 파악 -->
+        <div id="status-tabs-row" class="status-tab-bar flex mb-4">
+            <!-- 전체 진행중 탭 (기본 활성) -->
+            <button class="status-sub-tab active"
                 data-status-code="" onclick="switchStatusTab('')">
-                전체 진행중 <span class="opacity-70">-</span>
+                <span class="tab-label">전체 진행중</span>
+                <span class="tab-count">-</span>
             </button>
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+            <button class="status-sub-tab"
                 data-status-code="design_requested" onclick="switchStatusTab('design_requested')">
-                시안요청 <span class="opacity-70">-</span>
+                <span class="tab-label">시안요청</span>
+                <span class="tab-count">-</span>
             </button>
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+            <button class="status-sub-tab"
                 data-status-code="design_confirmed" onclick="switchStatusTab('design_confirmed')">
-                디자인확정 <span class="opacity-70">-</span>
+                <span class="tab-label">디자인확정</span>
+                <span class="tab-count">-</span>
             </button>
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+            <button class="status-sub-tab"
                 data-status-code="draft_done" onclick="switchStatusTab('draft_done')">
-                초안완료 <span class="opacity-70">-</span>
+                <span class="tab-label">초안완료</span>
+                <span class="tab-count">-</span>
             </button>
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+            <button class="status-sub-tab"
                 data-status-code="line_work" onclick="switchStatusTab('line_work')">
-                라인작업 <span class="opacity-70">-</span>
+                <span class="tab-label">라인작업</span>
+                <span class="tab-count">-</span>
             </button>
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+            <button class="status-sub-tab"
                 data-status-code="in_production" onclick="switchStatusTab('in_production')">
-                제작중 <span class="opacity-70">-</span>
+                <span class="tab-label">제작중</span>
+                <span class="tab-count">-</span>
             </button>
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+            <button class="status-sub-tab"
                 data-status-code="released" onclick="switchStatusTab('released')">
-                출고 <span class="opacity-70">-</span>
+                <span class="tab-label">출고</span>
+                <span class="tab-count">-</span>
             </button>
-            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+            <button class="status-sub-tab"
                 data-status-code="hold" onclick="switchStatusTab('hold')">
-                보류 <span class="opacity-70">-</span>
+                <span class="tab-label">보류</span>
+                <span class="tab-count">-</span>
             </button>
         </div>
 
