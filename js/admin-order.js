@@ -9,11 +9,10 @@
  */
 
 // ============================================================
-// 상수 정의
+// 상수 정의 (공통 상수는 admin-common.js에서 로드)
 // ============================================================
-const API_BASE = 'http://localhost:4000';
 
-// 12단계 상태 흐름 (순서대로)
+// 12단계 상태 흐름 (순서대로) — 주문 상세 페이지 고유
 // 정상 진행 흐름 + 특수 상태(보류/취소)
 const STATUS_FLOW = [
     'design_requested', 'draft_done', 'revision', 'design_confirmed',
@@ -22,34 +21,6 @@ const STATUS_FLOW = [
     'released', 'shipped', 'delivered',
     'hold', 'cancelled'
 ];
-
-// 상태 한글 라벨
-const STATUS_LABELS = {
-    design_requested: '시안 요청',
-    draft_done: '초안 완료',
-    revision: '수정 중',
-    design_confirmed: '디자인 확정',
-    payment_pending: '결제 대기',
-    payment_done: '결제 완료',
-    grading: '그레이딩',
-    line_work: '라인 작업',
-    in_production: '생산 중',
-    production_done: '생산 완료',
-    released: '출고',
-    shipped: '배송 중',
-    delivered: '배송 완료',
-    hold: '보류',
-    cancelled: '취소',
-    pending: '대기',
-    processing: '처리중'
-};
-
-// 종목 한글 라벨
-const SPORT_LABELS = {
-    basketball: '농구', soccer: '축구', volleyball: '배구', baseball: '야구',
-    badminton: '배드민턴', tabletennis: '탁구', handball: '핸드볼',
-    futsal: '풋살', tennis: '테니스', softball: '소프트볼', other: '기타'
-};
 
 // 품목(카테고리) 한글 라벨
 const CATEGORY_LABELS = {
@@ -98,55 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadOrderDetail(orderId);
 });
 
-// ============================================================
-// 인증 관련 (admin.js와 동일)
-// ============================================================
-function checkAdminAuth() {
-    const token = getAdminToken();
-    if (!token) {
-        alert('관리자 로그인이 필요합니다.');
-        window.location.href = 'admin-login.html';
-        return;
-    }
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.role !== 'admin') {
-            alert('관리자 권한이 없습니다.');
-            window.location.href = 'index.html';
-            return;
-        }
-        const nameEl = document.getElementById('admin-name');
-        if (nameEl) nameEl.textContent = payload.name || '관리자';
-    } catch (e) {
-        localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'admin-login.html';
-    }
-}
-
-function getAdminToken() {
-    return localStorage.getItem('stiz_admin_token');
-}
-
-/** API 호출 공통 함수 (JWT 토큰 포함) */
-async function adminFetch(url, options = {}) {
-    const token = getAdminToken();
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        ...(options.headers || {})
-    };
-
-    const response = await fetch(`${API_BASE}${url}`, { ...options, headers });
-
-    if (response.status === 401 || response.status === 403) {
-        alert('인증이 만료되었습니다. 다시 로그인해주세요.');
-        localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'admin-login.html';
-        return null;
-    }
-
-    return response;
-}
+// 인증/API 함수는 admin-common.js에서 로드 (checkAdminAuth, getAdminToken, adminFetch)
 
 // ============================================================
 // 주문 상세 로드
@@ -238,6 +161,146 @@ function renderOrderDetail() {
 
     // 태그(라벨) 영역 렌더링 — 프리셋 + 커스텀 태그 표시
     renderTags();
+
+    // 시안/주문서 미리보기 렌더링
+    renderDesignPreview();
+    renderOrderSheetPreview();
+}
+
+// ============================================================
+// 시안 미리보기 기능
+// URL이 이미지 확장자(.png, .jpg 등)면 미리보기를 표시한다
+// 이미지가 아닌 URL이면 링크만 표시, URL이 없으면 "미등록" 안내
+// ============================================================
+
+/** 이미지 URL인지 확인하는 정규식 패턴 */
+const IMAGE_URL_PATTERN = /\.(png|jpg|jpeg|gif|webp|bmp|svg)(\?.*)?$/i;
+
+/**
+ * 시안 파일 URL의 미리보기를 렌더링한다
+ * - 이미지 URL → 썸네일 미리보기 (클릭 시 새 탭에서 원본 열기)
+ * - 비이미지 URL → 외부 링크 버튼
+ * - URL 없음 → "시안 미등록" 안내
+ */
+function renderDesignPreview() {
+    const container = document.getElementById('design-preview-content');
+    if (!container) return;
+
+    const url = currentOrder?.design?.designFileUrl;
+
+    // URL이 없는 경우: 미등록 안내
+    if (!url || url.trim() === '') {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8 text-gray-400">
+                <span class="material-symbols-outlined text-4xl mb-2">hide_image</span>
+                <p class="text-sm">시안 미등록</p>
+                <p class="text-xs mt-1">편집 모드에서 시안 파일 링크를 입력하세요</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 이미지 URL인 경우: 미리보기 표시
+    if (IMAGE_URL_PATTERN.test(url)) {
+        container.innerHTML = `
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="클릭하면 원본 이미지를 새 탭에서 엽니다">
+                <img
+                    id="design-preview-img"
+                    src="${escapeHtml(url)}"
+                    alt="시안 미리보기"
+                    class="max-w-full max-h-96 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    onerror="handleDesignImgError(this)"
+                />
+            </a>
+            <p class="text-xs text-gray-400 mt-2">이미지를 클릭하면 새 탭에서 원본을 볼 수 있습니다</p>
+        `;
+        return;
+    }
+
+    // 이미지가 아닌 URL인 경우: 외부 링크 버튼
+    container.innerHTML = `
+        <div class="flex items-center gap-3 py-4">
+            <span class="material-symbols-outlined text-2xl text-gray-400">link</span>
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
+               class="text-blue-600 hover:underline text-sm break-all">
+                ${escapeHtml(url)}
+            </a>
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
+               class="ml-auto px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors whitespace-nowrap">
+                열기
+            </a>
+        </div>
+    `;
+}
+
+/**
+ * 주문서 URL의 미리보기를 렌더링한다
+ * 주문서 링크가 이미지면 미리보기, 아니면 링크만 표시
+ */
+function renderOrderSheetPreview() {
+    const section = document.getElementById('ordersheet-preview-section');
+    const container = document.getElementById('ordersheet-preview-content');
+    if (!section || !container) return;
+
+    const url = currentOrder?.design?.orderSheetUrl;
+
+    // URL이 없으면 섹션 자체를 숨김
+    if (!url || url.trim() === '') {
+        section.classList.add('hidden');
+        return;
+    }
+
+    // URL이 있으면 섹션 표시
+    section.classList.remove('hidden');
+
+    // 이미지 URL인 경우: 미리보기
+    if (IMAGE_URL_PATTERN.test(url)) {
+        container.innerHTML = `
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="클릭하면 원본을 새 탭에서 엽니다">
+                <img
+                    src="${escapeHtml(url)}"
+                    alt="주문서 미리보기"
+                    class="max-w-full max-h-96 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    onerror="handleDesignImgError(this)"
+                />
+            </a>
+            <p class="text-xs text-gray-400 mt-2">이미지를 클릭하면 새 탭에서 원본을 볼 수 있습니다</p>
+        `;
+        return;
+    }
+
+    // 비이미지 URL: 링크 버튼
+    container.innerHTML = `
+        <div class="flex items-center gap-3 py-4">
+            <span class="material-symbols-outlined text-2xl text-gray-400">description</span>
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
+               class="text-blue-600 hover:underline text-sm break-all">
+                ${escapeHtml(url)}
+            </a>
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
+               class="ml-auto px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors whitespace-nowrap">
+                열기
+            </a>
+        </div>
+    `;
+}
+
+/**
+ * 이미지 로드 실패 시 에러 처리
+ * 깨진 이미지 대신 안내 메시지를 표시한다
+ */
+function handleDesignImgError(imgEl) {
+    const parent = imgEl.parentElement.parentElement;
+    parent.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-6 text-gray-400 border border-dashed border-gray-200 rounded-lg">
+            <span class="material-symbols-outlined text-3xl mb-2">broken_image</span>
+            <p class="text-sm">이미지를 불러올 수 없습니다</p>
+            <a href="${escapeHtml(imgEl.src)}" target="_blank" rel="noopener noreferrer"
+               class="text-blue-600 hover:underline text-xs mt-2">
+                링크 직접 열기
+            </a>
+        </div>
+    `;
 }
 
 /**

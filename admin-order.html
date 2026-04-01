@@ -461,6 +461,25 @@
                                 <p class="field-value" data-field="design.designFileUrl">-</p>
                             </div>
                         </div>
+
+                        <!-- 시안 미리보기 영역 -->
+                        <div id="design-preview-section" class="mt-5 pt-5 border-t border-gray-100">
+                            <h4 class="font-semibold text-base mb-3 flex items-center">
+                                <span class="material-symbols-outlined mr-1.5 text-gray-400 text-lg">image</span>
+                                시안 미리보기
+                            </h4>
+                            <!-- JS에서 동적으로 채워짐 -->
+                            <div id="design-preview-content"></div>
+                        </div>
+
+                        <!-- 주문서 미리보기 영역 -->
+                        <div id="ordersheet-preview-section" class="mt-5 pt-5 border-t border-gray-100 hidden">
+                            <h4 class="font-semibold text-base mb-3 flex items-center">
+                                <span class="material-symbols-outlined mr-1.5 text-gray-400 text-lg">description</span>
+                                주문서 미리보기
+                            </h4>
+                            <div id="ordersheet-preview-content"></div>
+                        </div>
                     </div>
 
                     <!-- 생산 탭 -->
