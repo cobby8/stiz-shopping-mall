@@ -9,31 +9,7 @@
  * 4. 납기 임박 주문 로드 → D-3 이내 상위 5건
  */
 
-// ============================================================
-// 상수 정의
-// ============================================================
-const API_BASE = 'http://localhost:4000';
-
-// 상태 한글 라벨 (다른 admin 페이지와 동일)
-const STATUS_LABELS = {
-    design_requested: '시안 요청',
-    draft_done: '초안 완료',
-    revision: '수정 중',
-    design_confirmed: '디자인 확정',
-    payment_pending: '결제 대기',
-    payment_done: '결제 완료',
-    grading: '그레이딩',
-    line_work: '라인 작업',
-    in_production: '생산 중',
-    production_done: '생산 완료',
-    released: '출고',
-    shipped: '배송 중',
-    delivered: '배송 완료',
-    hold: '보류',
-    cancelled: '취소',
-    pending: '대기',
-    processing: '처리중'
-};
+// API_BASE, STATUS_LABELS → admin-common.js에서 로드
 
 // 활동 로그 액션별 한글 라벨 + 아이콘 + 색상
 // 비유: 각 액션 종류마다 다른 색 스티커를 붙여서 한눈에 구분
@@ -82,18 +58,16 @@ const ACTION_CONFIG = {
     }
 };
 
-// ============================================================
-// 인증 관련 공통 함수
-// ============================================================
+// getToken/getAdminToken, getUserFromToken, checkAuth/checkAdminAuth,
+// handleLogout, apiFetch/adminFetch, formatMoney/formatCurrency,
+// formatNumber, timeAgo → admin-common.js에서 로드
 
-/** JWT 토큰 가져오기 */
-function getToken() {
-    return localStorage.getItem('stiz_admin_token');
-}
-
-/** 토큰에서 사용자 정보 추출 (JWT payload 디코딩) */
+/**
+ * 토큰에서 사용자 정보 추출 (JWT payload 디코딩)
+ * 대시보드 초기화 시 관리자 이름을 표시하기 위해 필요 — admin-common.js에는 없는 함수
+ */
 function getUserFromToken() {
-    const token = getToken();
+    const token = getAdminToken(); // admin-common.js의 getAdminToken() 사용
     if (!token) return null;
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -101,83 +75,6 @@ function getUserFromToken() {
     } catch (e) {
         return null;
     }
-}
-
-/** 인증 확인 — 관리자 토큰이 없으면 로그인 페이지로 이동 */
-function checkAuth() {
-    const user = getUserFromToken();
-    if (!user || user.role !== 'admin') {
-        window.location.href = 'admin-login.html';
-        return null;
-    }
-    // 만료 확인
-    const now = Math.floor(Date.now() / 1000);
-    if (user.exp && user.exp < now) {
-        localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'admin-login.html';
-        return null;
-    }
-    return user;
-}
-
-/** 로그아웃 처리 */
-function handleLogout() {
-    localStorage.removeItem('stiz_admin_token');
-    window.location.href = 'admin-login.html';
-}
-
-/** 인증 헤더가 포함된 API 호출 헬퍼 */
-async function apiFetch(url, options = {}) {
-    const token = getToken();
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...(options.headers || {})
-    };
-    const response = await fetch(url, { ...options, headers });
-    if (response.status === 401) {
-        // 토큰 만료 또는 무효 — 로그인 페이지로 이동
-        localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'admin-login.html';
-        return null;
-    }
-    return response.json();
-}
-
-// ============================================================
-// 유틸리티 함수
-// ============================================================
-
-/** 숫자를 한국식 금액 포맷으로 변환 (예: 1234567 → "1,234,567원") */
-function formatMoney(amount) {
-    if (!amount && amount !== 0) return '-';
-    return amount.toLocaleString('ko-KR') + '원';
-}
-
-/** 숫자를 콤마 포맷으로 변환 (예: 1234 → "1,234") */
-function formatNumber(num) {
-    if (!num && num !== 0) return '0';
-    return num.toLocaleString('ko-KR');
-}
-
-/**
- * 날짜/시간을 상대적 시간으로 변환
- * 비유: "3분 전", "2시간 전" 처럼 사람이 이해하기 쉬운 시간 표현
- */
-function timeAgo(dateStr) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMin = Math.floor(diffMs / (1000 * 60));
-    const diffHour = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDay = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMin < 1) return '방금 전';
-    if (diffMin < 60) return `${diffMin}분 전`;
-    if (diffHour < 24) return `${diffHour}시간 전`;
-    if (diffDay < 7) return `${diffDay}일 전`;
-    // 7일 이상이면 날짜 표시
-    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
 }
 
 /**
@@ -204,9 +101,11 @@ function calcDday(desiredDate) {
  */
 async function loadKPIs() {
     try {
-        // 통계 API 호출 (현재 연도)
-        const statsData = await apiFetch(`${API_BASE}/api/admin/stats`);
-        if (!statsData || !statsData.success) throw new Error('통계 로드 실패');
+        // 통계 API 호출 (현재 연도) — adminFetch는 Response 객체 반환, .json() 필요
+        const statsRes = await adminFetch('/api/admin/stats');
+        if (!statsRes) throw new Error('통계 로드 실패');
+        const statsData = await statsRes.json();
+        if (!statsData.success) throw new Error('통계 로드 실패');
 
         const stats = statsData.stats;
 
@@ -216,16 +115,14 @@ async function loadKPIs() {
 
         // 2. 오늘 신규 주문 수 — 전체 주문 목록에서 오늘 날짜 필터
         const today = new Date().toISOString().slice(0, 10); // "2026-03-31" 형식
-        const todayData = await apiFetch(
-            `${API_BASE}/api/admin/orders?dateFrom=${today}&dateTo=${today}&excludeCompleted=false&limit=1`
-        );
+        const todayRes = await adminFetch(`/api/admin/orders?dateFrom=${today}&dateTo=${today}&excludeCompleted=false&limit=1`);
+        const todayData = todayRes ? await todayRes.json() : null;
         const todayCount = todayData?.pagination?.total || 0;
         document.getElementById('kpi-today').textContent = formatNumber(todayCount);
 
         // 3. 납기 임박 (D-3 이내) — 주문 목록에서 진행중 + 납기순 정렬로 계산
-        const urgentData = await apiFetch(
-            `${API_BASE}/api/admin/orders?sortBy=deadline&excludeCompleted=true&limit=200`
-        );
+        const urgentRes = await adminFetch('/api/admin/orders?sortBy=deadline&excludeCompleted=true&limit=200');
+        const urgentData = urgentRes ? await urgentRes.json() : null;
         let urgentCount = 0;
         if (urgentData?.orders) {
             urgentData.orders.forEach(order => {
@@ -241,7 +138,7 @@ async function loadKPIs() {
         }
 
         // 4. 미수금 총액
-        document.getElementById('kpi-unpaid').textContent = formatMoney(stats.unpaidAmount || 0);
+        document.getElementById('kpi-unpaid').textContent = formatCurrency(stats.unpaidAmount || 0);
         if (stats.unpaidAmount > 0) {
             document.getElementById('kpi-unpaid').classList.add('text-red-600');
             // 미수금 금액이 크면 글자 크기 조정
@@ -265,8 +162,10 @@ async function loadKPIs() {
  */
 async function loadRecentActivity() {
     try {
-        const data = await apiFetch(`${API_BASE}/api/admin/activity-log?limit=10`);
-        if (!data || !data.success) throw new Error('활동 로그 로드 실패');
+        const actRes = await adminFetch('/api/admin/activity-log?limit=10');
+        if (!actRes) throw new Error('활동 로그 로드 실패');
+        const data = await actRes.json();
+        if (!data.success) throw new Error('활동 로그 로드 실패');
 
         const container = document.getElementById('activity-list');
 
@@ -338,7 +237,7 @@ function buildActivityDescription(log) {
         case 'order_duplicate':
             return `${d.originalOrderId || '주문'} → ${d.newOrderId || '새 주문'} 복제`;
         case 'payment_confirm':
-            return `${d.orderId || '주문'} 입금 확인 (${formatMoney(d.amount)})`;
+            return `${d.orderId || '주문'} 입금 확인 (${formatCurrency(d.amount)})`;
         case 'comment_add':
             return `${d.orderId || '주문'}에 코멘트 추가`;
         case 'backup_manual':
@@ -355,9 +254,9 @@ function buildActivityDescription(log) {
 async function loadUrgentOrders() {
     try {
         // 납기순 정렬로 진행중 주문 가져오기
-        const data = await apiFetch(
-            `${API_BASE}/api/admin/orders?sortBy=deadline&excludeCompleted=true&limit=200`
-        );
+        const urgRes = await adminFetch('/api/admin/orders?sortBy=deadline&excludeCompleted=true&limit=200');
+        if (!urgRes) throw new Error('주문 로드 실패');
+        const data = await urgRes.json();
 
         const container = document.getElementById('urgent-orders');
 
@@ -433,8 +332,9 @@ async function loadUrgentOrders() {
 // 페이지 초기화
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. 인증 확인
-    const user = checkAuth();
+    // 1. 인증 확인 — admin-common.js의 checkAdminAuth() 사용
+    checkAdminAuth();
+    const user = getUserFromToken();
     if (!user) return;
 
     // 2. 헤더에 관리자 이름 표시

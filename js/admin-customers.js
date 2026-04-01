@@ -9,31 +9,7 @@
  * 4. 고객 클릭 → 상세 모달에서 주문 이력 확인 + 메모 편집
  */
 
-// ============================================================
-// 상수 정의
-// ============================================================
-const API_BASE = 'http://localhost:4000';
-
-// 주문 상태 한글 라벨 (주문 이력에서 표시용)
-const STATUS_LABELS = {
-    design_requested: '시안 요청',
-    draft_done: '초안 완료',
-    revision: '수정 중',
-    design_confirmed: '디자인 확정',
-    payment_pending: '결제 대기',
-    payment_done: '결제 완료',
-    grading: '그레이딩',
-    line_work: '라인 작업',
-    in_production: '생산 중',
-    production_done: '생산 완료',
-    released: '출고',
-    shipped: '배송 중',
-    delivered: '배송 완료',
-    hold: '보류',
-    cancelled: '취소',
-    pending: '대기',
-    processing: '처리중'
-};
+// API_BASE, STATUS_LABELS → admin-common.js에서 로드
 
 // 등급 라벨 정의 (서버에서 반환하는 grade 값 → 한국어 + CSS 클래스)
 const GRADE_CONFIG = {
@@ -66,70 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCustomers();
 });
 
-// ============================================================
-// 인증 관련 함수 (admin.js와 동일 패턴)
-// ============================================================
-
-/**
- * 관리자 인증 확인
- * JWT 토큰이 없거나 role이 admin이 아니면 로그인 페이지로 보낸다
- */
-function checkAdminAuth() {
-    const token = getAdminToken();
-
-    if (!token) {
-        alert('관리자 로그인이 필요합니다.');
-        window.location.href = 'admin-login.html';
-        return;
-    }
-
-    // JWT payload에서 사용자 정보 추출
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.role !== 'admin') {
-            alert('관리자 권한이 없습니다.');
-            window.location.href = 'index.html';
-            return;
-        }
-        // 헤더에 관리자 이름 표시
-        const nameEl = document.getElementById('admin-name');
-        if (nameEl) nameEl.textContent = payload.name || '관리자';
-    } catch (e) {
-        alert('인증 정보가 올바르지 않습니다. 다시 로그인해주세요.');
-        localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'admin-login.html';
-    }
-}
-
-/** localStorage에서 관리자 JWT 토큰 가져오기 */
-function getAdminToken() {
-    return localStorage.getItem('stiz_admin_token');
-}
-
-/**
- * API 호출 공통 함수
- * 모든 관리자 API 요청에 JWT 토큰을 헤더에 포함시킨다
- */
-async function adminFetch(url, options = {}) {
-    const token = getAdminToken();
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        ...(options.headers || {})
-    };
-
-    const response = await fetch(`${API_BASE}${url}`, { ...options, headers });
-
-    // 인증 만료 또는 권한 없음이면 로그인 페이지로
-    if (response.status === 401 || response.status === 403) {
-        alert('인증이 만료되었습니다. 다시 로그인해주세요.');
-        localStorage.removeItem('stiz_admin_token');
-        window.location.href = 'admin-login.html';
-        return null;
-    }
-
-    return response;
-}
+// checkAdminAuth, getAdminToken, adminFetch → admin-common.js에서 로드
 
 // ============================================================
 // 통계 로드
@@ -799,40 +712,4 @@ function showTable() {
 // 유틸리티 함수들
 // ============================================================
 
-/** 금액을 한국 원화 형식으로 포맷 (예: 675,000원) */
-function formatCurrency(amount) {
-    if (!amount && amount !== 0) return '-';
-    return amount.toLocaleString('ko-KR') + '원';
-}
-
-/** 날짜를 간결한 형식으로 변환 (예: 03/26) */
-function formatDate(dateString) {
-    const d = new Date(dateString);
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${month}/${day}`;
-}
-
-/** 날짜를 전체 형식으로 변환 (예: 2026-03-26) */
-function formatFullDate(dateString) {
-    const d = new Date(dateString);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-/** HTML 특수문자 이스케이프 (XSS 방지) */
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/** 로그아웃 */
-function handleLogout() {
-    if (!confirm('로그아웃 하시겠습니까?')) return;
-    localStorage.removeItem('stiz_admin_token');
-    window.location.href = 'admin-login.html';
-}
+// formatCurrency, formatDate, formatFullDate, escapeHtml, handleLogout → admin-common.js에서 로드

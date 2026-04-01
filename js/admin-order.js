@@ -998,30 +998,7 @@ function setNestedValue(obj, path, value) {
     }
 }
 
-/** 금액 포맷 (예: 675,000원) */
-function formatCurrency(amount) {
-    if (!amount && amount !== 0) return '-';
-    return Number(amount).toLocaleString('ko-KR') + '원';
-}
-
-/** 날짜+시간 포맷 (예: 2026-03-26 14:30) */
-function formatDateTime(dateString) {
-    const d = new Date(dateString);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const h = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${day} ${h}:${min}`;
-}
-
-/** HTML 특수문자 이스케이프 (XSS 방지) */
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+// formatCurrency, formatDateTime, escapeHtml → admin-common.js에서 로드
 
 // ============================================================
 // 입금 확인 기능 (미수금 관리)
@@ -1319,9 +1296,4 @@ function printOrder() {
     window.addEventListener('afterprint', restoreTabs);
 }
 
-/** 로그아웃 */
-function handleLogout() {
-    if (!confirm('로그아웃 하시겠습니까?')) return;
-    localStorage.removeItem('stiz_admin_token');
-    window.location.href = 'admin-login.html';
-}
+// handleLogout → admin-common.js에서 로드

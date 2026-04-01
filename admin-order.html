@@ -704,6 +704,8 @@
 
     <!-- ===== 스크립트 ===== -->
     <!-- auth.js 제거: admin-order.js가 자체 인증 로직 보유, const API_BASE 중복 선언 방지 -->
+    <!-- 공통 모듈 (인증/API/유틸) — 반드시 페이지 JS보다 먼저 로드 -->
+    <script src="js/admin-common.js"></script>
     <script src="js/admin-order.js"></script>
 </body>
 
