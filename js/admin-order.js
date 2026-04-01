@@ -46,8 +46,22 @@ const STATUS_LABELS = {
 
 // 종목 한글 라벨
 const SPORT_LABELS = {
-    basketball: '농구', soccer: '축구',
-    volleyball: '배구', baseball: '야구'
+    basketball: '농구', soccer: '축구', volleyball: '배구', baseball: '야구',
+    badminton: '배드민턴', tabletennis: '탁구', handball: '핸드볼',
+    futsal: '풋살', tennis: '테니스', softball: '소프트볼', other: '기타'
+};
+
+// 품목(카테고리) 한글 라벨
+const CATEGORY_LABELS = {
+    uniform: '유니폼', jacket: '자켓', pants: '바지',
+    training: '트레이닝', hoodie: '후드', vest: '조끼',
+    t_shirt: '티셔츠', arm_sleeve: '암슬리브', other: '기타'
+};
+
+// 공법 한글 라벨
+const METHOD_LABELS = {
+    sublimation: '승화전사', embroidery: '자수',
+    printing: '프린팅', cutting: '재단', other: '기타'
 };
 
 // 결제 유형 라벨
@@ -266,31 +280,105 @@ function renderItems() {
     const items = currentOrder.items || [];
 
     if (items.length === 0) {
-        itemsList.innerHTML = '<p class="text-sm text-gray-400">아이템 정보가 없습니다.</p>';
+        itemsList.innerHTML = '<p class="text-base text-gray-400">아이템 정보가 없습니다.</p>';
         return;
     }
 
-    itemsList.innerHTML = items.map((item, idx) => `
-        <div class="bg-gray-50 rounded-lg p-4">
-            <div class="flex items-center justify-between mb-2">
-                <p class="font-medium text-sm">${escapeHtml(item.name || `아이템 ${idx + 1}`)}</p>
-                <span class="text-xs text-gray-500">${SPORT_LABELS[item.sport] || item.sport || ''}</span>
+    // 여러 아이템일 때 전체 합계 계산용
+    const totalAmount = items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const totalQty = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const hasMultiple = items.length > 1;
+
+    itemsList.innerHTML = items.map((item, idx) => {
+        // 한글 변환: 영문 값을 사용자가 읽기 편한 한글로 변환
+        const sportLabel = SPORT_LABELS[item.sport] || item.sport || '';
+        const categoryLabel = CATEGORY_LABELS[item.category] || item.category || '';
+        const methodLabel = METHOD_LABELS[item.method] || item.method || '';
+        const itemName = item.name || categoryLabel || `아이템 ${idx + 1}`;
+
+        // 종목 아이콘 매핑 (종목별 대표 이모지 대신 Material 아이콘명)
+        const sportIcons = {
+            basketball: 'sports_basketball', soccer: 'sports_soccer',
+            volleyball: 'sports_volleyball', baseball: 'sports_baseball',
+            badminton: 'sports_tennis', tabletennis: 'sports_tennis',
+            handball: 'sports_handball', futsal: 'sports_soccer',
+            tennis: 'sports_tennis', softball: 'sports_baseball'
+        };
+        const sportIcon = sportIcons[item.sport] || 'checkroom';
+
+        // 스펙 태그 배열: 값이 있는 것만 태그로 표시
+        const specTags = [];
+        if (methodLabel) specTags.push(methodLabel);
+        if (item.fit) specTags.push(escapeHtml(item.fit));
+        if (item.baseModel) specTags.push(escapeHtml(item.baseModel));
+
+        // 상의 정보 조합: 원단 + 구성을 한 줄로
+        const topParts = [];
+        if (item.fabricTop) topParts.push(escapeHtml(item.fabricTop));
+        if (item.topConfig) topParts.push(escapeHtml(item.topConfig));
+
+        // 하의 정보 조합
+        const bottomParts = [];
+        if (item.fabricBottom) bottomParts.push(escapeHtml(item.fabricBottom));
+        if (item.bottomConfig) bottomParts.push(escapeHtml(item.bottomConfig));
+
+        return `
+        <div class="item-card bg-gray-50 rounded-lg overflow-hidden ${hasMultiple && idx < items.length - 1 ? 'mb-3' : ''}">
+            <!-- 헤더: 종목 + 품목명 + 수량 -->
+            <div class="item-card-header flex items-center justify-between px-5 py-3 bg-gray-100 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                    ${hasMultiple ? `<span class="item-number text-sm font-bold text-gray-400">#${idx + 1}</span>` : ''}
+                    <span class="material-symbols-outlined text-xl text-gray-500">${sportIcon}</span>
+                    <span class="text-lg font-bold text-gray-800">
+                        ${sportLabel ? `${sportLabel} ` : ''}${escapeHtml(itemName)}
+                    </span>
+                </div>
+                <div class="text-base font-semibold text-gray-600">
+                    수량 <span class="text-lg text-gray-800">${item.quantity || 0}</span>벌
+                </div>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600">
-                <div><span class="text-gray-400">종류:</span> ${escapeHtml(item.category || '-')}</div>
-                <div><span class="text-gray-400">공법:</span> ${escapeHtml(item.method || '-')}</div>
-                <div><span class="text-gray-400">수량:</span> ${item.quantity || '-'}벌</div>
-                <div><span class="text-gray-400">단가:</span> ${item.unitPrice ? formatCurrency(item.unitPrice) : '-'}</div>
-                <div><span class="text-gray-400">핏:</span> ${escapeHtml(item.fit || '-')}</div>
-                <div><span class="text-gray-400">원단(상):</span> ${escapeHtml(item.fabricTop || '-')}</div>
-                <div><span class="text-gray-400">원단(하):</span> ${escapeHtml(item.fabricBottom || '-')}</div>
-                <div><span class="text-gray-400">구성(상):</span> ${escapeHtml(item.topConfig || '-')}</div>
-                <div><span class="text-gray-400">구성(하):</span> ${escapeHtml(item.bottomConfig || '-')}</div>
-                <div><span class="text-gray-400">모델:</span> ${escapeHtml(item.baseModel || '-')}</div>
+
+            <!-- 스펙 태그: 공법 + 핏 + 모델 (값이 있을 때만) -->
+            ${specTags.length > 0 ? `
+            <div class="flex flex-wrap gap-2 px-5 pt-3">
+                ${specTags.map(tag => `
+                    <span class="inline-block px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">${tag}</span>
+                `).join('')}
+            </div>` : ''}
+
+            <!-- 원단/구성 정보: 상의/하의 행 (값이 있을 때만) -->
+            ${topParts.length > 0 || bottomParts.length > 0 ? `
+            <div class="px-5 pt-3 space-y-1.5">
+                ${topParts.length > 0 ? `
+                <div class="flex items-center gap-2 text-base text-gray-700">
+                    <span class="text-sm font-semibold text-gray-500 w-8">상의</span>
+                    <span class="text-gray-300">|</span>
+                    <span>${topParts.join(' / ')}</span>
+                </div>` : ''}
+                ${bottomParts.length > 0 ? `
+                <div class="flex items-center gap-2 text-base text-gray-700">
+                    <span class="text-sm font-semibold text-gray-500 w-8">하의</span>
+                    <span class="text-gray-300">|</span>
+                    <span>${bottomParts.join(' / ')}</span>
+                </div>` : ''}
+            </div>` : ''}
+
+            <!-- 금액: 단가 + 소계 -->
+            <div class="flex items-center justify-end gap-4 px-5 py-3 mt-1">
+                ${item.unitPrice ? `
+                <span class="text-sm text-gray-500">단가 ${formatCurrency(item.unitPrice)}</span>` : ''}
+                ${item.subtotal ? `
+                <span class="text-xl font-bold text-gray-800">${formatCurrency(item.subtotal)}</span>` : ''}
             </div>
-            ${item.subtotal ? `<p class="text-right mt-2 font-medium text-sm">${formatCurrency(item.subtotal)}</p>` : ''}
-        </div>
-    `).join('');
+        </div>`;
+    }).join('')
+
+    // 아이템이 여러 개면 전체 합계 표시
+    + (hasMultiple ? `
+        <div class="flex items-center justify-between px-5 py-3 mt-2 bg-gray-800 rounded-lg text-white">
+            <span class="text-base font-medium">전체 ${items.length}건 / ${totalQty}벌</span>
+            <span class="text-xl font-bold">${formatCurrency(totalAmount)}</span>
+        </div>` : '');
 }
 
 /** 현재 상태 배지 렌더링 */
