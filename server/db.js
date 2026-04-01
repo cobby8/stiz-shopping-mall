@@ -81,7 +81,7 @@ export function deleteById(collection, id) {
  * @param {object} filters - 필터 조건 { status: 'shipped', manager: '신경록' }
  * @param {object} options - 정렬/페이지네이션 { sortBy, sortOrder, page, limit, search }
  *   범위 필터 옵션:
- *   - dateFrom / dateTo: 날짜 범위 (ISO 문자열, createdAt 기준)
+ *   - dateFrom / dateTo: 날짜 범위 (ISO 문자열, orderReceiptDate 우선 → createdAt 폴백)
  *   - amountMin / amountMax: 금액 범위 (payment.totalAmount 기준)
  * @returns {{ data: array, total: number, page: number, totalPages: number }}
  */
@@ -104,16 +104,22 @@ export function findByFilter(collection, filters = {}, options = {}) {
     });
 
     // 1-b) 날짜 범위 필터 — 비유: 달력에서 "이 기간 주문만 보기"
-    // createdAt 필드를 기준으로 from~to 사이의 데이터만 남긴다
+    // 매출 기준일(orderReceiptDate) 우선, 없으면 상담개시일(createdAt) 폴백
     if (options.dateFrom) {
         const from = new Date(options.dateFrom);
-        data = data.filter(item => new Date(item.createdAt) >= from);
+        data = data.filter(item => {
+            const dateStr = item.orderReceiptDate || item.createdAt;
+            return dateStr ? new Date(dateStr) >= from : false;
+        });
     }
     if (options.dateTo) {
         // dateTo의 끝: 해당 날짜 23:59:59까지 포함하기 위해 +1일
         const to = new Date(options.dateTo);
         to.setDate(to.getDate() + 1);
-        data = data.filter(item => new Date(item.createdAt) < to);
+        data = data.filter(item => {
+            const dateStr = item.orderReceiptDate || item.createdAt;
+            return dateStr ? new Date(dateStr) < to : false;
+        });
     }
 
     // 1-c) 금액 범위 필터 — 비유: "50만원~100만원 주문만 보기"

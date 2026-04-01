@@ -359,16 +359,29 @@ function mapMethod(method) {
  * 비유: Google Sheets 양식을 우리 시스템 양식으로 "번역"하는 작업
  */
 function convertRow(row, index, orderNumberMap) {
-    // 시안요청 날짜를 기준으로 주문번호 생성
-    const requestDateStr = row['시안요청'] || '';
-    const requestDate = parseDate(requestDateStr);
+    // 상담개시일(A열)을 주문 생성일로 사용 (기존에는 '시안요청'을 잘못 사용)
+    // 폴백 우선순위: 상담개시일 → 시안요청 → 주문서접수일
+    // 2025년 완료주문 등 상담개시일/시안요청 둘 다 없는 시트가 있음
+    const consultDateStr = row['상담개시일'] || row['시안요청'] || row['주문서 접수일'] || row['주문서접수일'] || '';
+    const consultDate = parseDate(consultDateStr);
 
-    // 주문번호: ORD-YYYYMMDD-NNN (같은 날짜 기준 순번 증가)
+    // 시안요청 날짜 → designRequestDate로 별도 보관
+    const requestDateStr = row['시안요청'] || '';
+    const designRequestDate = parseDate(requestDateStr);
+
+    // 주문서접수일(V열) → 매출 발생 기준일 (신규 추가)
+    // 시트 헤더가 "주문서 접수일" (띄어쓰기 포함)이므로 양쪽 모두 매칭
+    const receiptDateStr = row['주문서 접수일'] || row['주문서접수일'] || '';
+    const orderReceiptDate = parseDate(receiptDateStr);
+
+    // 주문번호: ORD-YYYYMMDD-NNN (상담개시일 기준으로 생성)
+    // consultDateStr에 이미 폴백 로직이 적용되어 있음
+    const dateSource = consultDateStr;
     let dateKey = '';
-    if (requestDateStr.length === 6) {
-        dateKey = `20${requestDateStr.slice(0, 2)}${requestDateStr.slice(2, 4)}${requestDateStr.slice(4, 6)}`;
-    } else if (requestDateStr.length === 8) {
-        dateKey = requestDateStr;
+    if (dateSource.length === 6) {
+        dateKey = `20${dateSource.slice(0, 2)}${dateSource.slice(2, 4)}${dateSource.slice(4, 6)}`;
+    } else if (dateSource.length === 8) {
+        dateKey = dateSource;
     } else {
         dateKey = '20260101'; // 날짜 없으면 기본값
     }
@@ -474,7 +487,15 @@ function convertRow(row, index, orderNumberMap) {
         memo: [row['비고'], row['세부내용']].filter(Boolean).join(' | '),
         detail: row['세부내용'] || '',
         revenueType: row['매출구분'] || '',
-        createdAt: requestDate || now,
+
+        // 날짜 필드 3종 (Phase E-1에서 정리)
+        // createdAt: 상담개시일(A열) = 주문이 처음 생성된 날짜
+        createdAt: consultDate || now,
+        // designRequestDate: 시안요청 날짜 = 디자인 작업 시작일
+        designRequestDate: designRequestDate || null,
+        // orderReceiptDate: 주문서접수일(V열) = 매출 발생 기준일 (빈 값이면 null)
+        orderReceiptDate: orderReceiptDate || null,
+
         updatedAt: now,
     };
 }

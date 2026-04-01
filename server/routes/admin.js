@@ -12,6 +12,12 @@ import { STATUS_FLOW, STATUS_LABELS, getCustomerStatus } from './orders.js';
 
 const router = express.Router();
 
+// 매출 기준일 반환 (주문서접수일 우선, 없으면 상담개시일 폴백)
+// 비유: "계약일"이 있으면 계약일 기준, 없으면 "상담일" 기준으로 매출 집계
+function getRevenueDate(order) {
+    return order.orderReceiptDate || order.createdAt;
+}
+
 // ============================================================
 // GET /api/admin/orders - 전체 주문 목록 (필터/검색/정렬/페이지네이션)
 // 비유: Google Sheets의 필터 기능을 API로 구현한 것
@@ -343,11 +349,12 @@ router.get('/stats', (req, res) => {
         // 비유: "올해 매출만 보기" — 연도 드롭다운에서 선택한 연도의 주문만 집계
         const year = req.query.year || new Date().getFullYear().toString();
 
-        // createdAt 필드로 해당 연도 주문만 필터링
-        // createdAt 형식: "2025-11-04T00:00:00.000Z" (ISO)
+        // 매출 기준일(orderReceiptDate) 기준으로 해당 연도 주문만 필터링
+        // 폴백: orderReceiptDate가 없으면 createdAt(상담개시일) 사용
         const orders = allOrders.filter(order => {
-            if (!order.createdAt) return false;
-            return order.createdAt.startsWith(year);
+            const revenueDate = getRevenueDate(order);
+            if (!revenueDate) return false;
+            return revenueDate.startsWith(year);
         });
 
         // 1) 상태별 건수 - 고객용 4단계 기준으로 집계
@@ -484,10 +491,11 @@ router.get('/stats/monthly', (req, res) => {
         // 연도 파라미터: 기본값은 현재 연도
         const year = req.query.year || new Date().getFullYear().toString();
 
-        // 해당 연도 주문만 필터링 (createdAt 기준)
+        // 해당 연도 주문만 필터링 (매출 기준일 = orderReceiptDate 우선)
         const orders = allOrders.filter(order => {
-            if (!order.createdAt) return false;
-            return order.createdAt.startsWith(year);
+            const revenueDate = getRevenueDate(order);
+            if (!revenueDate) return false;
+            return revenueDate.startsWith(year);
         });
 
         // 1~12월 월별 데이터 초기화
@@ -499,8 +507,9 @@ router.get('/stats/monthly', (req, res) => {
 
         // 각 주문을 해당 월에 집계
         orders.forEach(order => {
-            // createdAt에서 월 추출 (ISO 형식: "2025-11-04T00:00:00.000Z")
-            const monthStr = order.createdAt.substring(5, 7); // "11" 같은 문자열
+            // 매출 기준일에서 월 추출 (ISO 형식: "2025-11-04T00:00:00.000Z")
+            const revenueDate = getRevenueDate(order);
+            const monthStr = revenueDate.substring(5, 7); // "11" 같은 문자열
             const monthIdx = parseInt(monthStr, 10) - 1;      // 0부터 시작하는 인덱스
             if (monthIdx >= 0 && monthIdx < 12) {
                 const amount = order.payment?.totalAmount || order.total || 0;
@@ -531,10 +540,11 @@ router.get('/stats/staff', (req, res) => {
         // 연도 파라미터: 기본값은 현재 연도
         const year = req.query.year || new Date().getFullYear().toString();
 
-        // 해당 연도 주문만 필터 (createdAt 기준)
+        // 해당 연도 주문만 필터 (매출 기준일 = orderReceiptDate 우선)
         const orders = allOrders.filter(order => {
-            if (!order.createdAt) return false;
-            return order.createdAt.startsWith(year);
+            const revenueDate = getRevenueDate(order);
+            if (!revenueDate) return false;
+            return revenueDate.startsWith(year);
         });
 
         // 담당자별 집계 맵: { "김현서": { orders, revenue, delivered, totalDays, daysCount } }
@@ -623,10 +633,11 @@ router.get('/stats/top-customers', (req, res) => {
         // 연도 파라미터: 기본값은 현재 연도
         const year = req.query.year || new Date().getFullYear().toString();
 
-        // 해당 연도 주문만 필터 (createdAt 기준)
+        // 해당 연도 주문만 필터 (매출 기준일 = orderReceiptDate 우선)
         const orders = allOrders.filter(order => {
-            if (!order.createdAt) return false;
-            return order.createdAt.startsWith(year);
+            const revenueDate = getRevenueDate(order);
+            if (!revenueDate) return false;
+            return revenueDate.startsWith(year);
         });
 
         // 고객별 매출 집계 맵
@@ -655,9 +666,10 @@ router.get('/stats/top-customers', (req, res) => {
             c.orders += 1;
             c.revenue += amount;
 
-            // 최근 주문일 갱신 (더 최신 날짜로 교체)
-            if (!c.lastOrderDate || order.createdAt > c.lastOrderDate) {
-                c.lastOrderDate = order.createdAt;
+            // 최근 주문일 갱신 (매출 기준일 기준, 더 최신 날짜로 교체)
+            const revenueDate = getRevenueDate(order);
+            if (!c.lastOrderDate || revenueDate > c.lastOrderDate) {
+                c.lastOrderDate = revenueDate;
             }
         });
 

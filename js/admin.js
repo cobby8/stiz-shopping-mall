@@ -331,8 +331,9 @@ function renderOrdersTable(orders) {
         const statusBadge = getStatusBadge(order.status);
         // 금액
         const amount = order.payment?.totalAmount || order.total || 0;
-        // 등록일
-        const createdDate = order.createdAt ? formatDate(order.createdAt) : '-';
+        // 접수일 (매출 기준일: orderReceiptDate 우선, 없으면 createdAt 폴백)
+        const receiptDate = order.orderReceiptDate || order.createdAt;
+        const createdDate = receiptDate ? formatDate(receiptDate) : '-';
 
         row.innerHTML = `
             <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
