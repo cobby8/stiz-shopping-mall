@@ -24,6 +24,7 @@ import aiRoutes from './routes/ai.js';
 import adminRoutes from './routes/admin.js';
 import customerRoutes from './routes/customers.js';
 import { adminAuth } from './middleware/adminAuth.js';
+import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
 
 app.get('/', (req, res) => {
     res.json({
@@ -48,6 +49,7 @@ app.get('/', (req, res) => {
             'PUT  /api/admin/customers/:id   (admin only)',
             'POST /api/admin/customers/merge (admin only)',
             'GET  /api/admin/customers/stats/summary (admin only)',
+            'GET  /api/admin/backup          (admin only)',
             'POST /api/generate',
         ]
     });
@@ -71,5 +73,10 @@ app.listen(port, () => {
     console.log(`  Routes: /api/auth, /api/orders, /api/admin, /api/admin/customers, /api/generate`);
     console.log(`  DB: JSON file-based (./data/)`);
     console.log(`  Auth: JWT + bcrypt`);
-    console.log(`  AI: ${process.env.GOOGLE_API_KEY ? 'Online' : 'Offline (No Key)'}\n`);
+    console.log(`  AI: ${process.env.GOOGLE_API_KEY ? 'Online' : 'Offline (No Key)'}`);
+
+    // 서버 시작 시 자동 백업 스케줄러 가동
+    // 비유: 서버가 문을 열면 금고 관리인도 함께 출근하는 것
+    startBackupScheduler();
+    console.log('');
 });

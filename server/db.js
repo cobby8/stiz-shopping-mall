@@ -2,6 +2,11 @@
  * Simple JSON File Database
  * Reads/writes JSON files in ./data/ directory.
  * Suitable for MVP/prototyping. Replace with SQLite/MongoDB for production.
+ *
+ * [E-4] 메모리 캐시 추가 (2026-03-31)
+ * - 매 API 호출마다 디스크에서 JSON을 읽고 파싱하는 비용을 줄이기 위해
+ *   컬렉션별로 메모리에 캐싱한다.
+ * - 비유: 자주 찾는 서류를 매번 서랍에서 꺼내지 않고 책상 위에 올려놓는 것
  */
 
 import fs from 'fs';
@@ -20,26 +25,57 @@ function getFilePath(collection) {
     return path.join(DATA_DIR, `${collection}.json`);
 }
 
+// --- 메모리 캐시 ---
+// 구조: { 컬렉션이름: { data: [...], mtime: 파일수정시간(ms) } }
+// mtime으로 외부에서 파일이 바뀌었는지도 감지한다 (수동 편집 등)
+const cache = {};
+
+/**
+ * 해당 컬렉션의 캐시를 삭제한다.
+ * 데이터를 변경(insert/update/delete/saveAll)한 뒤 호출해서
+ * 다음 getAll 시 디스크에서 다시 읽도록 강제한다.
+ */
+function invalidateCache(collection) {
+    delete cache[collection];
+}
+
 // Read all records from a collection
+// [E-4] 캐시 히트 시 디스크 읽기를 건너뛰고 메모리에서 바로 반환
 export function getAll(collection) {
     const filePath = getFilePath(collection);
     if (!fs.existsSync(filePath)) return [];
-    const data = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(data);
+
+    // 파일의 마지막 수정 시간을 확인 (밀리초 단위)
+    const stat = fs.statSync(filePath);
+    const fileMtime = stat.mtimeMs;
+
+    // 캐시가 있고, 파일이 변경되지 않았으면 → 캐시 반환 (디스크 읽기 생략)
+    if (cache[collection] && cache[collection].mtime === fileMtime) {
+        return cache[collection].data;
+    }
+
+    // 캐시 미스: 파일에서 읽고 캐시에 저장
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(raw);
+    cache[collection] = { data, mtime: fileMtime };
+    return data;
 }
 
 // Write all records to a collection
+// [E-4] 파일 쓰기 후 캐시 무효화 → 다음 읽기에서 새 데이터 반영
 export function saveAll(collection, data) {
     const filePath = getFilePath(collection);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    invalidateCache(collection);
 }
 
 // Add a record
+// saveAll 내부에서 캐시 무효화가 이미 호출되므로 별도 처리 불필요
 export function insert(collection, record) {
     const data = getAll(collection);
     record.id = record.id || Date.now();
     data.push(record);
-    saveAll(collection, data);
+    saveAll(collection, data);  // saveAll → invalidateCache 자동 호출
     return record;
 }
 

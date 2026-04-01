@@ -9,6 +9,7 @@
 import express from 'express';
 import db from '../db.js';
 import { STATUS_FLOW, STATUS_LABELS, getCustomerStatus } from './orders.js';
+import { runBackup } from '../backup.js';  // 수동 백업 API용
 
 const router = express.Router();
 
@@ -812,6 +813,33 @@ router.post('/orders/:id/notify', (req, res) => {
     } catch (error) {
         console.error('[Admin] Notify error:', error);
         res.status(500).json({ success: false, error: '알림 발송 실패' });
+    }
+});
+
+// ============================================================
+// GET /api/admin/backup - 수동 백업 실행
+// 비유: 관리자가 "지금 당장 금고에 복사본 넣어!" 버튼을 누르는 것
+// ============================================================
+router.get('/backup', async (req, res) => {
+    try {
+        const result = await runBackup();
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: `${result.files.length}개 파일 백업 완료`,
+                files: result.files,
+                timestamp: result.timestamp
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error || '백업 실행 중 오류 발생'
+            });
+        }
+    } catch (error) {
+        console.error('[Admin] Backup error:', error);
+        res.status(500).json({ success: false, error: '백업 실행 실패' });
     }
 });
 
