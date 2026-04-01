@@ -345,6 +345,12 @@ function renderOrdersTable(orders) {
         // 종목 (첫 번째 아이템 기준)
         const sport = order.items?.[0]?.sport || '';
         const sportLabel = SPORT_LABELS[sport] || sport || '-';
+        // 품목 표시: items가 여러 개면 "유니폼 외 N건" 형태로 표시
+        const itemCount = order.items?.length || 0;
+        const firstItemName = order.items?.[0]?.name || '품목없음';
+        const itemDisplay = itemCount > 1
+            ? `${firstItemName} 외 ${itemCount - 1}건`
+            : firstItemName;
         // 상태 배지
         const statusBadge = getStatusBadge(order.status);
         // 금액
@@ -362,7 +368,10 @@ function renderOrdersTable(orders) {
             <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">${order.orderNumber || '-'}</td>
             <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}</td>
             <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
-            <td class="px-4 py-3 whitespace-nowrap">${sportLabel}</td>
+            <td class="px-4 py-3 whitespace-nowrap">
+                <span>${sportLabel}</span>
+                ${itemCount > 1 ? `<span class="ml-1 text-xs text-gray-400">(${itemDisplay})</span>` : ''}
+            </td>
             <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
             <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(order.manager || '미배정')}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${formatCurrency(amount)}</td>
