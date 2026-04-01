@@ -64,9 +64,6 @@ const STATUS_TABS = [
 // 현재 선택된 메인 탭을 추적 (active/all/unpaid)
 let currentMainTab = 'active';
 
-// 그룹핑: 펼쳐진 그룹 ID를 추적하는 Set (비유: 열린 서랍 목록)
-const expandedGroups = new Set();
-
 // 현재 필터 상태를 저장하는 객체 (비유: 검색 조건표)
 let currentFilters = {
     status: '',
@@ -331,164 +328,51 @@ async function loadOrders() {
 }
 
 /**
- * 주문을 그룹핑하는 함수
- * 비유: 같은 팀이 같은 날 주문한 것들을 하나의 봉투에 묶는 것
- *
- * 그룹 기준:
- * 1순위: groupId가 같은 것 (null이 아닌 경우)
- * 2순위: teamName + createdAt(날짜 YYYY-MM-DD) + customer.name이 모두 같은 것
- *
- * @param {Array} orders - 주문 배열
- * @returns {Array} 그룹 배열. 각 그룹은 { groupKey, orders: [...] }
- */
-function groupOrders(orders) {
-    const groupMap = new Map(); // 그룹 키 → 주문 배열
-
-    orders.forEach(order => {
-        let groupKey;
-
-        // 1순위: groupId가 있으면 그걸로 묶기
-        if (order.groupId) {
-            groupKey = `gid:${order.groupId}`;
-        } else {
-            // 2순위: 팀명 + 날짜 + 고객명 조합
-            const teamName = order.customer?.teamName || '';
-            const customerName = order.customer?.name || '';
-            // 날짜는 YYYY-MM-DD 부분만 추출 (시간 무시)
-            const dateStr = (order.orderReceiptDate || order.createdAt || '').substring(0, 10);
-            groupKey = `${teamName}|${customerName}|${dateStr}`;
-        }
-
-        if (!groupMap.has(groupKey)) {
-            groupMap.set(groupKey, []);
-        }
-        groupMap.get(groupKey).push(order);
-    });
-
-    // Map을 배열로 변환, 각 그룹 내부는 주문번호 순 정렬
-    const groups = [];
-    groupMap.forEach((groupOrders, groupKey) => {
-        groupOrders.sort((a, b) => (a.orderNumber || '').localeCompare(b.orderNumber || ''));
-        groups.push({ groupKey, orders: groupOrders });
-    });
-
-    // 그룹 간 정렬: 그룹의 첫 번째 주문 기준 createdAt 내림차순 (최신순)
-    groups.sort((a, b) => {
-        const dateA = a.orders[0].orderReceiptDate || a.orders[0].createdAt || '';
-        const dateB = b.orders[0].orderReceiptDate || b.orders[0].createdAt || '';
-        return dateB.localeCompare(dateA);
-    });
-
-    return groups;
-}
-
-/**
- * 상태의 진행 순서 인덱스를 반환 (가장 덜 진행된 상태를 찾기 위해)
- * 숫자가 작을수록 초기 단계
- */
-function getStatusOrder(status) {
-    const order = [
-        'design_requested', 'draft_done', 'revision', 'design_confirmed',
-        'payment_pending', 'payment_done', 'grading', 'line_work',
-        'in_production', 'production_done', 'released', 'shipped', 'delivered',
-        'hold', 'cancelled'
-    ];
-    const idx = order.indexOf(status);
-    return idx >= 0 ? idx : 999;
-}
-
-/**
- * 주문 테이블 렌더링 (그룹핑 버전)
- * 같은 팀+같은 날+같은 고객의 주문을 묶어서 표시
- * 비유: 같은 팀의 여러 건 주문을 하나의 폴더로 묶어놓고, 클릭하면 폴더가 열리는 것
+ * 주문 테이블 렌더링
+ * 각 주문을 한 행으로 표시. 클릭하면 상세 페이지로 이동
  */
 function renderOrdersTable(orders) {
     const tbody = document.getElementById('orders-tbody');
     tbody.innerHTML = '';
 
-    // 1단계: 주문을 그룹핑
-    const groups = groupOrders(orders);
+    orders.forEach(order => {
+        const row = document.createElement('tr');
+        row.className = 'order-row border-b border-gray-50 cursor-pointer';
 
-    groups.forEach(group => {
-        if (group.orders.length === 1) {
-            // === 단독 주문: 기존처럼 한 줄로 표시 ===
-            const order = group.orders[0];
-            const row = createOrderRow(order, false);
-            tbody.appendChild(row);
-        } else {
-            // === 그룹 주문 (2건 이상): 헤더 행 + 접힌 상세 행들 ===
-            const groupKey = group.groupKey;
-            const isExpanded = expandedGroups.has(groupKey);
-            const groupOrdersList = group.orders;
+        // 팀명 (customer.teamName이 없으면 고객명 표시)
+        const teamName = order.customer?.teamName || '-';
+        const customerName = order.customer?.name || '-';
+        // 종목 (첫 번째 아이템 기준)
+        const sport = order.items?.[0]?.sport || '';
+        const sportLabel = SPORT_LABELS[sport] || sport || '-';
+        // 상태 배지
+        const statusBadge = getStatusBadge(order.status);
+        // 금액
+        const amount = order.payment?.totalAmount || order.total || 0;
+        // 접수일 (매출 기준일: orderReceiptDate 우선, 없으면 createdAt 폴백)
+        const receiptDate = order.orderReceiptDate || order.createdAt;
+        const createdDate = receiptDate ? formatDate(receiptDate) : '-';
 
-            // 그룹 요약 정보 계산
-            const firstOrder = groupOrdersList[0];
-            const teamName = firstOrder.customer?.teamName || '-';
-            const customerName = firstOrder.customer?.name || '-';
-            const sport = firstOrder.items?.[0]?.sport || '';
-            const sportLabel = SPORT_LABELS[sport] || sport || '-';
-            // 담당자: 첫 번째 주문 기준
-            const manager = firstOrder.manager || '미배정';
-            // 금액: 그룹 전체 합계
-            const totalAmount = groupOrdersList.reduce((sum, o) => sum + (o.payment?.totalAmount || o.total || 0), 0);
-            // 접수일: 같은 날이므로 첫 번째 기준
-            const receiptDate = firstOrder.orderReceiptDate || firstOrder.createdAt;
-            const createdDate = receiptDate ? formatDate(receiptDate) : '-';
-            // 상태: 가장 덜 진행된(초기) 상태를 대표로 표시
-            const earliestStatus = groupOrdersList.reduce((earliest, o) => {
-                return getStatusOrder(o.status) < getStatusOrder(earliest) ? o.status : earliest;
-            }, groupOrdersList[0].status);
-            const statusBadge = getStatusBadge(earliestStatus);
-            const count = groupOrdersList.length;
+        row.innerHTML = `
+            <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
+                <input type="checkbox" class="order-checkbox w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer"
+                    data-order-id="${order.id}"
+                    onchange="onOrderCheckboxChange()">
+            </td>
+            <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">${order.orderNumber || '-'}</td>
+            <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}</td>
+            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${sportLabel}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
+            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(order.manager || '미배정')}</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${formatCurrency(amount)}</td>
+            <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${createdDate}</td>
+        `;
 
-            // --- 그룹 헤더 행 ---
-            const headerRow = document.createElement('tr');
-            headerRow.className = 'group-header-row border-b border-gray-100';
-            headerRow.dataset.groupKey = groupKey;
+        // 행 클릭 시 주문 상세 페이지로 이동 (체크박스 영역은 stopPropagation으로 제외)
+        row.onclick = () => window.location.href = `admin-order.html?id=${order.id}`;
 
-            // 그룹 내 모든 주문 ID를 data 속성에 저장 (체크박스 연동용)
-            const orderIds = groupOrdersList.map(o => o.id);
-
-            headerRow.innerHTML = `
-                <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
-                    <input type="checkbox" class="group-checkbox w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer"
-                        data-group-key="${escapeHtml(groupKey)}"
-                        data-order-ids="${orderIds.join(',')}"
-                        onchange="onGroupCheckboxChange(this)">
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap">
-                    <span class="group-toggle-icon ${isExpanded ? 'expanded' : ''}">&#9654;</span>
-                    <span class="group-count-badge">${count}건</span>
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(teamName)}</td>
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
-                <td class="px-4 py-3 whitespace-nowrap">${sportLabel}</td>
-                <td class="px-4 py-3 whitespace-nowrap">${statusBadge} <span class="text-xs text-gray-400">(${count}건)</span></td>
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(manager)}</td>
-                <td class="px-4 py-3 text-right whitespace-nowrap font-bold">${formatCurrency(totalAmount)}</td>
-                <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${createdDate}</td>
-            `;
-
-            // 헤더 클릭 시 그룹 펼침/접힘 토글
-            headerRow.onclick = (e) => {
-                // 체크박스 클릭은 무시 (stopPropagation으로 처리됨)
-                toggleGroup(groupKey);
-            };
-
-            tbody.appendChild(headerRow);
-
-            // --- 그룹 상세 행들 (기본 접힌 상태) ---
-            groupOrdersList.forEach(order => {
-                const childRow = createOrderRow(order, true);
-                childRow.classList.add('group-child-row');
-                childRow.dataset.parentGroup = groupKey;
-                // 접힘 상태면 숨김
-                if (!isExpanded) {
-                    childRow.style.display = 'none';
-                }
-                tbody.appendChild(childRow);
-            });
-        }
+        tbody.appendChild(row);
     });
 
     // 전체 선택 체크박스 초기화 + 일괄 작업 바 숨김
@@ -498,122 +382,6 @@ function renderOrdersTable(orders) {
 
     // 테이블 표시, 로딩/빈상태 숨김
     showTable();
-}
-
-/**
- * 개별 주문 행(tr) 생성 헬퍼
- * @param {Object} order - 주문 데이터
- * @param {boolean} isGroupChild - 그룹의 하위 행인지 여부 (들여쓰기 등 스타일 구분)
- * @returns {HTMLElement} tr 요소
- */
-function createOrderRow(order, isGroupChild) {
-    const row = document.createElement('tr');
-    row.className = isGroupChild
-        ? 'order-row border-b border-gray-50 cursor-pointer group-child-row'
-        : 'order-row border-b border-gray-50 cursor-pointer';
-
-    const teamName = order.customer?.teamName || '-';
-    const customerName = order.customer?.name || '-';
-    const sport = order.items?.[0]?.sport || '';
-    const sportLabel = SPORT_LABELS[sport] || sport || '-';
-    const statusBadge = getStatusBadge(order.status);
-    const amount = order.payment?.totalAmount || order.total || 0;
-    const receiptDate = order.orderReceiptDate || order.createdAt;
-    const createdDate = receiptDate ? formatDate(receiptDate) : '-';
-
-    row.innerHTML = `
-        <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
-            <input type="checkbox" class="order-checkbox w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer"
-                data-order-id="${order.id}"
-                onchange="onOrderCheckboxChange()">
-        </td>
-        <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">${order.orderNumber || '-'}</td>
-        <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}</td>
-        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
-        <td class="px-4 py-3 whitespace-nowrap">${sportLabel}</td>
-        <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
-        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(order.manager || '미배정')}</td>
-        <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${formatCurrency(amount)}</td>
-        <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${createdDate}</td>
-    `;
-
-    // 행 클릭 시 주문 상세 페이지로 이동
-    row.onclick = () => window.location.href = `admin-order.html?id=${order.id}`;
-
-    return row;
-}
-
-/**
- * 그룹 키로 해당 그룹의 하위 행들을 찾는 헬퍼
- * querySelector 대신 전체 tr을 순회하여 data-parentGroup 비교 (특수문자 안전)
- * @param {string} groupKey - 그룹 키
- * @returns {Array<HTMLElement>} 하위 행 배열
- */
-function findChildRows(groupKey) {
-    const allRows = document.querySelectorAll('#orders-tbody tr');
-    return Array.from(allRows).filter(row => row.dataset.parentGroup === groupKey);
-}
-
-/**
- * 그룹 키로 헤더 행을 찾는 헬퍼
- * @param {string} groupKey - 그룹 키
- * @returns {HTMLElement|null} 헤더 행
- */
-function findGroupHeaderRow(groupKey) {
-    const allRows = document.querySelectorAll('#orders-tbody tr');
-    return Array.from(allRows).find(row => row.dataset.groupKey === groupKey) || null;
-}
-
-/**
- * 그룹 펼침/접힘 토글
- * 비유: 폴더를 클릭하면 열리거나 닫히는 것
- * @param {string} groupKey - 그룹 키
- */
-function toggleGroup(groupKey) {
-    const isExpanded = expandedGroups.has(groupKey);
-
-    if (isExpanded) {
-        // 접기: Set에서 제거 + 상세 행 숨김
-        expandedGroups.delete(groupKey);
-    } else {
-        // 펼치기: Set에 추가 + 상세 행 표시
-        expandedGroups.add(groupKey);
-    }
-
-    // 해당 그룹의 상세 행들 표시/숨김 전환
-    const childRows = findChildRows(groupKey);
-    childRows.forEach(row => {
-        row.style.display = isExpanded ? 'none' : 'table-row';
-    });
-
-    // 헤더 행의 아이콘 회전
-    const headerRow = findGroupHeaderRow(groupKey);
-    if (headerRow) {
-        const icon = headerRow.querySelector('.group-toggle-icon');
-        if (icon) {
-            icon.classList.toggle('expanded', !isExpanded);
-        }
-    }
-}
-
-/**
- * 그룹 헤더 체크박스 변경 시: 하위 모든 주문 체크박스를 동기화
- * 비유: 폴더에 체크하면 폴더 안의 모든 파일도 체크되는 것
- */
-function onGroupCheckboxChange(groupCheckbox) {
-    const groupKey = groupCheckbox.dataset.groupKey;
-    const isChecked = groupCheckbox.checked;
-
-    // 해당 그룹의 하위 주문 체크박스 모두 선택/해제
-    const childRows = findChildRows(groupKey);
-    childRows.forEach(row => {
-        const cb = row.querySelector('.order-checkbox');
-        if (cb) cb.checked = isChecked;
-    });
-
-    // 전체 선택 체크박스 + 일괄 작업 바 갱신
-    syncSelectAllCheckbox();
-    updateBulkActionBar();
 }
 
 /**
@@ -1207,15 +975,9 @@ function handleLogout() {
  * 헤더의 체크박스 클릭 시 현재 페이지의 모든 주문 체크박스를 on/off
  */
 function toggleSelectAll(headerCheckbox) {
-    const isChecked = headerCheckbox.checked;
-    // 개별 주문 체크박스 전체 on/off
     const checkboxes = document.querySelectorAll('.order-checkbox');
-    checkboxes.forEach(cb => { cb.checked = isChecked; });
-    // 그룹 헤더 체크박스도 전체 on/off
-    const groupCheckboxes = document.querySelectorAll('.group-checkbox');
-    groupCheckboxes.forEach(gcb => {
-        gcb.checked = isChecked;
-        gcb.indeterminate = false;
+    checkboxes.forEach(cb => {
+        cb.checked = headerCheckbox.checked;
     });
     // 선택 건수 업데이트 + 일괄 작업 바 표시/숨김
     updateBulkActionBar();
@@ -1223,49 +985,19 @@ function toggleSelectAll(headerCheckbox) {
 
 /**
  * 개별 체크박스 변경 시 호출
- * 선택 건수를 업데이트하고, 그룹 체크박스 + 전체 선택 체크박스 상태도 동기화
+ * 선택 건수를 업데이트하고, 전체 선택 체크박스 상태도 동기화
  */
 function onOrderCheckboxChange() {
-    // 그룹 체크박스 상태 동기화: 하위 주문이 모두 체크되면 그룹도 체크, 일부면 indeterminate
-    const groupCheckboxes = document.querySelectorAll('.group-checkbox');
-    groupCheckboxes.forEach(gcb => {
-        const groupKey = gcb.dataset.groupKey;
-        const childRows = findChildRows(groupKey);
-        const childCbs = childRows.map(r => r.querySelector('.order-checkbox')).filter(Boolean);
-        const checkedCount = childCbs.filter(cb => cb.checked).length;
-
-        if (checkedCount === 0) {
-            // 하위 전부 미선택 → 그룹도 미선택
-            gcb.checked = false;
-            gcb.indeterminate = false;
-        } else if (checkedCount === childCbs.length) {
-            // 하위 전부 선택 → 그룹도 선택
-            gcb.checked = true;
-            gcb.indeterminate = false;
-        } else {
-            // 일부만 선택 → indeterminate (반쯤 체크된 상태)
-            gcb.checked = false;
-            gcb.indeterminate = true;
-        }
-    });
-
-    // 전체 선택 체크박스 동기화
-    syncSelectAllCheckbox();
-    updateBulkActionBar();
-}
-
-/**
- * 전체 선택 체크박스 상태를 개별 체크박스 상태에 맞춰 동기화
- */
-function syncSelectAllCheckbox() {
     const checkboxes = document.querySelectorAll('.order-checkbox');
     const selectAllCb = document.getElementById('select-all-checkbox');
     const checkedCount = document.querySelectorAll('.order-checkbox:checked').length;
 
+    // 전체 선택 체크박스: 모든 개별 체크박스가 선택됐으면 체크, 아니면 해제
     if (selectAllCb) {
         selectAllCb.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
-        selectAllCb.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
     }
+
+    updateBulkActionBar();
 }
 
 /**
@@ -1292,15 +1024,10 @@ function updateBulkActionBar() {
  * "선택 해제" 버튼 클릭 시 호출
  */
 function clearAllCheckboxes() {
-    // 개별 주문 체크박스 해제
     const checkboxes = document.querySelectorAll('.order-checkbox');
     checkboxes.forEach(cb => { cb.checked = false; });
-    // 그룹 헤더 체크박스 해제
-    const groupCheckboxes = document.querySelectorAll('.group-checkbox');
-    groupCheckboxes.forEach(gcb => { gcb.checked = false; gcb.indeterminate = false; });
-    // 전체 선택 체크박스 해제
     const selectAllCb = document.getElementById('select-all-checkbox');
-    if (selectAllCb) { selectAllCb.checked = false; selectAllCb.indeterminate = false; }
+    if (selectAllCb) selectAllCb.checked = false;
     updateBulkActionBar();
 }
 

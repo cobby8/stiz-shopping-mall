@@ -71,55 +71,6 @@
 
         /* 모바일에서 테이블 가로 스크롤 */
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-        /* ===== 주문 그룹핑 스타일 ===== */
-        /* 그룹 헤더 행: 약간 굵은 폰트 + 미세한 배경색으로 그룹임을 표시 */
-        .group-header-row {
-            background-color: #f8fafc;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.15s;
-        }
-        .group-header-row:hover { background-color: #f1f5f9; }
-
-        /* 그룹 상세 행: 들여쓰기 + 연한 배경으로 하위 항목임을 표시 */
-        .group-child-row {
-            background-color: #fafbfc;
-            transition: background-color 0.15s;
-        }
-        .group-child-row:hover { background-color: #f3f4f6; }
-        /* 상세 행의 주문번호 칸에 들여쓰기 효과 */
-        .group-child-row td:nth-child(2) { padding-left: 28px; }
-
-        /* 펼침/접힘 아이콘 */
-        .group-toggle-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 20px;
-            height: 20px;
-            font-size: 14px;
-            color: #6b7280;
-            transition: transform 0.2s;
-            user-select: none;
-        }
-        .group-toggle-icon.expanded { transform: rotate(90deg); }
-
-        /* 건수 배지: 그룹 헤더의 주문 건수 표시 */
-        .group-count-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 22px;
-            height: 18px;
-            padding: 0 5px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #4b5563;
-            background-color: #e5e7eb;
-            border-radius: 9px;
-            margin-left: 6px;
-        }
     </style>
 </head>
 
