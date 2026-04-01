@@ -190,6 +190,22 @@
                         <p class="text-xs text-gray-500 mb-1">최종 수정</p>
                         <p id="current-updated" class="text-sm">-</p>
                     </div>
+                    <!-- 시안요청일: 값이 있을 때만 JS에서 hidden 제거 -->
+                    <div id="date-design-request" class="hidden">
+                        <div class="hidden md:block w-px h-8 bg-gray-200"></div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-1">시안요청</p>
+                            <p id="current-design-request-date" class="text-sm">-</p>
+                        </div>
+                    </div>
+                    <!-- 접수일(매출기준일): 값이 있을 때만 JS에서 hidden 제거 -->
+                    <div id="date-order-receipt" class="hidden">
+                        <div class="hidden md:block w-px h-8 bg-gray-200"></div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-1">접수일</p>
+                            <p id="current-order-receipt-date" class="text-sm">-</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -240,6 +256,16 @@
                                 <p class="field-label">그룹 ID</p>
                                 <p class="field-value" data-field="groupId">-</p>
                             </div>
+                            <!-- 거래점: HQ, 분점 등 -->
+                            <div>
+                                <p class="field-label">거래점</p>
+                                <p class="field-value" data-field="store">-</p>
+                            </div>
+                            <!-- 매출구분: 법인, 후원, 재고 등 -->
+                            <div>
+                                <p class="field-label">매출구분</p>
+                                <p class="field-value" data-field="revenueType">-</p>
+                            </div>
                         </div>
                         <!-- 아이템 목록 -->
                         <h4 class="font-bold mt-6 mb-3 text-sm text-gray-700">주문 아이템</h4>
@@ -250,6 +276,11 @@
                         <div class="mt-6">
                             <p class="field-label">메모</p>
                             <p class="field-value" data-field="memo">-</p>
+                        </div>
+                        <!-- 세부내용: memo와 다를 때만 JS에서 표시 -->
+                        <div id="detail-section" class="mt-3 hidden">
+                            <p class="field-label">세부내용</p>
+                            <p class="field-value" id="detail-value">-</p>
                         </div>
                     </div>
 

@@ -182,12 +182,41 @@ function renderOrderDetail() {
     document.getElementById('current-date').textContent = order.createdAt ? formatDateTime(order.createdAt) : '-';
     document.getElementById('current-updated').textContent = order.updatedAt ? formatDateTime(order.updatedAt) : '-';
 
+    // 시안요청일 — 값이 있을 때만 표시
+    const designReqEl = document.getElementById('date-design-request');
+    if (order.designRequestDate) {
+        document.getElementById('current-design-request-date').textContent = formatDateTime(order.designRequestDate);
+        designReqEl.classList.remove('hidden');
+        designReqEl.classList.add('flex', 'items-center', 'gap-4');
+    } else {
+        designReqEl.classList.add('hidden');
+    }
+
+    // 접수일(매출기준일) — 값이 있을 때만 표시
+    const orderRecEl = document.getElementById('date-order-receipt');
+    if (order.orderReceiptDate) {
+        document.getElementById('current-order-receipt-date').textContent = formatDateTime(order.orderReceiptDate);
+        orderRecEl.classList.remove('hidden');
+        orderRecEl.classList.add('flex', 'items-center', 'gap-4');
+    } else {
+        orderRecEl.classList.add('hidden');
+    }
+
     // 각 탭의 data-field 요소에 값 채우기
     // 비유: 양식 문서의 빈칸에 데이터를 적어넣는 것
     fillFieldValues();
 
     // 아이템 목록 렌더링
     renderItems();
+
+    // 세부내용(detail) — memo와 다를 때만 표시
+    const detailSection = document.getElementById('detail-section');
+    if (order.detail && order.detail !== order.memo) {
+        document.getElementById('detail-value').textContent = order.detail;
+        detailSection.classList.remove('hidden');
+    } else {
+        detailSection.classList.add('hidden');
+    }
 
     // 입금 확인 영역 렌더링 (금융 탭 내)
     renderPaymentConfirmSection();
@@ -255,6 +284,8 @@ function renderItems() {
                 <div><span class="text-gray-400">핏:</span> ${escapeHtml(item.fit || '-')}</div>
                 <div><span class="text-gray-400">원단(상):</span> ${escapeHtml(item.fabricTop || '-')}</div>
                 <div><span class="text-gray-400">원단(하):</span> ${escapeHtml(item.fabricBottom || '-')}</div>
+                <div><span class="text-gray-400">구성(상):</span> ${escapeHtml(item.topConfig || '-')}</div>
+                <div><span class="text-gray-400">구성(하):</span> ${escapeHtml(item.bottomConfig || '-')}</div>
                 <div><span class="text-gray-400">모델:</span> ${escapeHtml(item.baseModel || '-')}</div>
             </div>
             ${item.subtotal ? `<p class="text-right mt-2 font-medium text-sm">${formatCurrency(item.subtotal)}</p>` : ''}
@@ -444,7 +475,7 @@ function convertToEditFields() {
     // 편집 가능한 필드 목록 (읽기 전용 필드는 제외)
     const editableFields = [
         'customer.name', 'customer.teamName', 'customer.email', 'customer.phone', 'customer.dealType',
-        'groupId', 'memo',
+        'groupId', 'store', 'revenueType', 'memo',
         'design.status', 'design.revisionCount', 'design.designer', 'design.orderSheetUrl', 'design.designFileUrl',
         'production.status', 'production.factory',
         'shipping.address', 'shipping.desiredDate', 'shipping.releaseDate', 'shipping.shippedDate',
