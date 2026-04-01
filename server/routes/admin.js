@@ -248,6 +248,113 @@ router.patch('/orders/:id/status', (req, res) => {
 });
 
 // ============================================================
+// POST /api/admin/orders/:id/duplicate - 주문 복제 (재주문)
+// 비유: 지난번 주문서를 복사기에 넣고, 날짜와 번호만 새로 찍는 것
+// 고객/아이템 정보는 그대로 가져오되, 상태/결제/디자인/생산/배송은 초기화
+// ============================================================
+router.post('/orders/:id/duplicate', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const original = db.findById('orders', id);
+
+        if (!original) {
+            return res.status(404).json({ success: false, error: '원본 주문을 찾을 수 없습니다.' });
+        }
+
+        // 새 주문번호 생성: ORD-오늘날짜-NNN (당일 마지막 번호 + 1)
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');  // 예: 20260331
+        const allOrders = db.getAll('orders');
+        const todayPrefix = `ORD-${dateStr}-`;
+
+        // 오늘 생성된 주문 중 가장 큰 번호 찾기
+        const todayNumbers = allOrders
+            .filter(o => o.orderNumber && o.orderNumber.startsWith(todayPrefix))
+            .map(o => parseInt(o.orderNumber.replace(todayPrefix, '')) || 0);
+        const nextNum = todayNumbers.length > 0 ? Math.max(...todayNumbers) + 1 : 1;
+        const newOrderNumber = `${todayPrefix}${String(nextNum).padStart(3, '0')}`;
+
+        // 새 주문 데이터 구성 — 원본에서 고객/아이템만 복사, 나머지는 초기화
+        const newOrder = {
+            id: Date.now(),                           // 고유 ID (타임스탬프)
+            orderNumber: newOrderNumber,               // 새 주문번호
+            groupId: original.groupId || null,         // 그룹 ID 유지
+            customer: JSON.parse(JSON.stringify(original.customer)),  // 고객 정보 깊은 복사
+            items: JSON.parse(JSON.stringify(original.items)),        // 아이템 깊은 복사
+            design: {                                  // 디자인: 초기 상태로 리셋
+                status: 'draft_done',
+                revisionCount: 0,
+                designer: original.design?.designer || '',
+                orderSheetUrl: '',
+                designFileUrl: ''
+            },
+            production: {                              // 생산: 초기 상태로 리셋
+                status: '',
+                factory: original.production?.factory || '',
+                gradingDone: false
+            },
+            shipping: {                                // 배송: 주소만 복사, 나머지 초기화
+                address: original.shipping?.address || '',
+                desiredDate: '',
+                releaseDate: '',
+                shippedDate: '',
+                trackingNumber: '',
+                carrier: ''
+            },
+            payment: {                                 // 결제: 단가/수량만 복사, 입금 정보 초기화
+                totalAmount: original.payment?.totalAmount || 0,
+                unitPrice: original.payment?.unitPrice || 0,
+                quantity: original.payment?.quantity || 0,
+                packQuantity: original.payment?.packQuantity || 0,
+                qpp: original.payment?.qpp || 1,
+                paidDate: null,                        // 미결제 상태
+                paymentType: original.payment?.paymentType || '',
+                transactionMethod: original.payment?.transactionMethod || '',
+                quoteUrl: '',
+                autoQuote: false
+            },
+            manager: original.manager || '',           // 담당자 유지
+            store: original.store || '',               // 거래점 유지
+            status: 'design_requested',                // 처음부터 시작
+            memo: `[복제] 원본: ${original.orderNumber}`,  // 원본 추적용 메모
+            detail: '',
+            revenueType: original.revenueType || '',   // 매출구분 유지
+            createdAt: today.toISOString(),             // 현재 시간
+            updatedAt: today.toISOString(),
+            designRequestDate: today.toISOString(),    // 시안요청일 = 생성일
+            orderReceiptDate: null,                    // 접수일은 비워둠
+            customerId: original.customerId || null,   // 고객 ID 유지
+            _duplicatedFrom: original.id               // 원본 주문 참조 (내부 추적용)
+        };
+
+        // DB에 새 주문 저장
+        const saved = db.insert('orders', newOrder);
+
+        // 상태 변경 이력: 복제로 생성됨을 기록
+        db.insert('order-history', {
+            id: Date.now() + 1,
+            orderId: saved.id,
+            fromStatus: null,
+            toStatus: 'design_requested',
+            changedBy: req.user.name || '관리자',
+            memo: `주문 복제 (원본: ${original.orderNumber})`,
+            createdAt: today.toISOString()
+        });
+
+        console.log(`[Admin] Order duplicated: ${original.orderNumber} → ${newOrderNumber} by ${req.user.name}`);
+
+        res.json({
+            success: true,
+            order: saved,
+            message: `주문이 복제되었습니다. 새 주문번호: ${newOrderNumber}`
+        });
+    } catch (error) {
+        console.error('[Admin] Order duplicate error:', error);
+        res.status(500).json({ success: false, error: '주문 복제 실패' });
+    }
+});
+
+// ============================================================
 // PATCH /api/admin/orders/bulk-status - 주문 일괄 상태 변경
 // 비유: 체크리스트에서 여러 항목을 한번에 체크하고 상태를 일괄 변경하는 것
 // ============================================================
@@ -813,6 +920,74 @@ router.post('/orders/:id/notify', (req, res) => {
     } catch (error) {
         console.error('[Admin] Notify error:', error);
         res.status(500).json({ success: false, error: '알림 발송 실패' });
+    }
+});
+
+// ============================================================
+// GET /api/admin/orders/:id/comments - 코멘트 목록 조회 (최신순)
+// 비유: 주문 폴더에 붙어있는 포스트잇들을 최신 것부터 읽는 것
+// ============================================================
+router.get('/orders/:id/comments', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const order = db.findById('orders', id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
+        }
+
+        // comments 배열이 없으면 빈 배열 반환
+        const comments = (order.comments || [])
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        res.json({ success: true, comments });
+    } catch (error) {
+        console.error('[Admin] Comments list error:', error);
+        res.status(500).json({ success: false, error: '코멘트 조회 실패' });
+    }
+});
+
+// ============================================================
+// POST /api/admin/orders/:id/comments - 코멘트 추가
+// 비유: 주문 폴더에 새 포스트잇을 붙이는 것 (기존 것은 그대로 유지)
+// ============================================================
+router.post('/orders/:id/comments', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const order = db.findById('orders', id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
+        }
+
+        const { text, author } = req.body;
+
+        // 코멘트 내용 필수 검증
+        if (!text || !text.trim()) {
+            return res.status(400).json({ success: false, error: '코멘트 내용을 입력하세요.' });
+        }
+
+        // 새 코멘트 객체 생성 (고유 ID = 현재 타임스탬프)
+        const newComment = {
+            id: Date.now(),
+            text: text.trim(),
+            author: author || req.user?.name || '관리자',  // 담당자명 (JWT에서 자동)
+            createdAt: new Date().toISOString()
+        };
+
+        // 기존 comments 배열에 추가 (없으면 새로 생성)
+        if (!order.comments) order.comments = [];
+        order.comments.push(newComment);
+
+        // DB에 저장
+        db.updateById('orders', id, { comments: order.comments });
+
+        console.log(`[Admin] Comment added to ${order.orderNumber} by ${newComment.author}`);
+
+        res.json({ success: true, comment: newComment });
+    } catch (error) {
+        console.error('[Admin] Comment add error:', error);
+        res.status(500).json({ success: false, error: '코멘트 추가 실패' });
     }
 });
 

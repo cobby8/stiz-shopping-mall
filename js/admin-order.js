@@ -170,6 +170,7 @@ async function loadOrderDetail(orderId) {
         renderHistory();
         renderQuickStatusButtons();
         renderContactInfo();
+        loadComments(currentOrder.id);  // 코멘트 타임라인 로드
 
         // 로딩 숨기고 콘텐츠 표시
         document.getElementById('loading').classList.add('hidden');
@@ -705,6 +706,42 @@ async function changeStatus(newStatus, memo) {
 }
 
 // ============================================================
+// 주문 복제 (재주문)
+// 비유: 지난번 주문서를 복사기에 넣고 새 주문서로 만드는 것
+// 고객/아이템은 그대로, 상태/결제는 처음부터 시작
+// ============================================================
+async function duplicateOrder() {
+    if (!currentOrder) return;
+
+    // 복제 전 확인 — 실수로 누르는 것을 방지
+    const customerName = currentOrder.customer?.name || '고객';
+    const orderNum = currentOrder.orderNumber || '';
+    if (!confirm(`이 주문을 복제하시겠습니까?\n\n원본: ${orderNum} (${customerName})\n\n복제된 주문은 "시안 요청" 상태로 새로 생성됩니다.`)) {
+        return;
+    }
+
+    try {
+        const res = await adminFetch(`/api/admin/orders/${currentOrder.id}/duplicate`, {
+            method: 'POST'
+        });
+
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success && data.order) {
+            alert(data.message || '주문이 복제되었습니다.');
+            // 새로 생성된 주문의 상세 페이지로 이동
+            window.location.href = `admin-order.html?id=${data.order.id}`;
+        } else {
+            alert('주문 복제 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[AdminOrder] 주문 복제 실패:', error);
+        alert('주문 복제 중 오류가 발생했습니다.');
+    }
+}
+
+// ============================================================
 // 알림 발송
 // ============================================================
 async function sendNotification() {
@@ -927,6 +964,118 @@ async function confirmPayment() {
         console.error('[AdminOrder] 입금 확인 실패:', error);
         alert('입금 확인 중 오류가 발생했습니다.');
     }
+}
+
+// ============================================================
+// 코멘트 시스템 (주문별 타임라인형 메모)
+// 비유: 주문 폴더에 포스트잇을 붙이고, 시간순으로 쌓이는 메모장
+// ============================================================
+
+/** 현재 주문의 코멘트 목록을 서버에서 불러온다 */
+async function loadComments(orderId) {
+    try {
+        const res = await adminFetch(`/api/admin/orders/${orderId}/comments`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (data.success) {
+            renderComments(data.comments || []);
+        }
+    } catch (error) {
+        console.error('[AdminOrder] 코멘트 로드 실패:', error);
+    }
+}
+
+/**
+ * 새 코멘트를 등록한다
+ * 담당자명은 JWT 토큰에서 자동 추출 (서버에서도 fallback 처리)
+ */
+async function addComment() {
+    const input = document.getElementById('comment-input');
+    const text = input.value.trim();
+
+    // 빈 코멘트 방지
+    if (!text) {
+        alert('코멘트 내용을 입력해주세요.');
+        return;
+    }
+
+    // JWT에서 현재 로그인한 관리자 이름 추출
+    let authorName = '관리자';
+    try {
+        const token = getAdminToken();
+        if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            authorName = payload.name || '관리자';
+        }
+    } catch (e) { /* fallback: '관리자' */ }
+
+    try {
+        const res = await adminFetch(`/api/admin/orders/${currentOrder.id}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ text, author: authorName })
+        });
+
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success) {
+            // 입력 필드 초기화 후 목록 새로고침
+            input.value = '';
+            loadComments(currentOrder.id);
+        } else {
+            alert('코멘트 등록 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[AdminOrder] 코멘트 추가 실패:', error);
+        alert('코멘트 등록 중 오류가 발생했습니다.');
+    }
+}
+
+/**
+ * 코멘트 목록을 타임라인 형태로 렌더링 (최신이 위)
+ * 각 코멘트: 작성자 + 시간 + 내용
+ */
+function renderComments(comments) {
+    const container = document.getElementById('comments-list');
+
+    if (!comments || comments.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400">코멘트가 없습니다.</p>';
+        return;
+    }
+
+    container.innerHTML = comments.map(comment => {
+        // 시간 표시: 오늘이면 시:분만, 아니면 날짜+시간
+        const dateStr = comment.createdAt ? formatCommentDate(comment.createdAt) : '';
+
+        return `
+            <div class="border-l-2 border-gray-200 pl-3 py-1">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-gray-700">${escapeHtml(comment.author || '관리자')}</span>
+                    <span class="text-xs text-gray-400">${dateStr}</span>
+                </div>
+                <p class="text-sm text-gray-600 mt-0.5 whitespace-pre-wrap">${escapeHtml(comment.text)}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * 코멘트 날짜 포맷: 오늘이면 "14:30", 올해면 "3/26 14:30", 다른 해면 "2025-03-26"
+ * 비유: 카카오톡 채팅방 시간 표시처럼 최근일수록 간략하게
+ */
+function formatCommentDate(dateString) {
+    const d = new Date(dateString);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const isSameYear = d.getFullYear() === now.getFullYear();
+
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+
+    if (isToday) return `${h}:${min}`;
+    if (isSameYear) return `${d.getMonth() + 1}/${d.getDate()} ${h}:${min}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** 로그아웃 */
