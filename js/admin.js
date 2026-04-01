@@ -48,6 +48,24 @@ const SPORT_LABELS = {
     softball: '소프트볼'
 };
 
+// 고객 등급 계산 함수 (주문 목록에서 VIP/단골 배지 표시용)
+// 서버의 calculateGrade와 동일한 기준을 프론트에서도 사용
+function getCustomerGradeBadge(customer) {
+    if (!customer) return '';
+    const totalSpent = customer.totalSpent || 0;
+    const orderCount = customer.orderCount || 0;
+
+    // VIP: 총매출 500만원 이상 또는 주문 5건 이상
+    if (totalSpent >= 5000000 || orderCount >= 5) {
+        return '<span class="ml-1 text-xs font-bold px-1.5 py-0.5 rounded" style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;">VIP</span>';
+    }
+    // 단골: 총매출 100만원 이상 또는 주문 2건 이상
+    if (totalSpent >= 1000000 || orderCount >= 2) {
+        return '<span class="ml-1 text-xs font-bold px-1.5 py-0.5 rounded" style="background:#dbeafe;color:#1e40af;border:1px solid #3b82f6;">단골</span>';
+    }
+    return '';  // 일반/신규는 주문 목록에서 배지 표시하지 않음
+}
+
 // 상태별 탭 정의 — 진행중 주문을 세부 상태별로 나눠보기 위한 탭 목록
 // 비유: "진행중" 서랍을 열면 그 안에 "시안요청", "제작중" 등 작은 칸막이가 있는 것
 const STATUS_TABS = [
@@ -60,6 +78,54 @@ const STATUS_TABS = [
     { code: 'released', label: '출고' },
     { code: 'hold', label: '보류' }
 ];
+
+// ============================================================
+// D-day 계산 헬퍼 — 납기까지 남은 일수를 계산
+// 비유: 시험일까지 남은 날을 세는 것. 음수면 이미 지남
+// ============================================================
+
+/**
+ * 희망납기(desiredDate)까지 남은 일수를 계산하여 { text, cssClass } 반환
+ * @param {string} desiredDate - ISO 날짜 문자열 (예: "2026-04-05T00:00:00.000Z")
+ * @param {string} orderStatus - 주문 상태 (delivered/cancelled면 표시 안 함)
+ * @returns {{ text: string, cssClass: string }} D-day 텍스트와 CSS 클래스
+ */
+function calcDday(desiredDate, orderStatus) {
+    // 완료/취소 주문은 D-day 표시 안 함
+    if (!desiredDate || orderStatus === 'delivered' || orderStatus === 'cancelled') {
+        return { text: '-', cssClass: '' };
+    }
+
+    // 오늘 자정과 납기일 자정의 차이를 일(day) 단위로 계산
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);                    // 오늘 0시로 통일
+    const deadline = new Date(desiredDate);
+    deadline.setHours(0, 0, 0, 0);                  // 납기일도 0시로 통일
+
+    const diffMs = deadline - today;                 // 밀리초 차이
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)); // 일 단위 변환
+
+    // D-day 텍스트 생성 (D-3, D-day, D+2 형태)
+    let text, cssClass;
+    if (diffDays > 0) {
+        text = `D-${diffDays}`;                      // 3일 남음 → "D-3"
+    } else if (diffDays === 0) {
+        text = 'D-day';                              // 오늘이 납기일
+    } else {
+        text = `D+${Math.abs(diffDays)}`;            // 2일 초과 → "D+2"
+    }
+
+    // 색상 클래스 결정 — 초록(여유) / 주황(임박) / 빨강(초과)
+    if (diffDays > 3) {
+        cssClass = 'dday-safe';                      // 4일 이상 남음: 초록
+    } else if (diffDays >= 1) {
+        cssClass = 'dday-warn';                      // 1~3일 남음: 주황 (주의)
+    } else {
+        cssClass = 'dday-danger';                    // D-day 또는 초과: 빨강 (위험)
+    }
+
+    return { text, cssClass };
+}
 
 // 현재 선택된 메인 탭을 추적 (active/all/unpaid)
 let currentMainTab = 'active';
@@ -293,6 +359,8 @@ async function loadOrders() {
         if (currentFilters.dateTo) params.set('dateTo', currentFilters.dateTo);
         if (currentFilters.amountMin) params.set('amountMin', currentFilters.amountMin);
         if (currentFilters.amountMax) params.set('amountMax', currentFilters.amountMax);
+        // 정렬 기준 — 납기순(deadline) 등 커스텀 정렬 지원
+        if (currentFilters.sortBy) params.set('sortBy', currentFilters.sortBy);
         // 완료 주문 제외 여부 — "진행중" 탭이면 true, "전체" 탭이면 false
         params.set('excludeCompleted', currentFilters.excludeCompleted);
         params.set('page', currentFilters.page);
@@ -342,6 +410,8 @@ function renderOrdersTable(orders) {
         // 팀명 (customer.teamName이 없으면 고객명 표시)
         const teamName = order.customer?.teamName || '-';
         const customerName = order.customer?.name || '-';
+        // 고객 등급 배지 (VIP/단골만 표시, 일반/신규는 생략)
+        const gradeBadge = getCustomerGradeBadge(order.customer);
         // 종목 (첫 번째 아이템 기준)
         const sport = order.items?.[0]?.sport || '';
         const sportLabel = SPORT_LABELS[sport] || sport || '-';
@@ -359,6 +429,9 @@ function renderOrdersTable(orders) {
         const receiptDate = order.orderReceiptDate || order.createdAt;
         const createdDate = receiptDate ? formatDate(receiptDate) : '-';
 
+        // D-day 계산: 희망납기까지 남은 일수 (초록/주황/빨강으로 긴급도 표시)
+        const dday = calcDday(order.shipping?.desiredDate, order.status);
+
         row.innerHTML = `
             <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
                 <input type="checkbox" class="order-checkbox w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer"
@@ -366,7 +439,7 @@ function renderOrdersTable(orders) {
                     onchange="onOrderCheckboxChange()">
             </td>
             <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">${order.orderNumber || '-'}</td>
-            <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}</td>
+            <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}${gradeBadge}</td>
             <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
             <td class="px-4 py-3 whitespace-nowrap">
                 <span>${sportLabel}</span>
@@ -376,6 +449,7 @@ function renderOrdersTable(orders) {
             <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(order.manager || '미배정')}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${formatCurrency(amount)}</td>
             <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${createdDate}</td>
+            <td class="px-4 py-3 text-center text-xs whitespace-nowrap ${dday.cssClass}">${dday.text}</td>
         `;
 
         // 행 클릭 시 주문 상세 페이지로 이동 (체크박스 영역은 stopPropagation으로 제외)
@@ -383,6 +457,30 @@ function renderOrdersTable(orders) {
 
         tbody.appendChild(row);
     });
+
+    // 납기 임박 건수 계산: D-3 이내(D-day, D+N 포함)인 진행중 주문만 카운트
+    // 비유: "3일 안에 납품해야 하는 주문이 몇 건인가?" 세는 것
+    let deadlineCount = 0;
+    orders.forEach(order => {
+        if (order.status === 'delivered' || order.status === 'cancelled') return;
+        if (!order.shipping?.desiredDate) return;
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const dl = new Date(order.shipping.desiredDate); dl.setHours(0, 0, 0, 0);
+        const diff = Math.round((dl - today) / (1000 * 60 * 60 * 24));
+        if (diff <= 3) deadlineCount++;              // D-3 이하면 "임박"으로 카운트
+    });
+
+    // 납기 임박 경고 배지 표시/숨김
+    const deadlineWrap = document.getElementById('deadline-alert-wrap');
+    const deadlineStat = document.getElementById('stat-deadline');
+    if (deadlineWrap && deadlineStat) {
+        if (deadlineCount > 0) {
+            deadlineWrap.classList.remove('hidden');
+            deadlineStat.textContent = `${deadlineCount}건`;
+        } else {
+            deadlineWrap.classList.add('hidden');
+        }
+    }
 
     // 전체 선택 체크박스 초기화 + 일괄 작업 바 숨김
     const selectAllCb = document.getElementById('select-all-checkbox');
@@ -616,6 +714,19 @@ function updateTabCounts(pagination) {
     }
 }
 
+/**
+ * 납기 임박 배지 클릭 시 납기순(deadline) 정렬로 주문 목록 재로드
+ * 비유: "가장 급한 주문부터 보여줘!" 버튼
+ */
+function sortByDeadline() {
+    // 진행중 탭으로 전환 (완료/취소 주문은 제외)
+    switchTab('active');
+    // 정렬 기준을 deadline으로 변경하여 서버에서 납기 오름차순 정렬
+    currentFilters.sortBy = 'deadline';
+    currentFilters.page = 1;
+    loadOrders();
+}
+
 /** 상태 카드 클릭 시 해당 상태 그룹으로 필터 */
 function filterByStatus(group) {
     const select = document.getElementById('filter-status');
@@ -773,7 +884,7 @@ function resetFilters() {
 
     currentFilters = {
         status: '', manager: '', sport: '', dealType: '',
-        search: '', unpaid: '',
+        search: '', unpaid: '', sortBy: '',
         dateFrom: '', dateTo: '', amountMin: '', amountMax: '',
         excludeCompleted: true, // 초기화 시 "진행중" 탭으로 복원
         page: 1

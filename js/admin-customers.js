@@ -35,9 +35,18 @@ const STATUS_LABELS = {
     processing: '처리중'
 };
 
+// 등급 라벨 정의 (서버에서 반환하는 grade 값 → 한국어 + CSS 클래스)
+const GRADE_CONFIG = {
+    vip:     { label: 'VIP',  badgeClass: 'badge-grade-vip' },
+    regular: { label: '단골', badgeClass: 'badge-grade-regular' },
+    normal:  { label: '일반', badgeClass: 'badge-grade-normal' },
+    new:     { label: '신규', badgeClass: 'badge-grade-new' }
+};
+
 // 현재 필터 상태 (비유: 검색 조건표)
 let currentFilters = {
     dealType: '',
+    grade: '',      // 등급 필터 추가
     sortBy: 'orderCount',
     search: '',
     page: 1
@@ -178,6 +187,7 @@ async function loadCustomers() {
         // 필터 조건을 URL 쿼리 파라미터로 변환
         const params = new URLSearchParams();
         if (currentFilters.dealType) params.set('dealType', currentFilters.dealType);
+        if (currentFilters.grade) params.set('grade', currentFilters.grade);  // 등급 필터
         if (currentFilters.search) params.set('search', currentFilters.search);
         params.set('sortBy', currentFilters.sortBy);
         params.set('sortOrder', currentFilters.sortBy === 'name' ? 'asc' : 'desc');
@@ -224,6 +234,8 @@ function renderCustomersTable(customers) {
 
         // 거래유형 배지 색상 결정
         const dealBadge = getDealTypeBadge(customer.dealType);
+        // 등급 배지 (서버에서 계산된 grade 필드 사용)
+        const gradeBadge = getGradeBadge(customer.grade);
         // 총 매출 포맷
         const totalSpent = formatCurrency(customer.totalSpent || 0);
         // 최근 주문일 (lastOrderDate가 있으면 표시)
@@ -234,6 +246,7 @@ function renderCustomersTable(customers) {
         row.innerHTML = `
             <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(customer.name || '-')}</td>
             <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(customer.teamName || '-')}</td>
+            <td class="px-4 py-3 text-center whitespace-nowrap">${gradeBadge}</td>
             <td class="px-4 py-3 whitespace-nowrap">${dealBadge}</td>
             <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customer.phone || '-')}</td>
             <td class="px-4 py-3 text-center whitespace-nowrap ${orderCountClass}">${customer.orderCount || 0}</td>
@@ -262,6 +275,15 @@ function getDealTypeBadge(dealType) {
     else if (dealType.includes('프로') || dealType.includes('구단') || dealType.includes('실업')) badgeClass = 'badge-pro';
 
     return `<span class="${badgeClass} text-xs font-medium px-2 py-1 rounded-full">${escapeHtml(dealType)}</span>`;
+}
+
+/**
+ * 고객 등급에 따른 배지 HTML 반환
+ * 비유: 고객 카드에 금색/파란색/초록색 스탬프를 찍는 것
+ */
+function getGradeBadge(grade) {
+    const config = GRADE_CONFIG[grade] || GRADE_CONFIG.normal;
+    return `<span class="${config.badgeClass} text-xs font-bold px-2 py-0.5 rounded-full">${config.label}</span>`;
 }
 
 /**
@@ -323,6 +345,7 @@ function createPageButton(label, page) {
 /** 필터 드롭다운 변경 시 호출 */
 function applyFilters() {
     currentFilters.dealType = document.getElementById('filter-dealType').value;
+    currentFilters.grade = document.getElementById('filter-grade').value;  // 등급 필터
     currentFilters.sortBy = document.getElementById('filter-sort').value;
     currentFilters.page = 1;
     loadCustomers();
@@ -340,10 +363,11 @@ function handleSearchKeyup(event) {
 /** 모든 필터 초기화 */
 function resetFilters() {
     document.getElementById('filter-dealType').value = '';
+    document.getElementById('filter-grade').value = '';
     document.getElementById('filter-sort').value = 'orderCount';
     document.getElementById('filter-search').value = '';
 
-    currentFilters = { dealType: '', sortBy: 'orderCount', search: '', page: 1 };
+    currentFilters = { dealType: '', grade: '', sortBy: 'orderCount', search: '', page: 1 };
     loadCustomers();
 }
 
@@ -381,8 +405,9 @@ async function openCustomerModal(customerId) {
         const customer = data.customer;
         const orders = data.orders || [];
 
-        // 기본 정보 채우기
+        // 기본 정보 채우기 (등급 배지도 고객명 옆에 표시)
         document.getElementById('modal-name').textContent = customer.name || '-';
+        document.getElementById('modal-grade').innerHTML = getGradeBadge(customer.grade);
         document.getElementById('modal-teamName').textContent = customer.teamName || '-';
         document.getElementById('modal-phone').textContent = customer.phone || '-';
         document.getElementById('modal-email').textContent = customer.email || '-';

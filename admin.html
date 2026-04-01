@@ -72,6 +72,12 @@
         /* 모바일에서 테이블 가로 스크롤 */
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+        /* ===== D-day 납기 배지 색상 ===== */
+        /* 비유: 신호등처럼 초록(여유) → 주황(주의) → 빨강(위험)으로 긴급도 표시 */
+        .dday-safe { color: #16a34a; }                          /* 초록: D-4 이상 여유 */
+        .dday-warn { color: #ea580c; font-weight: 700; }        /* 주황 굵게: D-1 ~ D-3 임박 */
+        .dday-danger { color: #dc2626; font-weight: 700; }      /* 빨강 굵게: D-day 또는 초과 */
+
         /* ===== 상태별 탭 바 — 넓직한 카드형 디자인 ===== */
         /* 비유: 엑셀 시트 하단의 탭처럼, 각 상태가 넓은 버튼으로 한눈에 보임 */
         .status-tab-bar {
@@ -257,6 +263,15 @@
             <div class="cursor-pointer" onclick="filterByStatus('hold')">
                 <p class="text-sm text-gray-500">보류</p>
                 <p id="stat-hold" class="text-xl font-bold text-gray-400">-</p>
+            </div>
+            <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+            <!-- 납기 임박: D-3 이내 주문 건수 (클릭 시 납기순 정렬) -->
+            <div id="deadline-alert-wrap" class="cursor-pointer hidden" onclick="sortByDeadline()">
+                <p class="text-sm text-gray-500 flex items-center">
+                    <span class="material-symbols-outlined text-red-500 text-base mr-1">warning</span>
+                    납기 임박
+                </p>
+                <p id="stat-deadline" class="text-xl font-bold text-red-500">-</p>
             </div>
         </div>
 
@@ -539,6 +554,7 @@
                             <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">담당자</th>
                             <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">금액</th>
                             <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">접수일</th>
+                            <th class="text-center px-4 py-3 font-medium text-gray-500 whitespace-nowrap">납기</th>
                         </tr>
                     </thead>
                     <tbody id="orders-tbody">

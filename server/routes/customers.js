@@ -15,6 +15,39 @@ import db from '../db.js';
 const router = express.Router();
 
 // ============================================================
+// VIP 등급 자동 계산 함수
+// 비유: 고객 카드에 "VIP", "단골" 등의 스탬프를 찍어주는 것
+// 등급은 저장하지 않고, 매번 실시간으로 계산한다 (매출 변동 즉시 반영)
+// ============================================================
+function calculateGrade(customer) {
+    const totalSpent = customer.totalSpent || 0;
+    const orderCount = customer.orderCount || 0;
+    const createdAt = customer.createdAt ? new Date(customer.createdAt) : null;
+
+    // VIP: 총매출 500만원 이상 또는 주문 5건 이상
+    if (totalSpent >= 5000000 || orderCount >= 5) {
+        return 'vip';
+    }
+
+    // 단골: 총매출 100만원 이상 또는 주문 2건 이상
+    if (totalSpent >= 1000000 || orderCount >= 2) {
+        return 'regular';
+    }
+
+    // 신규: 주문 1건이고 최근 3개월 이내 등록
+    if (orderCount === 1 && createdAt) {
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        if (createdAt >= threeMonthsAgo) {
+            return 'new';
+        }
+    }
+
+    // 일반: 그 외 모든 고객
+    return 'normal';
+}
+
+// ============================================================
 // GET /api/admin/customers - 고객 목록 (검색/정렬/페이지네이션)
 // 비유: 고객 명부를 넘기면서 원하는 고객을 찾는 것
 // ============================================================
@@ -36,6 +69,14 @@ router.get('/', (req, res) => {
         // 거래유형 필터 (예: ?dealType=재고)
         if (req.query.dealType) {
             customers = customers.filter(c => c.dealType === req.query.dealType);
+        }
+
+        // 각 고객에 등급(grade) 필드를 실시간 계산하여 추가
+        customers = customers.map(c => ({ ...c, grade: calculateGrade(c) }));
+
+        // 등급 필터 (예: ?grade=vip)
+        if (req.query.grade) {
+            customers = customers.filter(c => c.grade === req.query.grade);
         }
 
         // 전체 건수 (페이지네이션 전)
@@ -70,6 +111,48 @@ router.get('/', (req, res) => {
 });
 
 // ============================================================
+// GET /api/admin/customers/stats/summary - 고객 통계 요약
+// 주의: /:id 라우트보다 먼저 정의해야 "stats"가 id로 해석되지 않음
+// ============================================================
+router.get('/stats/summary', (req, res) => {
+    try {
+        const customers = db.getAll('customers');
+
+        // 거래유형별 + 등급별 집계
+        const dealTypeCounts = {};
+        const gradeCounts = { vip: 0, regular: 0, normal: 0, new: 0 };
+        let totalCustomers = customers.length;
+        let repeatCustomers = 0;  // 재주문 고객 (2건 이상)
+
+        customers.forEach(c => {
+            const dt = c.dealType || '미분류';
+            dealTypeCounts[dt] = (dealTypeCounts[dt] || 0) + 1;
+            if (c.orderCount >= 2) repeatCustomers++;
+
+            // 등급별 고객수 집계
+            const grade = calculateGrade(c);
+            gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
+        });
+
+        res.json({
+            success: true,
+            stats: {
+                totalCustomers,
+                repeatCustomers,
+                repeatRate: totalCustomers > 0
+                    ? Math.round((repeatCustomers / totalCustomers) * 100)
+                    : 0,
+                dealTypeCounts,
+                gradeCounts  // 등급별 고객수 (VIP, 단골, 일반, 신규)
+            }
+        });
+    } catch (error) {
+        console.error('[Admin] Customer stats error:', error);
+        res.status(500).json({ success: false, error: '고객 통계 조회 실패' });
+    }
+});
+
+// ============================================================
 // GET /api/admin/customers/:id - 고객 상세 (+ 연결된 주문 목록)
 // 비유: 고객 카드를 열어서 거래 이력을 한눈에 보는 것
 // ============================================================
@@ -82,6 +165,9 @@ router.get('/:id', (req, res) => {
         if (!customer) {
             return res.status(404).json({ success: false, error: '고객을 찾을 수 없습니다.' });
         }
+
+        // 고객 상세에도 등급 정보 포함
+        customer.grade = calculateGrade(customer);
 
         // 해당 고객의 주문 목록 가져오기
         const allOrders = db.getAll('orders');
@@ -211,41 +297,6 @@ router.post('/merge', (req, res) => {
     } catch (error) {
         console.error('[Admin] Merge error:', error);
         res.status(500).json({ success: false, error: '고객 병합 실패' });
-    }
-});
-
-// ============================================================
-// GET /api/admin/customers/stats/summary - 고객 통계 요약
-// ============================================================
-router.get('/stats/summary', (req, res) => {
-    try {
-        const customers = db.getAll('customers');
-
-        // 거래유형별 집계
-        const dealTypeCounts = {};
-        let totalCustomers = customers.length;
-        let repeatCustomers = 0;  // 재주문 고객 (2건 이상)
-
-        customers.forEach(c => {
-            const dt = c.dealType || '미분류';
-            dealTypeCounts[dt] = (dealTypeCounts[dt] || 0) + 1;
-            if (c.orderCount >= 2) repeatCustomers++;
-        });
-
-        res.json({
-            success: true,
-            stats: {
-                totalCustomers,
-                repeatCustomers,
-                repeatRate: totalCustomers > 0
-                    ? Math.round((repeatCustomers / totalCustomers) * 100)
-                    : 0,
-                dealTypeCounts
-            }
-        });
-    } catch (error) {
-        console.error('[Admin] Customer stats error:', error);
-        res.status(500).json({ success: false, error: '고객 통계 조회 실패' });
     }
 });
 

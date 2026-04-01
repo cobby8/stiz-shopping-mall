@@ -82,6 +82,21 @@ router.get('/orders', (req, res) => {
 
         let result = db.findByFilter('orders', filters, options);
 
+        // deadline 정렬: 납기(desiredDate) 오름차순 — 가장 급한 주문이 맨 위
+        // 비유: 마감일이 빠른 숙제부터 먼저 보여주는 것
+        if (req.query.sortBy === 'deadline') {
+            result.data.sort((a, b) => {
+                const aDate = a.shipping?.desiredDate || null;
+                const bDate = b.shipping?.desiredDate || null;
+                // 납기 없는 주문은 맨 뒤로 밀기
+                if (!aDate && !bDate) return 0;
+                if (!aDate) return 1;   // a에 납기 없으면 뒤로
+                if (!bDate) return -1;  // b에 납기 없으면 뒤로
+                // 둘 다 있으면 날짜 오름차순 (이른 날짜가 위)
+                return new Date(aDate) - new Date(bDate);
+            });
+        }
+
         // 미수금 필터: 결제일이 없고 금액이 있는 주문만 (비유: 외상 장부만 보기)
         if (req.query.unpaid === 'true') {
             const allOrders = db.getAll('orders');
@@ -100,6 +115,26 @@ router.get('/orders', (req, res) => {
                 totalPages: Math.ceil(unpaidOrders.length / limit)
             };
         }
+
+        // 각 주문의 고객에 VIP 등급 배지를 표시하기 위해
+        // customerId가 있으면 customers.json에서 실제 고객 데이터를 조회하여 grade 계산
+        const allCustomers = db.getAll('customers');
+        const customerMap = {};  // 캐시: 같은 고객 중복 조회 방지
+        allCustomers.forEach(c => { customerMap[c.id] = c; });
+
+        result.data.forEach(order => {
+            if (order.customerId && customerMap[order.customerId]) {
+                const cust = customerMap[order.customerId];
+                const totalSpent = cust.totalSpent || 0;
+                const orderCount = cust.orderCount || 0;
+                // 등급 계산 (customers.js의 calculateGrade와 동일 기준)
+                let grade = 'normal';
+                if (totalSpent >= 5000000 || orderCount >= 5) grade = 'vip';
+                else if (totalSpent >= 1000000 || orderCount >= 2) grade = 'regular';
+                // customer 객체에 grade 추가
+                if (order.customer) order.customer.grade = grade;
+            }
+        });
 
         res.json({
             success: true,
