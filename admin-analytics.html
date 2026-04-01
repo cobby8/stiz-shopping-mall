@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 매출/실적 분석</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* 관리자 페이지 전용 스타일 (admin.html과 동일) */
+        .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        /* 필터 드롭다운 */
+        .filter-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+
+        /* 로딩 스피너 */
+        .spinner {
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #111;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 모바일에서 테이블 가로 스크롤 */
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-gray-50 text-gray-900 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- 관리자 헤더 (4탭 네비게이션) -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <!-- 로고 + 관리자 표시 -->
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <!-- 네비게이션: 4탭 구조 — 매출 분석이 활성 상태 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin.html" class="text-gray-400 hover:text-white transition-colors">주문 관리</a>
+                <a href="admin-analytics.html" class="text-white font-medium border-b-2 border-brand-red pb-1">매출 분석</a>
+                <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <!-- 사용자 정보 + 로그아웃 -->
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <button onclick="handleLogout()"
+                    class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠: 매출/실적 분석 전용 -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- 페이지 타이틀 -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold">매출/실적 분석</h1>
+                <p class="text-sm text-gray-500 mt-1">연도별 매출 통계, 월별 추이, 담당자 실적, 고객 랭킹을 한눈에 확인합니다.</p>
+            </div>
+        </div>
+
+        <!-- ===== 연도 선택 헤더 ===== -->
+        <!-- 비유: 연간 보고서의 연도 탭 -- 드롭다운으로 해당 연도 통계만 조회 -->
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="stats-year-title" class="text-lg font-bold text-gray-800">
+                <span id="stats-year-label">2026</span>년 주문 현황
+            </h2>
+            <select id="stats-year-select"
+                class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium
+                       focus:outline-none focus:ring-2 focus:ring-brand-black bg-white">
+                <option value="2026">2026년</option>
+                <option value="2025">2025년</option>
+                <option value="2024">2024년</option>
+                <option value="2023">2023년</option>
+            </select>
+        </div>
+
+        <!-- ===== 상태 요약 카드 4개 ===== -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <!-- 시안 진행중 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-blue-500">palette</span>
+                    <span id="stat-design" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">시안 진행중</p>
+            </div>
+            <!-- 제작 진행중 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-amber-500">precision_manufacturing</span>
+                    <span id="stat-production" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">제작 진행중</p>
+            </div>
+            <!-- 배송 준비중 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-green-500">local_shipping</span>
+                    <span id="stat-shipping" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">배송 준비중</p>
+            </div>
+            <!-- 배송 완료 -->
+            <div class="stat-card bg-white rounded-xl p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="material-symbols-outlined text-gray-400">check_circle</span>
+                    <span id="stat-delivered" class="text-2xl font-bold">-</span>
+                </div>
+                <p class="text-sm text-gray-500">배송 완료</p>
+            </div>
+        </div>
+
+        <!-- ===== 매출 요약 + 미수금/보류 ===== -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8 flex flex-wrap items-center gap-6">
+            <div>
+                <p class="text-sm text-gray-500">총 주문</p>
+                <p id="stat-total" class="text-xl font-bold">-</p>
+            </div>
+            <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+            <div>
+                <p class="text-sm text-gray-500">총 매출</p>
+                <p id="stat-revenue" class="text-xl font-bold text-brand-red">-</p>
+            </div>
+            <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+            <!-- 미수금: 결제일 없고 금액이 있는 주문의 총액 -->
+            <div>
+                <p class="text-sm text-gray-500">미수금</p>
+                <p id="stat-unpaid" class="text-xl font-bold text-orange-500">-</p>
+            </div>
+            <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+            <!-- 보류: hold 상태인 주문 건수 -->
+            <div>
+                <p class="text-sm text-gray-500">보류</p>
+                <p id="stat-hold" class="text-xl font-bold text-gray-400">-</p>
+            </div>
+        </div>
+
+        <!-- ===== 월별 매출 차트 ===== -->
+        <!-- 비유: 월별 매출 막대그래프 + 주문수 라인 -- 한눈에 매출 추이 파악 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-brand-red">bar_chart</span>
+                    <span id="chart-title">월별 매출 추이</span>
+                </h3>
+                <!-- 차트 로딩 표시 -->
+                <span id="chart-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+            </div>
+            <!-- 반응형 차트 캔버스: 컨테이너 크기에 맞게 자동 조절 -->
+            <div style="position: relative; height: 320px;">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ===== 담당자별 실적 ===== -->
+        <!-- 비유: 직원별 성적표 -- 누가 얼마나 일했고 매출은 얼마인지 한눈에 비교 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-blue-500">groups</span>
+                    <span id="staff-title">담당자별 실적</span>
+                </h3>
+                <!-- 로딩 표시 -->
+                <span id="staff-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+            </div>
+            <!-- 담당자 실적 테이블 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">담당자</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문수</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">매출</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">완료율</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">평균 처리일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-stats-tbody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- 데이터 없을 때 표시 -->
+            <div id="staff-empty" class="hidden text-center py-8 text-sm text-gray-400">
+                담당자 실적 데이터가 없습니다.
+            </div>
+        </div>
+
+        <!-- ===== 고객별 매출 랭킹 TOP 20 ===== -->
+        <!-- 비유: VIP 고객 순위표 -- 매출이 높은 단골 고객을 한눈에 파악 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-amber-500">emoji_events</span>
+                    <span id="top-customers-title">고객별 매출 랭킹 TOP 20</span>
+                </h3>
+                <div class="flex items-center gap-3">
+                    <!-- 재주문율 요약 배지 -->
+                    <span id="top-customers-repeat" class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full hidden">
+                        재주문율 -
+                    </span>
+                    <!-- 로딩 표시 -->
+                    <span id="top-customers-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+                </div>
+            </div>
+            <!-- 고객 매출 랭킹 테이블 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="text-center px-3 py-3 font-medium text-gray-500 whitespace-nowrap w-12">순위</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">거래유형</th>
+                            <th class="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">주문수</th>
+                            <th class="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">총매출</th>
+                            <th class="text-center px-3 py-3 font-medium text-gray-500 whitespace-nowrap">재주문</th>
+                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">최근주문</th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-customers-tbody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- 데이터 없을 때 표시 -->
+            <div id="top-customers-empty" class="hidden text-center py-8 text-sm text-gray-400">
+                고객 매출 데이터가 없습니다.
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ===== 스크립트 ===== -->
+    <!-- Chart.js CDN: 월별 매출 차트용 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 매출/실적 분석 전용 JS -->
+    <script src="js/admin-analytics.js"></script>
+</body>
+
+</html>

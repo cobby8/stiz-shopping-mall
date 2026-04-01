@@ -87,9 +87,10 @@
                 <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
             </div>
 
-            <!-- 네비게이션 -->
+            <!-- 네비게이션: 4탭 구조 — 주문 관리가 활성 상태 -->
             <nav class="hidden md:flex items-center space-x-8">
                 <a href="admin.html" class="text-white font-medium border-b-2 border-brand-red pb-1">주문 관리</a>
+                <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
                 <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
                 <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
             </nav>
@@ -201,100 +202,6 @@
             <div class="cursor-pointer" onclick="filterByStatus('hold')">
                 <p class="text-sm text-gray-500">보류</p>
                 <p id="stat-hold" class="text-xl font-bold text-gray-400">-</p>
-            </div>
-        </div>
-
-        <!-- ===== 월별 매출 차트 (D-1) ===== -->
-        <!-- 비유: 월별 매출 막대그래프 + 주문수 라인 — 한눈에 매출 추이 파악 -->
-        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-gray-800 flex items-center">
-                    <span class="material-symbols-outlined mr-2 text-brand-red">bar_chart</span>
-                    <span id="chart-title">월별 매출 추이</span>
-                </h3>
-                <!-- 차트 로딩 표시 -->
-                <span id="chart-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
-            </div>
-            <!-- 반응형 차트 캔버스: 컨테이너 크기에 맞게 자동 조절 -->
-            <div style="position: relative; height: 320px;">
-                <canvas id="monthlyChart"></canvas>
-            </div>
-        </div>
-
-        <!-- ===== 담당자별 실적 (D-2) ===== -->
-        <!-- 비유: 직원별 성적표 — 누가 얼마나 일했고 매출은 얼마인지 한눈에 비교 -->
-        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-gray-800 flex items-center">
-                    <span class="material-symbols-outlined mr-2 text-blue-500">groups</span>
-                    <span id="staff-title">담당자별 실적</span>
-                </h3>
-                <!-- 로딩 표시 -->
-                <span id="staff-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
-            </div>
-            <!-- 담당자 실적 테이블 -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">담당자</th>
-                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문수</th>
-                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">매출</th>
-                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">완료율</th>
-                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">평균 처리일</th>
-                        </tr>
-                    </thead>
-                    <tbody id="staff-stats-tbody">
-                        <!-- JS에서 동적 렌더링 -->
-                    </tbody>
-                </table>
-            </div>
-            <!-- 데이터 없을 때 표시 -->
-            <div id="staff-empty" class="hidden text-center py-8 text-sm text-gray-400">
-                담당자 실적 데이터가 없습니다.
-            </div>
-        </div>
-
-        <!-- ===== 고객별 매출 랭킹 TOP 20 (D-3) ===== -->
-        <!-- 비유: VIP 고객 순위표 — 매출이 높은 단골 고객을 한눈에 파악 -->
-        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-gray-800 flex items-center">
-                    <span class="material-symbols-outlined mr-2 text-amber-500">emoji_events</span>
-                    <span id="top-customers-title">고객별 매출 랭킹 TOP 20</span>
-                </h3>
-                <div class="flex items-center gap-3">
-                    <!-- 재주문율 요약 배지 -->
-                    <span id="top-customers-repeat" class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full hidden">
-                        재주문율 -
-                    </span>
-                    <!-- 로딩 표시 -->
-                    <span id="top-customers-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
-                </div>
-            </div>
-            <!-- 고객 매출 랭킹 테이블 -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th class="text-center px-3 py-3 font-medium text-gray-500 whitespace-nowrap w-12">순위</th>
-                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
-                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
-                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">거래유형</th>
-                            <th class="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">주문수</th>
-                            <th class="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">총매출</th>
-                            <th class="text-center px-3 py-3 font-medium text-gray-500 whitespace-nowrap">재주문</th>
-                            <th class="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">최근주문</th>
-                        </tr>
-                    </thead>
-                    <tbody id="top-customers-tbody">
-                        <!-- JS에서 동적 렌더링 -->
-                    </tbody>
-                </table>
-            </div>
-            <!-- 데이터 없을 때 표시 -->
-            <div id="top-customers-empty" class="hidden text-center py-8 text-sm text-gray-400">
-                고객 매출 데이터가 없습니다.
             </div>
         </div>
 
@@ -543,8 +450,7 @@
     </main>
 
     <!-- ===== 스크립트 ===== -->
-    <!-- Chart.js CDN: 월별 매출 차트용 (D-1) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js 제거: 분석 차트는 admin-analytics.html로 이동됨 -->
     <!-- auth.js 제거: admin.js가 자체 인증 로직 보유, const API_BASE 중복 선언 방지 -->
     <script src="js/admin.js"></script>
 </body>
