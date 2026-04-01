@@ -235,6 +235,9 @@ function renderOrderDetail() {
 
     // 입금 확인 영역 렌더링 (금융 탭 내)
     renderPaymentConfirmSection();
+
+    // 태그(라벨) 영역 렌더링 — 프리셋 + 커스텀 태그 표시
+    renderTags();
 }
 
 /**
@@ -707,6 +710,123 @@ async function changeStatus(newStatus, memo) {
 
 // ============================================================
 // 주문 복제 (재주문)
+// ============================================================
+// 태그(라벨) 시스템
+// 비유: 주문서에 색깔 스티커를 붙여서 급함/VIP/수정요청 등을 한눈에 파악
+// ============================================================
+
+// 프리셋 태그 정의: { 이름, CSS 클래스 }
+const TAG_PRESETS = [
+    { name: '급함',     cssClass: 'tag-urgent' },
+    { name: 'VIP',      cssClass: 'tag-vip' },
+    { name: '수정요청', cssClass: 'tag-revision' },
+    { name: '확인필요', cssClass: 'tag-check' },
+    { name: '보류',     cssClass: 'tag-hold' },
+];
+
+/**
+ * 태그 영역을 현재 주문의 tags 배열 기준으로 렌더링
+ * 프리셋 태그: 클릭하면 토글(추가/제거)
+ * 커스텀 태그: X 버튼으로 제거 가능
+ */
+function renderTags() {
+    const order = currentOrder;
+    const tags = order.tags || [];         // 현재 주문에 붙어있는 태그 목록
+
+    // 프리셋 태그 렌더링 — 활성/비활성 구분
+    const presetsEl = document.getElementById('tag-presets');
+    if (presetsEl) {
+        presetsEl.innerHTML = TAG_PRESETS.map(preset => {
+            const isActive = tags.includes(preset.name);  // 이미 붙어있으면 활성
+            return `<span class="tag-badge ${preset.cssClass} ${isActive ? '' : 'inactive'}"
+                          onclick="togglePresetTag('${preset.name}')">${preset.name}</span>`;
+        }).join('');
+    }
+
+    // 커스텀 태그 렌더링 — 프리셋에 없는 태그만 표시
+    const presetNames = TAG_PRESETS.map(p => p.name);
+    const customTags = tags.filter(t => !presetNames.includes(t));
+    const customListEl = document.getElementById('tag-custom-list');
+    if (customListEl) {
+        customListEl.innerHTML = customTags.map(tag =>
+            `<span class="tag-badge tag-custom">
+                ${escapeHtml(tag)}<span class="tag-remove" onclick="removeTag('${escapeHtml(tag)}')">&times;</span>
+            </span>`
+        ).join('');
+    }
+}
+
+/**
+ * 프리셋 태그 토글: 있으면 제거, 없으면 추가
+ * @param {string} tagName - 토글할 프리셋 태그 이름
+ */
+async function togglePresetTag(tagName) {
+    if (!currentOrder) return;
+    const tags = currentOrder.tags || [];
+    const idx = tags.indexOf(tagName);
+
+    if (idx >= 0) {
+        tags.splice(idx, 1);   // 이미 있으면 제거 (스티커 떼기)
+    } else {
+        tags.push(tagName);    // 없으면 추가 (스티커 붙이기)
+    }
+
+    await saveTags(tags);
+}
+
+/**
+ * 커스텀 태그 추가: 입력값을 태그 배열에 추가
+ * @param {string} value - 사용자가 입력한 태그 텍스트
+ */
+async function addCustomTag(value) {
+    const tagName = value.trim();
+    if (!tagName || !currentOrder) return;
+
+    const tags = currentOrder.tags || [];
+    // 이미 존재하는 태그면 중복 추가 안 함
+    if (tags.includes(tagName)) return;
+
+    tags.push(tagName);
+    await saveTags(tags);
+}
+
+/**
+ * 태그 제거: 특정 태그를 배열에서 삭제
+ * @param {string} tagName - 제거할 태그 이름
+ */
+async function removeTag(tagName) {
+    if (!currentOrder) return;
+    const tags = (currentOrder.tags || []).filter(t => t !== tagName);
+    await saveTags(tags);
+}
+
+/**
+ * 서버에 태그 저장 → 로컬 상태 갱신 → 화면 다시 렌더링
+ * @param {string[]} tags - 저장할 태그 배열
+ */
+async function saveTags(tags) {
+    try {
+        const res = await adminFetch(`/api/admin/orders/${currentOrder.id}/tags`, {
+            method: 'PATCH',
+            body: JSON.stringify({ tags })
+        });
+        if (!res) return;
+
+        const data = await res.json();
+        if (data.success) {
+            currentOrder.tags = data.order.tags;   // 로컬 상태 갱신
+            renderTags();                           // 화면 다시 그리기
+        } else {
+            alert('태그 저장 실패: ' + (data.error || ''));
+        }
+    } catch (err) {
+        console.error('[AdminOrder] 태그 저장 실패:', err);
+        alert('태그 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// ============================================================
+// 주문 복제(재주문) 기능
 // 비유: 지난번 주문서를 복사기에 넣고 새 주문서로 만드는 것
 // 고객/아이템은 그대로, 상태/결제는 처음부터 시작
 // ============================================================

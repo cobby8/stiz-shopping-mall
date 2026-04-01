@@ -522,6 +522,113 @@ async function saveCustomerMemo() {
 }
 
 // ============================================================
+// CSV 내보내기 (B-5)
+// ============================================================
+
+/**
+ * 현재 필터 조건에 맞는 고객 데이터를 CSV 파일로 다운로드
+ * 비유: 엑셀에서 "다른 이름으로 저장 → CSV"를 자동으로 해주는 버튼
+ *
+ * 동작 원리:
+ * 1. 현재 필터 조건 그대로 API 호출 (단, limit을 매우 크게 → 전체 데이터)
+ * 2. 가져온 고객 배열을 CSV 문자열로 변환
+ * 3. BOM(Byte Order Mark) 추가 → 엑셀에서 한글이 깨지지 않도록
+ * 4. 브라우저 다운로드 트리거
+ */
+async function exportCustomersCSV() {
+    try {
+        // --- 1단계: 현재 필터 조건으로 전체 고객 데이터 요청 ---
+        const params = new URLSearchParams();
+        if (currentFilters.dealType) params.set('dealType', currentFilters.dealType);
+        if (currentFilters.grade) params.set('grade', currentFilters.grade);
+        if (currentFilters.search) params.set('search', currentFilters.search);
+        params.set('sortBy', currentFilters.sortBy);
+        params.set('sortOrder', currentFilters.sortBy === 'name' ? 'asc' : 'desc');
+        params.set('page', 1);
+        // limit을 10000으로 설정하여 사실상 전체 데이터를 가져온다
+        params.set('limit', 10000);
+
+        const res = await adminFetch(`/api/admin/customers?${params.toString()}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success || !data.customers || data.customers.length === 0) {
+            alert('내보낼 고객 데이터가 없습니다.');
+            return;
+        }
+
+        const customers = data.customers;
+
+        // --- 2단계: CSV 헤더 + 데이터 행 생성 ---
+        // CSV 컬럼 정의 (엑셀에서 보기 좋은 한글 헤더)
+        const headers = ['고객명', '팀명', '연락처', '이메일', '거래유형', '등급', '주문수', '총매출', '최근주문일'];
+
+        // 등급 코드를 한글로 변환하는 매핑
+        const gradeLabels = { vip: 'VIP', regular: '단골', normal: '일반', new: '신규' };
+
+        // 각 고객을 CSV 행으로 변환
+        const rows = customers.map(c => {
+            return [
+                c.name || '',
+                c.teamName || '',
+                c.phone || '',
+                c.email || '',
+                c.dealType || '미분류',
+                gradeLabels[c.grade] || '일반',
+                c.orderCount || 0,
+                c.totalSpent || 0,
+                c.lastOrderDate ? formatFullDate(c.lastOrderDate) : ''
+            ];
+        });
+
+        // --- 3단계: CSV 문자열 조립 ---
+        // csvEscape: 쉼표나 줄바꿈이 포함된 값을 큰따옴표로 감싼다
+        const csvEscape = (val) => {
+            const str = String(val);
+            // 쉼표, 줄바꿈, 큰따옴표가 포함되면 이스케이프 처리
+            if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+                return '"' + str.replace(/"/g, '""') + '"';
+            }
+            return str;
+        };
+
+        // 헤더 + 데이터를 줄바꿈으로 연결
+        const csvContent = [
+            headers.map(csvEscape).join(','),
+            ...rows.map(row => row.map(csvEscape).join(','))
+        ].join('\r\n');
+
+        // --- 4단계: BOM 추가 + 파일 다운로드 ---
+        // BOM(Byte Order Mark): 엑셀이 UTF-8 인코딩을 인식하게 하는 3바이트 접두사
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+        // 파일명: "고객목록_2026-03-31.csv" 형태
+        const today = new Date();
+        const dateStr = [
+            today.getFullYear(),
+            String(today.getMonth() + 1).padStart(2, '0'),
+            String(today.getDate()).padStart(2, '0')
+        ].join('-');
+        const fileName = `고객목록_${dateStr}.csv`;
+
+        // 다운로드 링크를 동적으로 생성하여 클릭 → 즉시 제거
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        // 메모리 해제
+        URL.revokeObjectURL(link.href);
+
+    } catch (error) {
+        console.error('[Admin] CSV 내보내기 실패:', error);
+        alert('CSV 내보내기에 실패했습니다.');
+    }
+}
+
+// ============================================================
 // UI 상태 전환 함수들
 // ============================================================
 

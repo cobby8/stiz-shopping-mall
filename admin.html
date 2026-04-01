@@ -72,6 +72,16 @@
         /* 모바일에서 테이블 가로 스크롤 */
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+        /* ===== 태그 배지 (주문 목록용) ===== */
+        /* 비유: 주문 목록에서 팀명 옆에 작게 보이는 색깔 스티커 */
+        .tag-mini { display: inline-block; padding: 0 5px; border-radius: 9999px; font-size: 10px; font-weight: 600; line-height: 18px; margin-left: 3px; white-space: nowrap; }
+        .tag-mini-urgent   { background: #fee2e2; color: #dc2626; }
+        .tag-mini-vip      { background: #fef3c7; color: #92400e; }
+        .tag-mini-revision { background: #ffedd5; color: #ea580c; }
+        .tag-mini-check    { background: #dbeafe; color: #2563eb; }
+        .tag-mini-hold     { background: #f3f4f6; color: #6b7280; }
+        .tag-mini-custom   { background: #f0fdf4; color: #15803d; }
+
         /* ===== D-day 납기 배지 색상 ===== */
         /* 비유: 신호등처럼 초록(여유) → 주황(주의) → 빨강(위험)으로 긴급도 표시 */
         .dday-safe { color: #16a34a; }                          /* 초록: D-4 이상 여유 */
@@ -422,6 +432,17 @@
                     class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <option value="">전체 거래유형</option>
                     <!-- JS에서 동적 생성 -->
+                </select>
+
+                <!-- 태그 필터: 특정 태그가 붙은 주문만 보기 -->
+                <select id="filter-tag" onchange="applyFilters()"
+                    class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                    <option value="">전체 태그</option>
+                    <option value="급함">급함</option>
+                    <option value="VIP">VIP</option>
+                    <option value="수정요청">수정요청</option>
+                    <option value="확인필요">확인필요</option>
+                    <option value="보류">보류</option>
                 </select>
 
                 <!-- 검색 -->

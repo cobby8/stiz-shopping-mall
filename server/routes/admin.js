@@ -10,6 +10,7 @@ import express from 'express';
 import db from '../db.js';
 import { STATUS_FLOW, STATUS_LABELS, getCustomerStatus } from './orders.js';
 import { runBackup } from '../backup.js';  // 수동 백업 API용
+import { logActivity, getActivityLogs } from '../activityLog.js';  // 관리자 활동 로그 (D-2)
 
 const router = express.Router();
 
@@ -95,6 +96,15 @@ router.get('/orders', (req, res) => {
                 // 둘 다 있으면 날짜 오름차순 (이른 날짜가 위)
                 return new Date(aDate) - new Date(bDate);
             });
+        }
+
+        // 태그 필터: 특정 태그가 있는 주문만 표시
+        // 비유: "급함" 스티커가 붙은 주문서만 골라내는 것
+        if (req.query.tag) {
+            const tagFilter = req.query.tag;
+            result.data = result.data.filter(o => (o.tags || []).includes(tagFilter));
+            result.total = result.data.length;
+            result.totalPages = Math.ceil(result.total / (parseInt(options.limit) || 20));
         }
 
         // 미수금 필터: 결제일이 없고 금액이 있는 주문만 (비유: 외상 장부만 보기)
@@ -268,6 +278,15 @@ router.patch('/orders/:id/status', (req, res) => {
 
         console.log(`[Admin] Status changed: ${existing.orderNumber} ${fromStatus} → ${status} by ${req.user.name}`);
 
+        // [D-2] 활동 로그 기록 — 비동기로 API 응답에 영향 없음
+        logActivity('order_status_change', {
+            orderNumber: existing.orderNumber,
+            orderId: id,
+            fromStatus: STATUS_LABELS[fromStatus] || fromStatus,
+            toStatus: STATUS_LABELS[status] || status,
+            memo: memo || ''
+        }, req.user);
+
         res.json({
             success: true,
             order: updated,
@@ -378,6 +397,13 @@ router.post('/orders/:id/duplicate', (req, res) => {
 
         console.log(`[Admin] Order duplicated: ${original.orderNumber} → ${newOrderNumber} by ${req.user.name}`);
 
+        // [D-2] 활동 로그 기록
+        logActivity('order_duplicate', {
+            originalOrderNumber: original.orderNumber,
+            newOrderNumber,
+            customerName: original.customer?.name || '미상'
+        }, req.user);
+
         res.json({
             success: true,
             order: saved,
@@ -460,6 +486,14 @@ router.patch('/orders/bulk-status', (req, res) => {
         });
 
         console.log(`[Admin] Bulk status change: ${updated} updated, ${failed} failed → ${status} by ${req.user.name}`);
+
+        // [D-2] 활동 로그 기록
+        logActivity('order_bulk_status', {
+            toStatus: STATUS_LABELS[status] || status,
+            totalCount: orderIds.length,
+            updatedCount: updated,
+            failedCount: failed
+        }, req.user);
 
         res.json({
             success: true,
@@ -984,6 +1018,15 @@ router.patch('/orders/:id/payment', (req, res) => {
 
         console.log(`[Admin] Payment confirmed: ${existing.orderNumber} / ${paidDate} / ${paidAmount || 'full'} by ${req.user.name}`);
 
+        // [D-2] 활동 로그 기록
+        logActivity('payment_confirm', {
+            orderNumber: existing.orderNumber,
+            orderId: id,
+            paidDate,
+            paidAmount: paidAmount || existing.payment?.totalAmount || 0,
+            customerName: existing.customer?.name || '미상'
+        }, req.user);
+
         res.json({ success: true, order: updated });
     } catch (error) {
         console.error('[Admin] Payment update error:', error);
@@ -1089,6 +1132,13 @@ router.post('/orders/:id/comments', (req, res) => {
 
         console.log(`[Admin] Comment added to ${order.orderNumber} by ${newComment.author}`);
 
+        // [D-2] 활동 로그 기록
+        logActivity('comment_add', {
+            orderNumber: order.orderNumber,
+            orderId: id,
+            commentText: text.trim().substring(0, 50)  // 미리보기용 50자 제한
+        }, req.user);
+
         res.json({ success: true, comment: newComment });
     } catch (error) {
         console.error('[Admin] Comment add error:', error);
@@ -1105,6 +1155,12 @@ router.get('/backup', async (req, res) => {
         const result = await runBackup();
 
         if (result.success) {
+            // [D-2] 활동 로그 기록
+            logActivity('backup_manual', {
+                fileCount: result.files.length,
+                timestamp: result.timestamp
+            }, req.user);
+
             res.json({
                 success: true,
                 message: `${result.files.length}개 파일 백업 완료`,
@@ -1120,6 +1176,66 @@ router.get('/backup', async (req, res) => {
     } catch (error) {
         console.error('[Admin] Backup error:', error);
         res.status(500).json({ success: false, error: '백업 실행 실패' });
+    }
+});
+
+// ============================================================
+// PATCH /api/admin/orders/:id/tags - 주문 태그 업데이트
+// 비유: 주문서에 색깔 스티커(태그)를 붙이거나 떼는 기능
+// ============================================================
+router.patch('/orders/:id/tags', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { tags } = req.body;
+
+        // tags가 배열인지 검증
+        if (!Array.isArray(tags)) {
+            return res.status(400).json({ success: false, error: 'tags는 배열이어야 합니다.' });
+        }
+
+        const existing = db.findById('orders', id);
+        if (!existing) {
+            return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
+        }
+
+        // 태그 배열 저장 (중복 제거 + 빈 문자열 제거)
+        const cleanTags = [...new Set(tags.map(t => t.trim()).filter(Boolean))];
+        const updated = db.updateById('orders', id, {
+            tags: cleanTags,
+            updatedAt: new Date().toISOString()
+        });
+
+        console.log(`[Admin] Order tags updated: ${existing.orderNumber} → [${cleanTags.join(', ')}] by ${req.user.name}`);
+
+        res.json({ success: true, order: updated });
+    } catch (error) {
+        console.error('[Admin] Order tags update error:', error);
+        res.status(500).json({ success: false, error: '태그 업데이트 실패' });
+    }
+});
+
+// ============================================================
+// GET /api/admin/activity-log - 최근 활동 로그 조회 (D-2)
+// 비유: CCTV 녹화 영상을 최신순으로 되감아 보는 것
+// 쿼리 파라미터:
+//   - limit: 가져올 건수 (기본 50, 최대 200)
+//   - action: 특정 액션만 필터 (예: order_status_change)
+// ============================================================
+router.get('/activity-log', (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+        const action = req.query.action || null;
+
+        const logs = getActivityLogs(limit, action);
+
+        res.json({
+            success: true,
+            logs,
+            total: logs.length
+        });
+    } catch (error) {
+        console.error('[Admin] Activity log error:', error);
+        res.status(500).json({ success: false, error: '활동 로그 조회 실패' });
     }
 });
 

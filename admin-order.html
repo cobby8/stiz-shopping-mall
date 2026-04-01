@@ -88,6 +88,49 @@
             background-color: rgba(0,0,0,0.4);
             backdrop-filter: blur(2px);
         }
+
+        /* ===== 태그(라벨) 시스템 스타일 ===== */
+        /* 비유: 주문서에 붙이는 색깔 스티커 — 클릭하면 붙고, 다시 클릭하면 떼짐 */
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            border: 1.5px solid transparent;
+        }
+        .tag-badge:hover { opacity: 0.8; }
+        /* 비활성 프리셋: 아직 선택 안 된 태그 — 연한 배경 + 점선 테두리 */
+        .tag-badge.inactive {
+            opacity: 0.4;
+            border-style: dashed;
+        }
+        /* 프리셋 태그 색상 5종 */
+        .tag-urgent   { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+        .tag-vip      { background: #fef3c7; color: #92400e; border-color: #fbbf24; }
+        .tag-revision { background: #ffedd5; color: #ea580c; border-color: #fdba74; }
+        .tag-check    { background: #dbeafe; color: #2563eb; border-color: #93c5fd; }
+        .tag-hold     { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+        /* 커스텀 태그: 기본 회색 톤 */
+        .tag-custom   { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+        /* 태그 삭제 X 버튼 */
+        .tag-remove {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            font-size: 10px;
+            line-height: 1;
+            cursor: pointer;
+            margin-left: 2px;
+            background: rgba(0,0,0,0.1);
+        }
+        .tag-remove:hover { background: rgba(0,0,0,0.2); }
     </style>
 </head>
 
@@ -213,6 +256,28 @@
                             <p id="current-order-receipt-date" class="text-base font-semibold">-</p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ===== 태그(라벨) 영역 ===== -->
+            <!-- 비유: 주문서에 색깔 스티커를 붙이는 공간 — 급함/VIP 등 한눈에 상태 파악 -->
+            <div id="tags-section" class="bg-white rounded-xl p-4 border border-gray-100 mb-6">
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- 라벨 -->
+                    <span class="text-sm text-gray-500 mr-1 flex items-center">
+                        <span class="material-symbols-outlined text-base mr-1">label</span>태그
+                    </span>
+                    <!-- 프리셋 태그 버튼 (JS에서 활성/비활성 토글) -->
+                    <span id="tag-presets"></span>
+                    <!-- 현재 적용된 커스텀 태그 표시 -->
+                    <span id="tag-custom-list"></span>
+                    <!-- 커스텀 태그 입력 -->
+                    <input type="text" id="tag-custom-input"
+                        placeholder="태그 입력 + Enter"
+                        maxlength="20"
+                        class="border border-gray-200 rounded-full px-3 py-1 text-xs w-32
+                               focus:outline-none focus:ring-1 focus:ring-gray-400"
+                        onkeydown="if(event.key==='Enter'){addCustomTag(this.value);this.value='';}">
                 </div>
             </div>
 

@@ -66,6 +66,29 @@ function getCustomerGradeBadge(customer) {
     return '';  // 일반/신규는 주문 목록에서 배지 표시하지 않음
 }
 
+// 태그 → CSS 클래스 매핑 (주문 목록에서 팀명 옆에 작은 배지로 표시)
+// 비유: 프리셋 태그는 고유 색상, 나머지는 기본 초록 톤
+const TAG_MINI_CLASS = {
+    '급함': 'tag-mini-urgent',
+    'VIP': 'tag-mini-vip',
+    '수정요청': 'tag-mini-revision',
+    '확인필요': 'tag-mini-check',
+    '보류': 'tag-mini-hold',
+};
+
+/**
+ * 주문의 tags 배열을 작은 배지 HTML로 변환
+ * @param {string[]} tags - 태그 배열
+ * @returns {string} 배지 HTML 문자열
+ */
+function getTagBadges(tags) {
+    if (!tags || tags.length === 0) return '';
+    return tags.map(tag => {
+        const cls = TAG_MINI_CLASS[tag] || 'tag-mini-custom';
+        return `<span class="tag-mini ${cls}">${escapeHtml(tag)}</span>`;
+    }).join('');
+}
+
 // 상태별 탭 정의 — 진행중 주문을 세부 상태별로 나눠보기 위한 탭 목록
 // 비유: "진행중" 서랍을 열면 그 안에 "시안요청", "제작중" 등 작은 칸막이가 있는 것
 const STATUS_TABS = [
@@ -136,6 +159,7 @@ let currentFilters = {
     manager: '',
     sport: '',
     dealType: '',           // 거래유형 필터 추가
+    tag: '',                // 태그 필터 (예: '급함', 'VIP')
     search: '',
     dateFrom: '',           // 날짜 범위 시작 (예: 2026-01-01)
     dateTo: '',             // 날짜 범위 끝 (예: 2026-03-31)
@@ -352,6 +376,7 @@ async function loadOrders() {
         if (currentFilters.manager) params.set('manager', currentFilters.manager);
         if (currentFilters.sport) params.set('sport', currentFilters.sport);
         if (currentFilters.dealType) params.set('dealType', currentFilters.dealType);     // 거래유형
+        if (currentFilters.tag) params.set('tag', currentFilters.tag);                   // 태그 필터
         if (currentFilters.search) params.set('search', currentFilters.search);
         if (currentFilters.unpaid) params.set('unpaid', currentFilters.unpaid);            // 미수금 필터
         // 범위 필터: 날짜와 금액 (값이 있을 때만 서버로 전달)
@@ -439,7 +464,7 @@ function renderOrdersTable(orders) {
                     onchange="onOrderCheckboxChange()">
             </td>
             <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">${order.orderNumber || '-'}</td>
-            <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}${gradeBadge}</td>
+            <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}${gradeBadge}${getTagBadges(order.tags)}</td>
             <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
             <td class="px-4 py-3 whitespace-nowrap">
                 <span>${sportLabel}</span>
@@ -787,6 +812,7 @@ function applyFilters() {
     currentFilters.manager = document.getElementById('filter-manager').value;
     currentFilters.sport = document.getElementById('filter-sport').value;
     currentFilters.dealType = document.getElementById('filter-dealType').value;       // 거래유형
+    currentFilters.tag = document.getElementById('filter-tag').value;                // 태그 필터
     currentFilters.dateFrom = document.getElementById('filter-dateFrom').value;       // 날짜 시작
     currentFilters.dateTo = document.getElementById('filter-dateTo').value;           // 날짜 끝
     currentFilters.amountMin = document.getElementById('filter-amountMin').value;     // 금액 최소
@@ -875,6 +901,7 @@ function resetFilters() {
     document.getElementById('filter-manager').value = '';
     document.getElementById('filter-sport').value = '';
     document.getElementById('filter-dealType').value = '';
+    document.getElementById('filter-tag').value = '';
     document.getElementById('filter-search').value = '';
     // 2줄 범위 필터 초기화
     document.getElementById('filter-dateFrom').value = '';
@@ -883,7 +910,7 @@ function resetFilters() {
     document.getElementById('filter-amountMax').value = '';
 
     currentFilters = {
-        status: '', manager: '', sport: '', dealType: '',
+        status: '', manager: '', sport: '', dealType: '', tag: '',
         search: '', unpaid: '', sortBy: '',
         dateFrom: '', dateTo: '', amountMin: '', amountMax: '',
         excludeCompleted: true, // 초기화 시 "진행중" 탭으로 복원
