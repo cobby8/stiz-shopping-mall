@@ -313,4 +313,94 @@ router.post('/merge', (req, res) => {
     }
 });
 
+// ============================================================
+// GET /api/admin/customers/:id/contacts - 연락 이력 조회
+// 비유: 고객 카드 뒷면에 적힌 통화/문자 기록을 읽는 것
+// ============================================================
+router.get('/:id/contacts', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const customers = db.getAll('customers');
+        const customer = customers.find(c => c.id === id);
+
+        if (!customer) {
+            return res.status(404).json({ success: false, error: '고객을 찾을 수 없습니다.' });
+        }
+
+        // contacts 배열이 없으면 빈 배열 반환
+        const contacts = customer.contacts || [];
+
+        // 최신순 정렬 (가장 최근 연락이 맨 위)
+        contacts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        res.json({ success: true, contacts });
+    } catch (error) {
+        console.error('[Admin] Contact list error:', error);
+        res.status(500).json({ success: false, error: '연락 이력 조회 실패' });
+    }
+});
+
+// ============================================================
+// POST /api/admin/customers/:id/contacts - 연락 이력 추가
+// 비유: 고객에게 전화/문자 후 기록 카드에 한 줄 추가하는 것
+// ============================================================
+router.post('/:id/contacts', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { type, note, author } = req.body;
+
+        // 필수값 검증: 유형과 내용은 반드시 있어야 한다
+        if (!type || !note) {
+            return res.status(400).json({
+                success: false,
+                error: '연락 유형(type)과 내용(note)은 필수입니다.'
+            });
+        }
+
+        // 허용되는 연락 유형 (전화/문자/카톡/이메일)
+        const allowedTypes = ['phone', 'message', 'kakao', 'email'];
+        if (!allowedTypes.includes(type)) {
+            return res.status(400).json({
+                success: false,
+                error: `연락 유형은 ${allowedTypes.join(', ')} 중 하나여야 합니다.`
+            });
+        }
+
+        const customers = db.getAll('customers');
+        const index = customers.findIndex(c => c.id === id);
+
+        if (index === -1) {
+            return res.status(404).json({ success: false, error: '고객을 찾을 수 없습니다.' });
+        }
+
+        // 새 연락 이력 객체 생성
+        const newContact = {
+            id: Date.now(), // 간단한 고유 ID (밀리초 타임스탬프)
+            type,           // 연락 유형: phone | message | kakao | email
+            note,           // 연락 내용 메모
+            author: author || '관리자', // 작성자 (기본값: 관리자)
+            createdAt: new Date().toISOString()
+        };
+
+        // 고객 객체에 contacts 배열이 없으면 생성
+        if (!customers[index].contacts) {
+            customers[index].contacts = [];
+        }
+
+        // 새 연락 이력을 배열에 추가
+        customers[index].contacts.push(newContact);
+        customers[index].updatedAt = new Date().toISOString();
+
+        // DB에 저장
+        db.saveAll('customers', customers);
+
+        console.log(`[Admin] Contact added to customer ${customers[index].name || id}: ${type} by ${author || '관리자'}`);
+
+        res.json({ success: true, contact: newContact });
+    } catch (error) {
+        console.error('[Admin] Contact add error:', error);
+        res.status(500).json({ success: false, error: '연락 이력 추가 실패' });
+    }
+});
+
 export default router;

@@ -430,6 +430,9 @@ async function openCustomerModal(customerId) {
 
         // 주문 이력 렌더링
         renderModalOrders(orders);
+
+        // 연락 이력 로드 (B-2: 주문 이력 아래에 타임라인으로 표시)
+        loadContacts();
     } catch (error) {
         console.error('[Admin] 고객 상세 로드 실패:', error);
         document.getElementById('modal-orders').innerHTML = '<p class="text-sm text-red-500">로드 실패</p>';
@@ -519,6 +522,142 @@ async function saveCustomerMemo() {
         console.error('[Admin] 메모 저장 실패:', error);
         alert('메모 저장에 실패했습니다.');
     }
+}
+
+// ============================================================
+// 연락 이력 (B-2)
+// 비유: 고객 카드 뒷면에 통화/문자/카톡/이메일 기록을 남기는 것
+// ============================================================
+
+// 연락 유형별 아이콘 + 한국어 라벨 매핑
+const CONTACT_TYPE_CONFIG = {
+    phone:   { icon: 'call',          label: '전화',     color: 'text-blue-500' },
+    message: { icon: 'sms',           label: '문자',     color: 'text-green-500' },
+    kakao:   { icon: 'chat_bubble',   label: '카카오톡', color: 'text-yellow-600' },
+    email:   { icon: 'mail',          label: '이메일',   color: 'text-purple-500' }
+};
+
+/**
+ * 연락 이력 로드
+ * 현재 열린 고객의 연락 이력을 API에서 가져와 타임라인으로 표시
+ */
+async function loadContacts() {
+    if (!currentCustomerId) return;
+
+    const container = document.getElementById('modal-contacts');
+    container.innerHTML = '<p class="text-sm text-gray-400">연락 이력을 불러오는 중...</p>';
+
+    try {
+        const res = await adminFetch(`/api/admin/customers/${currentCustomerId}/contacts`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) {
+            container.innerHTML = '<p class="text-sm text-red-500">로드 실패</p>';
+            return;
+        }
+
+        renderContacts(data.contacts);
+    } catch (error) {
+        console.error('[Admin] 연락 이력 로드 실패:', error);
+        container.innerHTML = '<p class="text-sm text-red-500">로드 실패</p>';
+    }
+}
+
+/**
+ * 연락 이력 추가
+ * 유형 선택 + 메모 입력 후 등록 버튼 클릭 시 API로 전송
+ */
+async function addContact() {
+    if (!currentCustomerId) return;
+
+    const type = document.getElementById('contact-type').value;
+    const note = document.getElementById('contact-note').value.trim();
+
+    // 빈 내용 방지
+    if (!note) {
+        alert('연락 내용을 입력해주세요.');
+        return;
+    }
+
+    try {
+        // JWT에서 관리자 이름 추출 (작성자 기록용)
+        const token = getAdminToken();
+        let authorName = '관리자';
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            authorName = payload.name || '관리자';
+        } catch (e) { /* 파싱 실패 시 기본값 사용 */ }
+
+        const res = await adminFetch(`/api/admin/customers/${currentCustomerId}/contacts`, {
+            method: 'POST',
+            body: JSON.stringify({ type, note, author: authorName })
+        });
+
+        if (!res) return;
+
+        const data = await res.json();
+        if (data.success) {
+            // 입력 필드 초기화
+            document.getElementById('contact-note').value = '';
+            // 연락 이력 다시 로드하여 새 항목 표시
+            loadContacts();
+        } else {
+            alert('등록 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[Admin] 연락 이력 추가 실패:', error);
+        alert('연락 이력 등록에 실패했습니다.');
+    }
+}
+
+/**
+ * 연락 이력 타임라인 렌더링
+ * 각 연락을 아이콘 + 유형 + 내용 + 작성자 + 날짜로 표시
+ */
+function renderContacts(contacts) {
+    const container = document.getElementById('modal-contacts');
+
+    // 연락 이력이 없으면 안내 메시지
+    if (!contacts || contacts.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400">연락 이력이 없습니다.</p>';
+        return;
+    }
+
+    // 타임라인형 카드로 렌더링
+    container.innerHTML = contacts.map(contact => {
+        const config = CONTACT_TYPE_CONFIG[contact.type] || CONTACT_TYPE_CONFIG.phone;
+        const date = contact.createdAt ? formatFullDate(contact.createdAt) : '-';
+        // 시간도 표시 (HH:MM)
+        const time = contact.createdAt ? formatTime(contact.createdAt) : '';
+
+        return `
+            <div class="flex items-start space-x-3 border border-gray-100 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                <!-- 유형 아이콘 -->
+                <span class="material-symbols-outlined ${config.color} text-lg mt-0.5">${config.icon}</span>
+                <!-- 내용 영역 -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium ${config.color}">${config.label}</span>
+                        <span class="text-xs text-gray-400">${date} ${time}</span>
+                    </div>
+                    <p class="text-sm text-gray-700 whitespace-pre-wrap break-words">${escapeHtml(contact.note)}</p>
+                    <p class="text-xs text-gray-400 mt-1">${escapeHtml(contact.author || '관리자')}</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * 시간 포맷 (HH:MM)
+ * 비유: "15:30" 형태의 시간 표시
+ */
+function formatTime(dateString) {
+    const d = new Date(dateString);
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
 }
 
 // ============================================================

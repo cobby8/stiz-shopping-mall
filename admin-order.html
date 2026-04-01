@@ -131,6 +131,66 @@
             background: rgba(0,0,0,0.1);
         }
         .tag-remove:hover { background: rgba(0,0,0,0.2); }
+
+        /* ===== 인쇄용 스타일 ===== */
+        /* 비유: 화면에서는 다양한 장식이 보이지만, 종이에 찍을 때는 깔끔한 문서만 나오도록 */
+        @media print {
+            /* 인쇄 시 숨길 요소: 헤더, 버튼, 사이드바, 탭 네비게이션, 태그 영역 */
+            header,
+            .print-hide,
+            #tags-section,
+            #edit-actions,
+            #quick-status-buttons,
+            #status-modal,
+            .tab-btn { display: none !important; }
+
+            /* 사이드바 전체 숨기기 (고객 연락, 코멘트 등) */
+            .lg\:col-span-1 { display: none !important; }
+
+            /* 배경색 제거 — 흰색으로 통일하여 잉크 절약 */
+            body { background: white !important; }
+            main { padding: 0 !important; max-width: 100% !important; }
+
+            /* 메인 그리드를 전체 너비 1열로 변경 */
+            .grid.grid-cols-1.lg\:grid-cols-4 {
+                display: block !important;
+            }
+            .lg\:col-span-3 { width: 100% !important; max-width: 100% !important; }
+
+            /* 인쇄 시 모든 탭 콘텐츠를 강제 표시 (hidden 해제) */
+            .tab-content { display: block !important; margin-bottom: 16px !important; }
+
+            /* 카드 스타일 단순화 — 테두리만 남기고 그림자 제거 */
+            .bg-white.rounded-xl {
+                box-shadow: none !important;
+                border: 1px solid #d1d5db !important;
+                break-inside: avoid;
+            }
+
+            /* 상단 주문번호 + 뒤로가기 영역 */
+            #order-content > .flex.flex-wrap {
+                margin-bottom: 12px !important;
+            }
+            /* 뒤로가기 링크 숨기기 */
+            a[href="admin.html"] { display: none !important; }
+
+            /* 상태 바 인쇄 시 유지하되 간결하게 */
+            #order-content > .bg-white.rounded-xl.p-4 {
+                padding: 8px 12px !important;
+            }
+
+            /* 적절한 여백과 페이지 분리 */
+            .tab-content { page-break-inside: avoid; }
+
+            /* 링크 색상을 검정으로 — 인쇄 시 가독성 */
+            a { color: #111 !important; text-decoration: none !important; }
+
+            /* 인쇄 헤더: 화면에서는 숨기고 인쇄 시에만 표시 */
+            .print-header { display: block !important; }
+        }
+
+        /* 화면에서 인쇄 헤더 숨기기 */
+        .print-header { display: none; }
     </style>
 </head>
 
@@ -147,6 +207,7 @@
             </div>
             <!-- 네비게이션: 4탭 구조 — 주문 상세이므로 주문 관리 활성 -->
             <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
                 <a href="admin.html" class="text-white font-medium border-b-2 border-brand-red pb-1">주문 관리</a>
                 <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
                 <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
@@ -184,6 +245,13 @@
         <!-- 주문 상세 컨텐츠 (JS에서 로드 후 표시) -->
         <div id="order-content" class="hidden">
 
+            <!-- 인쇄 전용 헤더: 화면에서는 숨기고, 인쇄 시에만 표시 -->
+            <div class="print-header" style="text-align:center; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid #111;">
+                <h1 style="font-size:20px; font-weight:bold; margin:0;">STIZ 주문서</h1>
+                <p id="print-order-number" style="font-size:14px; color:#666; margin-top:4px;"></p>
+                <p id="print-date" style="font-size:12px; color:#999; margin-top:2px;"></p>
+            </div>
+
             <!-- 상단: 뒤로가기 + 주문번호 + 액션 버튼 -->
             <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
                 <div class="flex items-center space-x-4">
@@ -196,7 +264,7 @@
                         주문 <span id="order-number" class="font-mono text-lg">-</span>
                     </h1>
                 </div>
-                <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-3 print-hide">
                     <button onclick="openStatusModal()"
                         class="flex items-center space-x-1 bg-brand-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
                         <span class="material-symbols-outlined text-base">swap_horiz</span>
@@ -207,6 +275,12 @@
                         class="flex items-center space-x-1 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
                         <span class="material-symbols-outlined text-base">edit</span>
                         <span>편집</span>
+                    </button>
+                    <!-- 인쇄/PDF 버튼: 브라우저 인쇄 기능으로 주문서 PDF 생성 -->
+                    <button onclick="printOrder()"
+                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors print-hide">
+                        <span class="material-symbols-outlined text-base">print</span>
+                        <span>인쇄</span>
                     </button>
                     <!-- 주문 복제 버튼: 재주문 고객용 — 기존 주문을 복사해서 새 주문 생성 -->
                     <button onclick="duplicateOrder()"

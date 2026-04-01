@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 대시보드</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* ===== 대시보드 카드 공통 스타일 ===== */
+        /* 비유: 레고 블록처럼 각 정보 영역을 카드로 묶어 깔끔하게 정리 */
+        .dash-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px 24px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .dash-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        /* ===== 핵심 수치 카드 (상단 4칸) ===== */
+        .kpi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        .kpi-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        /* ===== 활동 로그 타임라인 ===== */
+        .activity-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .activity-item:last-child { border-bottom: none; }
+
+        /* 활동 아이콘 배경색 */
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* ===== 납기 임박 테이블 ===== */
+        .urgent-row { transition: background-color 0.15s; }
+        .urgent-row:hover { background-color: #fef2f2; }
+
+        /* D-day 배지 */
+        .dday-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .dday-danger { background: #fee2e2; color: #dc2626; }
+        .dday-warn { background: #ffedd5; color: #ea580c; }
+        .dday-safe { background: #dcfce7; color: #16a34a; }
+
+        /* ===== 바로가기 버튼 ===== */
+        .shortcut-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 16px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+        .shortcut-btn:hover {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+            transform: translateY(-2px);
+        }
+        .shortcut-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 로딩 스피너 */
+        .spinner {
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #111;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 스켈레톤 로딩 애니메이션 */
+        .skeleton {
+            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 6px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-gray-50 text-gray-900 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- 관리자 헤더 -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <!-- 로고 + 관리자 표시 -->
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <!-- 네비게이션: 5탭 구조 — 홈이 활성 상태 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin-home.html" class="text-white font-medium border-b-2 border-brand-red pb-1">홈</a>
+                <a href="admin.html" class="text-gray-400 hover:text-white transition-colors">주문 관리</a>
+                <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <!-- 사용자 정보 + 로그아웃 -->
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <button onclick="handleLogout()"
+                    class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠 -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- 인사말 섹션 -->
+        <div class="mb-8">
+            <h1 id="greeting" class="text-2xl font-bold text-gray-900">안녕하세요!</h1>
+            <p class="text-sm text-gray-500 mt-1">오늘의 현황을 한눈에 확인하세요.</p>
+        </div>
+
+        <!-- ===== 섹션 1: 핵심 수치 카드 4개 ===== -->
+        <!-- 비유: 출근해서 가장 먼저 보는 "오늘의 숫자판" -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- 카드 1: 진행중 주문 수 -->
+            <div class="dash-card">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="kpi-icon bg-blue-50">
+                        <span class="material-symbols-outlined text-blue-600">pending_actions</span>
+                    </div>
+                </div>
+                <div id="kpi-active" class="kpi-value text-gray-900">
+                    <div class="skeleton" style="width:60px;height:32px;"></div>
+                </div>
+                <p class="kpi-label">진행중 주문</p>
+            </div>
+
+            <!-- 카드 2: 오늘 신규 주문 수 -->
+            <div class="dash-card">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="kpi-icon bg-green-50">
+                        <span class="material-symbols-outlined text-green-600">add_shopping_cart</span>
+                    </div>
+                </div>
+                <div id="kpi-today" class="kpi-value text-gray-900">
+                    <div class="skeleton" style="width:60px;height:32px;"></div>
+                </div>
+                <p class="kpi-label">오늘 신규 주문</p>
+            </div>
+
+            <!-- 카드 3: 납기 임박 (D-3 이내) -->
+            <div class="dash-card">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="kpi-icon bg-orange-50">
+                        <span class="material-symbols-outlined text-orange-600">alarm</span>
+                    </div>
+                </div>
+                <div id="kpi-urgent" class="kpi-value text-gray-900">
+                    <div class="skeleton" style="width:60px;height:32px;"></div>
+                </div>
+                <p class="kpi-label">납기 임박 (D-3)</p>
+            </div>
+
+            <!-- 카드 4: 미수금 총액 -->
+            <div class="dash-card">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="kpi-icon bg-red-50">
+                        <span class="material-symbols-outlined text-red-600">account_balance_wallet</span>
+                    </div>
+                </div>
+                <div id="kpi-unpaid" class="kpi-value text-gray-900">
+                    <div class="skeleton" style="width:100px;height:32px;"></div>
+                </div>
+                <p class="kpi-label">미수금 총액</p>
+            </div>
+        </div>
+
+        <!-- ===== 하단 2컬럼 레이아웃 ===== -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+            <!-- ===== 섹션 2: 최근 활동 로그 ===== -->
+            <!-- 비유: 회사 게시판의 "최근 소식" — 누가 뭘 했는지 시간순 -->
+            <div class="dash-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-gray-400">history</span>
+                        최근 활동
+                    </h2>
+                </div>
+                <div id="activity-list">
+                    <!-- 스켈레톤 로딩 -->
+                    <div class="space-y-3">
+                        <div class="skeleton" style="height:44px;"></div>
+                        <div class="skeleton" style="height:44px;"></div>
+                        <div class="skeleton" style="height:44px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 섹션 3: 납기 임박 주문 목록 ===== -->
+            <!-- 비유: "오늘 안에 확인해야 할 주문" 알림판 -->
+            <div class="dash-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-orange-500">schedule</span>
+                        납기 임박 주문
+                    </h2>
+                    <!-- "더보기" 버튼 — 주문관리 페이지의 납기순 정렬로 이동 -->
+                    <a href="admin.html?sortBy=deadline" class="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                        더보기
+                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </a>
+                </div>
+                <div id="urgent-orders">
+                    <!-- 스켈레톤 로딩 -->
+                    <div class="space-y-3">
+                        <div class="skeleton" style="height:44px;"></div>
+                        <div class="skeleton" style="height:44px;"></div>
+                        <div class="skeleton" style="height:44px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 섹션 4: 빠른 바로가기 ===== -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-gray-400">grid_view</span>
+                바로가기
+            </h2>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <a href="admin.html" class="shortcut-btn">
+                    <div class="shortcut-icon bg-blue-50">
+                        <span class="material-symbols-outlined text-blue-600">list_alt</span>
+                    </div>
+                    <span class="text-sm font-medium">주문 관리</span>
+                </a>
+                <a href="admin-analytics.html" class="shortcut-btn">
+                    <div class="shortcut-icon bg-green-50">
+                        <span class="material-symbols-outlined text-green-600">bar_chart</span>
+                    </div>
+                    <span class="text-sm font-medium">매출 분석</span>
+                </a>
+                <a href="admin-customers.html" class="shortcut-btn">
+                    <div class="shortcut-icon bg-purple-50">
+                        <span class="material-symbols-outlined text-purple-600">groups</span>
+                    </div>
+                    <span class="text-sm font-medium">고객 관리</span>
+                </a>
+                <a href="admin.html?unpaid=true" class="shortcut-btn">
+                    <div class="shortcut-icon bg-orange-50">
+                        <span class="material-symbols-outlined text-orange-600">receipt_long</span>
+                    </div>
+                    <span class="text-sm font-medium">미수금 조회</span>
+                </a>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 대시보드 JS -->
+    <script src="js/admin-home.js"></script>
+
+</body>
+</html>

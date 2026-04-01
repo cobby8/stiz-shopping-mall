@@ -102,6 +102,7 @@
 
             <!-- 네비게이션: 4탭 구조 — 고객 관리가 활성 상태 -->
             <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
                 <a href="admin.html" class="text-gray-400 hover:text-white transition-colors">주문 관리</a>
                 <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
                 <a href="admin-customers.html" class="text-white font-medium border-b-2 border-brand-red pb-1">고객 관리</a>
@@ -361,6 +362,42 @@
                     </h4>
                     <div id="modal-orders" class="space-y-2">
                         <p class="text-sm text-gray-400">로딩 중...</p>
+                    </div>
+                </div>
+
+                <!-- ===== 연락 이력 섹션 (B-2) ===== -->
+                <!-- 고객에게 전화/문자/카톡/이메일 연락한 기록을 타임라인으로 표시 -->
+                <div class="mt-6 pt-6 border-t border-gray-100">
+                    <h4 class="font-bold text-sm mb-3 flex items-center">
+                        <span class="material-symbols-outlined mr-1 text-gray-400 text-base">history</span>
+                        연락 이력
+                    </h4>
+
+                    <!-- 연락 추가 폼: 유형 선택 + 메모 입력 + 등록 버튼 -->
+                    <div class="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <!-- 연락 유형 선택 드롭다운 -->
+                            <select id="contact-type"
+                                class="filter-select border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+                                <option value="phone">전화</option>
+                                <option value="message">문자</option>
+                                <option value="kakao">카카오톡</option>
+                                <option value="email">이메일</option>
+                            </select>
+                            <!-- 등록 버튼 -->
+                            <button onclick="addContact()"
+                                class="bg-brand-black text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors whitespace-nowrap">
+                                등록
+                            </button>
+                        </div>
+                        <!-- 연락 메모 입력 -->
+                        <textarea id="contact-note" rows="2" placeholder="연락 내용을 입력하세요..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black resize-none"></textarea>
+                    </div>
+
+                    <!-- 연락 이력 타임라인 목록 -->
+                    <div id="modal-contacts" class="space-y-2">
+                        <p class="text-sm text-gray-400">연락 이력이 없습니다.</p>
                     </div>
                 </div>
             </div>

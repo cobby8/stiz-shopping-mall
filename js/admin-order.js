@@ -1198,6 +1198,64 @@ function formatCommentDate(dateString) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// ============================================================
+// 인쇄 / PDF 생성
+// ============================================================
+
+/**
+ * 주문서 인쇄 함수
+ * 브라우저의 window.print()를 활용하여 PDF 저장 또는 프린터 출력
+ * 비유: 워드 문서에서 Ctrl+P 누르는 것과 동일 — 화면의 불필요한 요소를 숨기고 문서만 인쇄
+ *
+ * 동작 순서:
+ * 1. 인쇄 헤더에 주문번호/날짜 채우기
+ * 2. 모든 탭 콘텐츠를 표시 (인쇄 시에는 탭 구분 없이 전체 정보)
+ * 3. window.print() 호출
+ * 4. 인쇄 완료 후 원래 탭 상태로 복원
+ */
+function printOrder() {
+    if (!currentOrder) return;
+
+    // 1) 인쇄 헤더에 주문 정보 채우기
+    const printNumberEl = document.getElementById('print-order-number');
+    const printDateEl = document.getElementById('print-date');
+    if (printNumberEl) {
+        printNumberEl.textContent = `주문번호: ${currentOrder.orderNumber || currentOrder._id}`;
+    }
+    if (printDateEl) {
+        // 인쇄 시점 날짜 표시 — "출력일: 2026-03-31"
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        printDateEl.textContent = `출력일: ${y}-${m}-${d}`;
+    }
+
+    // 2) 현재 활성 탭을 기억해두고, 모든 탭 콘텐츠를 보이게 설정
+    //    @media print CSS가 .tab-content를 display:block으로 강제하지만,
+    //    일부 브라우저에서 hidden 클래스가 우선할 수 있으므로 JS로도 처리
+    const savedTab = currentTab;
+    const allTabs = document.querySelectorAll('.tab-content');
+    allTabs.forEach(tab => tab.classList.remove('hidden'));
+
+    // 3) 브라우저 인쇄 다이얼로그 호출
+    window.print();
+
+    // 4) 인쇄 완료 후 원래 탭 상태로 복원
+    //    afterprint 이벤트로 복원 (인쇄 다이얼로그 닫힌 후 실행)
+    const restoreTabs = () => {
+        allTabs.forEach(tab => {
+            // 저장해둔 원래 탭만 표시하고 나머지는 숨김
+            const tabName = tab.id.replace('tab-', '');
+            if (tabName !== savedTab) {
+                tab.classList.add('hidden');
+            }
+        });
+        window.removeEventListener('afterprint', restoreTabs);
+    };
+    window.addEventListener('afterprint', restoreTabs);
+}
+
 /** 로그아웃 */
 function handleLogout() {
     if (!confirm('로그아웃 하시겠습니까?')) return;

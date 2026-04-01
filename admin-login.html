@@ -176,7 +176,7 @@
                     const now = Math.floor(Date.now() / 1000);
                     if (payload.role === 'admin' && payload.exp && payload.exp > now) {
                         // 유효한 관리자 토큰 → 대시보드로 바로 이동
-                        window.location.href = 'admin.html';
+                        window.location.href = 'admin-home.html';
                         return;
                     }
                 } catch (e) {
@@ -236,7 +236,7 @@
 
                 // 관리자 확인 완료 → 토큰 저장 후 대시보드로 이동
                 localStorage.setItem('stiz_admin_token', token);
-                window.location.href = 'admin.html';
+                window.location.href = 'admin-home.html';
 
             } catch (err) {
                 // 네트워크 오류 등 예외 처리
