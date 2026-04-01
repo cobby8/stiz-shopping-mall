@@ -65,6 +65,20 @@ router.get('/orders', (req, res) => {
         const optionsActive = { ...options, excludeStatuses: ['delivered', 'cancelled'], page: 1, limit: 1 };
         const resultActive = db.findByFilter('orders', filters, optionsActive);
 
+        // 상태별 건수 계산: 진행중 하위 탭에 각 상태별 건수를 표시하기 위함
+        // 비유: "시안요청 (12건)" / "제작중 (5건)" 등 세부 상태별 숫자
+        // 상태 필터를 제외한 나머지 필터 조건(담당자, 종목 등)은 유지
+        const statusTabs = ['design_requested', 'design_confirmed', 'draft_done', 'line_work', 'in_production', 'released', 'hold'];
+        const statusCounts = {};
+        const filtersWithoutStatus = { ...filters };
+        delete filtersWithoutStatus.status; // 상태 필터만 제거
+        statusTabs.forEach(st => {
+            const stFilters = { ...filtersWithoutStatus, status: st };
+            const stOptions = { ...options, excludeStatuses: [], page: 1, limit: 1 };
+            const stResult = db.findByFilter('orders', stFilters, stOptions);
+            statusCounts[st] = stResult.total;
+        });
+
         let result = db.findByFilter('orders', filters, options);
 
         // 미수금 필터: 결제일이 없고 금액이 있는 주문만 (비유: 외상 장부만 보기)
@@ -98,7 +112,9 @@ router.get('/orders', (req, res) => {
                 // totalActive: 완료/취소 제외한 진행중 건수
                 // 비유: "진행중 탭"과 "전체 탭"에 각각 표시할 건수
                 totalAll: resultAll.total,
-                totalActive: resultActive.total
+                totalActive: resultActive.total,
+                // 상태별 건수: 진행중 하위 탭에 표시
+                statusCounts: statusCounts
             }
         });
     } catch (error) {

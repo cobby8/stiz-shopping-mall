@@ -205,9 +205,9 @@
             </div>
         </div>
 
-        <!-- ===== 진행중/전체/미수금 탭 ===== -->
+        <!-- ===== 메인 탭: 진행중/전체/미수금 ===== -->
         <!-- 비유: 식당에서 "조리중 주문"과 "전체 주문"과 "외상 주문"을 탭으로 분리 -->
-        <div class="flex items-center space-x-1 mb-3">
+        <div class="flex items-center space-x-1 mb-2">
             <!-- 진행중 탭 (기본 활성) -->
             <button id="tab-active" onclick="switchTab('active')"
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors
@@ -225,6 +225,43 @@
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors
                        bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200">
                 미수금 <span id="tab-unpaid-count" class="ml-1 opacity-70">(-)</span>
+            </button>
+        </div>
+
+        <!-- ===== 상태별 하위 탭 (진행중 탭 선택 시에만 표시) ===== -->
+        <!-- 비유: "진행중" 서랍 안의 칸막이 — 시안요청, 제작중 등 세부 상태별로 필터 -->
+        <div id="status-tabs-row" class="flex items-center gap-1 mb-3 flex-wrap">
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-800 text-white"
+                data-status-code="" onclick="switchStatusTab('')">
+                전체 진행중 <span class="opacity-70">-</span>
+            </button>
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+                data-status-code="design_requested" onclick="switchStatusTab('design_requested')">
+                시안요청 <span class="opacity-70">-</span>
+            </button>
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+                data-status-code="design_confirmed" onclick="switchStatusTab('design_confirmed')">
+                디자인확정 <span class="opacity-70">-</span>
+            </button>
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+                data-status-code="draft_done" onclick="switchStatusTab('draft_done')">
+                초안완료 <span class="opacity-70">-</span>
+            </button>
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+                data-status-code="line_work" onclick="switchStatusTab('line_work')">
+                라인작업 <span class="opacity-70">-</span>
+            </button>
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+                data-status-code="in_production" onclick="switchStatusTab('in_production')">
+                제작중 <span class="opacity-70">-</span>
+            </button>
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+                data-status-code="released" onclick="switchStatusTab('released')">
+                출고 <span class="opacity-70">-</span>
+            </button>
+            <button class="status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200"
+                data-status-code="hold" onclick="switchStatusTab('hold')">
+                보류 <span class="opacity-70">-</span>
             </button>
         </div>
 
@@ -293,6 +330,12 @@
                     <option value="soccer">축구</option>
                     <option value="volleyball">배구</option>
                     <option value="baseball">야구</option>
+                    <option value="badminton">배드민턴</option>
+                    <option value="tabletennis">탁구</option>
+                    <option value="handball">핸드볼</option>
+                    <option value="futsal">풋살</option>
+                    <option value="tennis">테니스</option>
+                    <option value="softball">소프트볼</option>
                 </select>
 
                 <!-- 거래유형 필터 -->

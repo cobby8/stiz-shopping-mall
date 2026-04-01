@@ -34,13 +34,35 @@ const STATUS_LABELS = {
     processing: '처리중'
 };
 
-// 종목 한글 라벨
+// 종목 한글 라벨 — 영문 코드를 한글로 변환 (테이블/CSV에서 사용)
 const SPORT_LABELS = {
     basketball: '농구',
     soccer: '축구',
     volleyball: '배구',
-    baseball: '야구'
+    baseball: '야구',
+    badminton: '배드민턴',
+    tabletennis: '탁구',
+    handball: '핸드볼',
+    futsal: '풋살',
+    tennis: '테니스',
+    softball: '소프트볼'
 };
+
+// 상태별 탭 정의 — 진행중 주문을 세부 상태별로 나눠보기 위한 탭 목록
+// 비유: "진행중" 서랍을 열면 그 안에 "시안요청", "제작중" 등 작은 칸막이가 있는 것
+const STATUS_TABS = [
+    { code: '', label: '전체 진행중' },
+    { code: 'design_requested', label: '시안요청' },
+    { code: 'design_confirmed', label: '디자인확정' },
+    { code: 'draft_done', label: '초안완료' },
+    { code: 'line_work', label: '라인작업' },
+    { code: 'in_production', label: '제작중' },
+    { code: 'released', label: '출고' },
+    { code: 'hold', label: '보류' }
+];
+
+// 현재 선택된 메인 탭을 추적 (active/all/unpaid)
+let currentMainTab = 'active';
 
 // 현재 필터 상태를 저장하는 객체 (비유: 검색 조건표)
 let currentFilters = {
@@ -274,7 +296,10 @@ async function loadOrders() {
         // 완료 주문 제외 여부 — "진행중" 탭이면 true, "전체" 탭이면 false
         params.set('excludeCompleted', currentFilters.excludeCompleted);
         params.set('page', currentFilters.page);
-        params.set('limit', 20);
+        // 진행중 탭(약 300건)은 페이지 나누지 않고 전체를 한번에 표시
+        // 전체/미수금 탭은 건수가 많으므로 기존 20건 페이지네이션 유지
+        const limit = (currentMainTab === 'active') ? 9999 : 20;
+        params.set('limit', limit);
 
         const res = await adminFetch(`/api/admin/orders?${params.toString()}`);
         if (!res) return;
@@ -420,9 +445,14 @@ function renderPagination(pagination) {
         buttonsEl.appendChild(createPageButton('다음', pagination.page + 1));
     }
 
-    // 페이지가 2개 이상일 때만 페이지네이션 표시
+    // 진행중 탭이면 페이지네이션 항상 숨김 (전체 한번에 표시)
+    // 전체/미수금 탭은 페이지가 2개 이상일 때만 표시
     const paginationEl = document.getElementById('pagination');
-    paginationEl.classList.toggle('hidden', pagination.totalPages <= 1);
+    if (currentMainTab === 'active') {
+        paginationEl.classList.add('hidden');
+    } else {
+        paginationEl.classList.toggle('hidden', pagination.totalPages <= 1);
+    }
 }
 
 /** 페이지 버튼 요소 생성 헬퍼 */
@@ -482,16 +512,29 @@ function switchTab(tab) {
     const unpaidPanel = document.getElementById('unpaid-summary-panel');
     if (unpaidPanel) unpaidPanel.classList.add('hidden');
 
+    // 상태별 하위 탭 영역은 진행중 탭에서만 표시
+    const statusTabsEl = document.getElementById('status-tabs-row');
+
     if (tab === 'active') {
+        currentMainTab = 'active';
         currentFilters.excludeCompleted = true;
         currentFilters.unpaid = '';  // 미수금 필터 해제
+        currentFilters.status = ''; // 상태 필터 초기화 (전체 진행중)
+        document.getElementById('filter-status').value = '';
+        if (statusTabsEl) statusTabsEl.classList.remove('hidden');
+        // 상태별 하위 탭도 "전체 진행중"으로 리셋
+        highlightStatusTab('');
     } else if (tab === 'all') {
+        currentMainTab = 'all';
         currentFilters.excludeCompleted = false;
         currentFilters.unpaid = '';  // 미수금 필터 해제
+        if (statusTabsEl) statusTabsEl.classList.add('hidden');
     } else if (tab === 'unpaid') {
+        currentMainTab = 'unpaid';
         // 미수금 탭: 결제일 없고 금액 있는 주문만 표시
         currentFilters.excludeCompleted = false;
         currentFilters.unpaid = 'true';
+        if (statusTabsEl) statusTabsEl.classList.add('hidden');
         // 미수금 요약 패널 표시 + 데이터 로드
         if (unpaidPanel) unpaidPanel.classList.remove('hidden');
         loadUnpaidSummary();
@@ -500,6 +543,38 @@ function switchTab(tab) {
     switchTabUI(tab); // 탭 버튼 스타일 변경
     currentFilters.page = 1;
     loadOrders();
+}
+
+/**
+ * 상태별 하위 탭 클릭 시 호출 (진행중 탭 내에서 세부 상태 필터)
+ * 비유: "진행중" 서랍 안에서 "시안요청" 칸, "제작중" 칸으로 나눠보는 것
+ * @param {string} statusCode - 상태 코드 (빈 문자열이면 전체 진행중)
+ */
+function switchStatusTab(statusCode) {
+    currentFilters.status = statusCode;
+    // 상태 필터 드롭다운도 연동 (탭과 드롭다운이 같은 값을 가리키도록)
+    document.getElementById('filter-status').value = statusCode;
+    highlightStatusTab(statusCode);
+    currentFilters.page = 1;
+    loadOrders();
+}
+
+/**
+ * 상태별 하위 탭 활성 스타일 변경
+ * @param {string} activeCode - 현재 활성 상태 코드
+ */
+function highlightStatusTab(activeCode) {
+    const btns = document.querySelectorAll('.status-sub-tab');
+    btns.forEach(btn => {
+        const code = btn.dataset.statusCode || '';
+        if (code === activeCode) {
+            // 활성: 진한 배경
+            btn.className = 'status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-800 text-white';
+        } else {
+            // 비활성: 연한 배경
+            btn.className = 'status-sub-tab px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-500 hover:bg-gray-200';
+        }
+    });
 }
 
 /**
@@ -514,8 +589,23 @@ function updateTabCounts(pagination) {
     if (activeCountEl) activeCountEl.textContent = `(${pagination.totalActive})`;
     if (allCountEl) allCountEl.textContent = `(${pagination.totalAll})`;
 
-    // 미수금 탭 건수는 stats에서 가져오므로 여기서는 건수만 있을 때만 업데이트
-    // (stats 로드 시 별도로 updateUnpaidTabCount 호출)
+    // 상태별 하위 탭 건수 업데이트 — "시안요청 (12)" 형태
+    if (pagination.statusCounts) {
+        // "전체 진행중" 탭의 건수 = totalActive
+        const allActiveBtn = document.querySelector('.status-sub-tab[data-status-code=""]');
+        if (allActiveBtn) {
+            allActiveBtn.innerHTML = `전체 진행중 <span class="opacity-70">${pagination.totalActive}</span>`;
+        }
+        // 각 상태별 건수 표시
+        STATUS_TABS.forEach(tab => {
+            if (!tab.code) return; // "전체 진행중"은 위에서 처리
+            const btn = document.querySelector(`.status-sub-tab[data-status-code="${tab.code}"]`);
+            if (btn) {
+                const count = pagination.statusCounts[tab.code] || 0;
+                btn.innerHTML = `${tab.label} <span class="opacity-70">${count}</span>`;
+            }
+        });
+    }
 }
 
 /** 상태 카드 클릭 시 해당 상태 그룹으로 필터 */
@@ -588,7 +678,15 @@ function applyFilters() {
     // 비유: 완료 주문을 보려고 선택했는데 "진행중" 탭이면 결과가 0건 → 자동 전환
     if (['delivered', 'cancelled'].includes(currentFilters.status)) {
         currentFilters.excludeCompleted = false;
+        currentMainTab = 'all';
         switchTabUI('all'); // 탭 UI만 업데이트 (loadOrders는 아래에서 호출)
+        const statusTabsEl = document.getElementById('status-tabs-row');
+        if (statusTabsEl) statusTabsEl.classList.add('hidden');
+    }
+
+    // 진행중 탭에서 상태 필터 드롭다운을 변경하면 상태별 하위 탭도 연동
+    if (currentMainTab === 'active') {
+        highlightStatusTab(currentFilters.status);
     }
 
     currentFilters.page = 1;
@@ -673,7 +771,12 @@ function resetFilters() {
         page: 1
     };
     // 탭 UI도 "진행중"으로 복원
+    currentMainTab = 'active';
     switchTabUI('active');
+    // 상태별 하위 탭도 "전체 진행중"으로 복원 + 표시
+    highlightStatusTab('');
+    const statusTabsEl = document.getElementById('status-tabs-row');
+    if (statusTabsEl) statusTabsEl.classList.remove('hidden');
     // 미수금 요약 패널 숨기기
     const unpaidPanel = document.getElementById('unpaid-summary-panel');
     if (unpaidPanel) unpaidPanel.classList.add('hidden');
