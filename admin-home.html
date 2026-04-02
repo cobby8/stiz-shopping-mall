@@ -307,7 +307,35 @@
             </div>
         </div>
 
-        <!-- ===== 섹션 4: 빠른 바로가기 ===== -->
+        <!-- ===== 섹션 4: 재주문 시기 도래 고객 (B-3) ===== -->
+        <!-- 비유: "작년 이맘때 주문한 고객 중 올해 아직 안 온 사람" 알림판 -->
+        <div class="dash-card mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-500">repeat</span>
+                    재주문 시기 도래 고객
+                </h2>
+                <!-- "더보기" 버튼 — 고객관리 페이지의 재주문 탭으로 이동 -->
+                <a href="admin-customers.html?tab=reorder" class="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                    더보기
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+            </div>
+            <!-- 요약 문구 -->
+            <p id="reorder-summary" class="text-sm text-gray-500 mb-4">
+                <span class="skeleton inline-block" style="width:300px;height:18px;"></span>
+            </p>
+            <!-- 상위 5건 목록 -->
+            <div id="reorder-list">
+                <div class="space-y-3">
+                    <div class="skeleton" style="height:40px;"></div>
+                    <div class="skeleton" style="height:40px;"></div>
+                    <div class="skeleton" style="height:40px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 섹션 5: 빠른 바로가기 ===== -->
         <div class="mb-8">
             <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span class="material-symbols-outlined text-gray-400">grid_view</span>

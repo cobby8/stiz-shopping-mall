@@ -40,6 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2) 통계 + 고객 목록 로드
     loadStats();
     loadCustomers();
+
+    // 3) URL 파라미터로 탭 자동 활성화 (B-3: ?tab=reorder 지원)
+    // 비유: 대시보드에서 "더보기" 클릭 시 재주문 탭이 바로 열리도록
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'reorder') {
+        switchTab('reorder');
+    }
 });
 
 // checkAdminAuth, getAdminToken, adminFetch → admin-common.js에서 로드
@@ -713,3 +720,208 @@ function showTable() {
 // ============================================================
 
 // formatCurrency, formatDate, formatFullDate, escapeHtml, handleLogout → admin-common.js에서 로드
+
+// ============================================================
+// 탭 전환 (B-3: "전체 고객" / "재주문 시기 도래")
+// 비유: 서류함에서 다른 탭을 누르면 해당 서류만 보이는 것
+// ============================================================
+
+// 현재 활성 탭 ('all' 또는 'reorder')
+let currentTab = 'all';
+
+// 재주문 탭 현재 페이지
+let reorderPage = 1;
+
+/**
+ * 탭 전환 함수
+ * 두 영역(section-all, section-reorder)을 display:none/block으로 토글
+ */
+function switchTab(tab) {
+    currentTab = tab;
+
+    const sectionAll = document.getElementById('section-all');
+    const sectionReorder = document.getElementById('section-reorder');
+    const tabAll = document.getElementById('tab-all');
+    const tabReorder = document.getElementById('tab-reorder');
+
+    if (tab === 'reorder') {
+        // 재주문 탭 활성화
+        sectionAll.classList.add('hidden');
+        sectionReorder.classList.remove('hidden');
+        tabAll.className = 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors';
+        tabReorder.className = 'px-4 py-2 rounded-lg text-sm font-medium bg-brand-black text-white transition-colors';
+        // 최초 로드 시 데이터 가져오기
+        loadReorderList();
+    } else {
+        // 전체 고객 탭 활성화
+        sectionAll.classList.remove('hidden');
+        sectionReorder.classList.add('hidden');
+        tabAll.className = 'px-4 py-2 rounded-lg text-sm font-medium bg-brand-black text-white transition-colors';
+        tabReorder.className = 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors';
+    }
+}
+
+// ============================================================
+// 재주문 시기 도래 목록 (B-3)
+// ============================================================
+
+/**
+ * 재주문 후보 목록 로드
+ * API에서 데이터를 가져와 테이블에 렌더링
+ */
+async function loadReorderList() {
+    // 로딩 상태 표시
+    document.getElementById('reorder-loading').classList.remove('hidden');
+    document.getElementById('reorder-table-wrapper').classList.add('hidden');
+    document.getElementById('reorder-empty').classList.add('hidden');
+    document.getElementById('reorder-pagination').classList.add('hidden');
+
+    try {
+        // "올해 이미 주문한 고객도 표시" 체크 여부
+        const showOrdered = document.getElementById('reorder-show-ordered').checked;
+        const excludeOrdered = !showOrdered; // 체크 안 하면 제외
+
+        const params = new URLSearchParams({
+            page: reorderPage,
+            limit: 20,
+            excludeOrdered: excludeOrdered
+        });
+
+        const res = await adminFetch(`/api/admin/reorder-candidates?${params.toString()}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) {
+            showReorderEmpty();
+            return;
+        }
+
+        // 요약 텍스트 업데이트
+        const summaryEl = document.getElementById('reorder-summary-text');
+        const { summary } = data;
+        if (summary.totalCandidates === 0) {
+            summaryEl.textContent = `${summary.periodLabel} 주문 고객 중 올해 미주문 고객이 없습니다.`;
+            showReorderEmpty();
+            return;
+        }
+
+        // "작년 3~5월 주문 고객 중 올해 미주문: 284명" + 제외 정보
+        let summaryText = `${summary.periodLabel} 주문 고객 중 올해 미주문: ${formatNumber(summary.totalCandidates)}명`;
+        if (summary.excludedAlreadyOrdered > 0 && excludeOrdered) {
+            summaryText += ` (올해 주문 ${summary.excludedAlreadyOrdered}명 제외)`;
+        }
+        summaryEl.textContent = summaryText;
+
+        if (data.candidates.length === 0) {
+            showReorderEmpty();
+            return;
+        }
+
+        // 테이블 렌더링
+        renderReorderTable(data.candidates);
+        // 페이지네이션 렌더링
+        renderReorderPagination(data.pagination);
+
+    } catch (error) {
+        console.error('[Admin] 재주문 목록 로드 실패:', error);
+        showReorderEmpty();
+    }
+}
+
+/**
+ * 재주문 후보 테이블 렌더링
+ * 각 행 클릭 시 기존 고객 상세 모달(openCustomerModal) 재사용
+ */
+function renderReorderTable(candidates) {
+    const tbody = document.getElementById('reorder-tbody');
+    tbody.innerHTML = '';
+
+    candidates.forEach(c => {
+        const row = document.createElement('tr');
+        row.className = 'customer-row border-b border-gray-50 cursor-pointer';
+        // 클릭 시 기존 고객 상세 모달 열기 (openCustomerModal 재사용)
+        row.onclick = () => openCustomerModal(c.customerId);
+
+        // 올해 주문 여부 배지
+        const orderedBadge = c.orderedThisYear
+            ? '<span class="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">주문함</span>'
+            : '<span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">미주문</span>';
+
+        row.innerHTML = `
+            <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(c.name)}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(c.teamName || '-')}</td>
+            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(c.phone || '-')}</td>
+            <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${escapeHtml(c.lastOrderDate)}</td>
+            <td class="px-4 py-3 text-gray-600 whitespace-nowrap truncate max-w-[200px]">${escapeHtml(c.lastOrderItems)}</td>
+            <td class="px-4 py-3 text-right font-medium whitespace-nowrap">${formatCurrency(c.lastOrderAmount)}</td>
+            <td class="px-4 py-3 text-center whitespace-nowrap">${orderedBadge}</td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // 테이블 표시
+    document.getElementById('reorder-loading').classList.add('hidden');
+    document.getElementById('reorder-table-wrapper').classList.remove('hidden');
+    document.getElementById('reorder-empty').classList.add('hidden');
+    document.getElementById('reorder-pagination').classList.remove('hidden');
+}
+
+/**
+ * 재주문 페이지네이션 렌더링
+ */
+function renderReorderPagination(pagination) {
+    const infoEl = document.getElementById('reorder-pagination-info');
+    const buttonsEl = document.getElementById('reorder-pagination-buttons');
+
+    const start = (pagination.page - 1) * pagination.limit + 1;
+    const end = Math.min(pagination.page * pagination.limit, pagination.total);
+    infoEl.textContent = `총 ${pagination.total}명 중 ${start}-${end}`;
+
+    buttonsEl.innerHTML = '';
+
+    // 이전 버튼
+    if (pagination.page > 1) {
+        buttonsEl.appendChild(createReorderPageButton('이전', pagination.page - 1));
+    }
+
+    // 페이지 번호 (최대 5개)
+    const startPage = Math.max(1, pagination.page - 2);
+    const endPage = Math.min(pagination.totalPages, pagination.page + 2);
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = createReorderPageButton(i, i);
+        if (i === pagination.page) {
+            btn.className = 'bg-brand-black text-white px-3 py-1 rounded text-sm font-medium';
+        }
+        buttonsEl.appendChild(btn);
+    }
+
+    // 다음 버튼
+    if (pagination.page < pagination.totalPages) {
+        buttonsEl.appendChild(createReorderPageButton('다음', pagination.page + 1));
+    }
+
+    // 2페이지 이상일 때만 표시
+    const paginationEl = document.getElementById('reorder-pagination');
+    paginationEl.classList.toggle('hidden', pagination.totalPages <= 1);
+}
+
+/** 재주문 페이지 버튼 생성 */
+function createReorderPageButton(label, page) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.className = 'border border-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-100 transition-colors';
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        reorderPage = page;
+        loadReorderList();
+    };
+    return btn;
+}
+
+/** 재주문 빈 상태 표시 */
+function showReorderEmpty() {
+    document.getElementById('reorder-loading').classList.add('hidden');
+    document.getElementById('reorder-table-wrapper').classList.add('hidden');
+    document.getElementById('reorder-empty').classList.remove('hidden');
+    document.getElementById('reorder-pagination').classList.add('hidden');
+}

@@ -329,6 +329,89 @@ async function loadUrgentOrders() {
 }
 
 // ============================================================
+// 재주문 시기 도래 고객 (B-3) — 대시보드 요약 카드
+// 비유: "작년 이맘때 주문한 고객 중 올해 아직 안 온 사람" 상위 5명 표시
+// ============================================================
+
+/**
+ * 재주문 시기 도래 고객 요약 로드 (상위 5건)
+ * API에서 데이터를 가져와 대시보드 카드에 렌더링
+ */
+async function loadReorderCandidates() {
+    try {
+        // 상위 5건만 요청 (대시보드 요약용)
+        const res = await adminFetch('/api/admin/reorder-candidates?limit=5&page=1');
+        if (!res) throw new Error('재주문 후보 로드 실패');
+        const data = await res.json();
+        if (!data.success) throw new Error('재주문 후보 로드 실패');
+
+        const { candidates, summary } = data;
+
+        // --- 요약 문구 표시 ---
+        // "작년 3~5월에 주문했지만 올해 아직 주문하지 않은 고객이 284명 있습니다."
+        const summaryEl = document.getElementById('reorder-summary');
+        if (summary.totalCandidates === 0) {
+            summaryEl.textContent = `${summary.periodLabel}에 주문한 고객 중 올해 미주문 고객이 없습니다.`;
+        } else {
+            summaryEl.innerHTML = `<span class="font-bold text-amber-600">${summary.periodLabel}</span>에 주문했지만 올해 아직 주문하지 않은 고객이 <span class="font-bold text-amber-600">${formatNumber(summary.totalCandidates)}명</span> 있습니다.`;
+        }
+
+        // --- 상위 5건 목록 렌더링 ---
+        const listEl = document.getElementById('reorder-list');
+
+        // 후보가 없으면 안심 메시지
+        if (candidates.length === 0) {
+            listEl.innerHTML = `
+                <div class="text-center py-6 text-gray-400">
+                    <span class="material-symbols-outlined text-3xl mb-2 text-green-400">check_circle</span>
+                    <p class="text-sm text-green-600 font-medium">재주문 시기 도래 고객이 없습니다.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 각 후보를 행으로 렌더링 (클릭 시 고객관리 재주문 탭으로 이동)
+        let html = '<div class="space-y-0">';
+        candidates.forEach((c, idx) => {
+            // 팀명이 있으면 "팀명 (이름)", 없으면 이름만
+            const displayName = c.teamName
+                ? `${escapeHtml(c.teamName)} (${escapeHtml(c.name)})`
+                : escapeHtml(c.name);
+
+            html += `
+                <div class="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-amber-50 transition-colors" style="border-bottom:1px solid #f3f4f6;">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-sm font-bold text-gray-400 w-5">${idx + 1}</span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">${displayName}</p>
+                            <p class="text-xs text-gray-400 truncate">작년 ${escapeHtml(c.lastOrderDate)} · ${escapeHtml(c.lastOrderItems)}</p>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="text-sm font-bold text-amber-600">${formatCurrency(c.lastOrderAmount)}</p>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        listEl.innerHTML = html;
+
+    } catch (err) {
+        console.error('[Dashboard] 재주문 후보 로드 실패:', err);
+        // 에러 시 간단한 안내 표시
+        const summaryEl = document.getElementById('reorder-summary');
+        if (summaryEl) summaryEl.textContent = '재주문 후보 데이터를 불러올 수 없습니다.';
+        const listEl = document.getElementById('reorder-list');
+        if (listEl) listEl.innerHTML = `
+            <div class="text-center py-6 text-gray-400">
+                <span class="material-symbols-outlined text-3xl mb-2">error_outline</span>
+                <p class="text-sm">데이터를 불러올 수 없습니다.</p>
+            </div>
+        `;
+    }
+}
+
+// ============================================================
 // 페이지 초기화
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -349,9 +432,10 @@ document.addEventListener('DOMContentLoaded', () => {
         greetingEl.textContent = `안녕하세요, ${user.name}님! 오늘의 현황입니다.`;
     }
 
-    // 4. 데이터 병렬 로드 — 세 API를 동시에 호출하여 빠르게 화면 표시
-    // 비유: 세 명이 동시에 다른 서류를 가져오는 것 (순서대로 기다리지 않음)
+    // 4. 데이터 병렬 로드 — 네 API를 동시에 호출하여 빠르게 화면 표시
+    // 비유: 네 명이 동시에 다른 서류를 가져오는 것 (순서대로 기다리지 않음)
     loadKPIs();
     loadRecentActivity();
     loadUrgentOrders();
+    loadReorderCandidates(); // B-3: 재주문 시기 도래 고객 요약
 });

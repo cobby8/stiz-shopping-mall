@@ -138,6 +138,23 @@
             </button>
         </div>
 
+        <!-- ===== 탭 전환: 전체 고객 / 재주문 시기 도래 (B-3) ===== -->
+        <!-- 비유: 서류함에 "전체 고객" 탭과 "재주문 시기 도래" 탭을 붙이는 것 -->
+        <div class="flex items-center gap-2 mb-6">
+            <button id="tab-all" onclick="switchTab('all')"
+                class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-black text-white transition-colors">
+                전체 고객
+            </button>
+            <button id="tab-reorder" onclick="switchTab('reorder')"
+                class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">repeat</span>
+                재주문 시기 도래
+            </button>
+        </div>
+
+        <!-- ===== 전체 고객 영역 (기존 코드) ===== -->
+        <div id="section-all">
+
         <!-- ===== 통계 카드 4개 ===== -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <!-- 전체 고객 -->
@@ -270,6 +287,67 @@
                 <div id="pagination-buttons" class="flex items-center space-x-1"></div>
             </div>
         </div>
+
+        </div><!-- /section-all -->
+
+        <!-- ===== 재주문 시기 도래 영역 (B-3) ===== -->
+        <!-- 비유: "작년 이맘때 주문한 고객 중 올해 아직 안 온 사람" 전체 목록 -->
+        <div id="section-reorder" class="hidden">
+            <!-- 요약 바 + 필터 -->
+            <div class="bg-white rounded-xl p-4 border border-gray-100 mb-6">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p id="reorder-summary-text" class="text-sm text-gray-700">
+                        재주문 시기 도래 고객을 불러오는 중...
+                    </p>
+                    <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                        <input type="checkbox" id="reorder-show-ordered" onchange="loadReorderList()"
+                            class="w-4 h-4 rounded border-gray-300 text-brand-black focus:ring-brand-black">
+                        올해 이미 주문한 고객도 표시
+                    </label>
+                </div>
+            </div>
+
+            <!-- 재주문 테이블 -->
+            <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <!-- 로딩 상태 -->
+                <div id="reorder-loading" class="flex items-center justify-center py-20">
+                    <div class="spinner"></div>
+                    <span class="ml-3 text-sm text-gray-500">재주문 후보를 불러오는 중...</span>
+                </div>
+
+                <!-- 빈 상태 -->
+                <div id="reorder-empty" class="hidden text-center py-20">
+                    <span class="material-symbols-outlined text-5xl text-gray-300">group_off</span>
+                    <p class="text-gray-500 mt-3">재주문 시기 도래 고객이 없습니다.</p>
+                </div>
+
+                <!-- 테이블 -->
+                <div id="reorder-table-wrapper" class="hidden table-wrapper">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">단체명</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">연락처</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">작년 주문일</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문 내용</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문 금액</th>
+                                <th class="text-center px-4 py-3 font-medium text-gray-500 whitespace-nowrap">올해 주문</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reorder-tbody">
+                            <!-- JS에서 동적 렌더링 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 페이지네이션 -->
+                <div id="reorder-pagination" class="hidden border-t border-gray-100 px-4 py-3 flex items-center justify-between">
+                    <p id="reorder-pagination-info" class="text-sm text-gray-500"></p>
+                    <div id="reorder-pagination-buttons" class="flex items-center space-x-1"></div>
+                </div>
+            </div>
+        </div><!-- /section-reorder -->
 
     </main>
 
