@@ -188,6 +188,183 @@
             </div>
         </div>
 
+        <!-- ===== [C-3] 매출 목표 달성률 ===== -->
+        <!-- 비유: 모금 현황판 — "올해 목표 15억 중 10억 달성 (67%)" -->
+        <div id="goal-section" class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <!-- 헤더: 제목 + 목표 설정 버튼 -->
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-brand-red">flag</span>
+                    <span id="goal-title">매출 목표 달성률</span>
+                </h3>
+                <button id="goal-setting-btn" onclick="openGoalModal()"
+                    class="text-sm text-gray-500 hover:text-brand-red transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-base">settings</span>
+                    목표 설정
+                </button>
+            </div>
+
+            <!-- 목표 미설정 상태 안내 -->
+            <div id="goal-empty" class="text-center py-6">
+                <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">track_changes</span>
+                <p class="text-sm text-gray-400 mb-3">아직 매출 목표가 설정되지 않았습니다.</p>
+                <button onclick="openGoalModal()"
+                    class="text-sm bg-brand-red text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                    목표 설정하기
+                </button>
+            </div>
+
+            <!-- 달성률 표시 영역 (목표가 있을 때만 보임) -->
+            <div id="goal-content" class="hidden">
+                <!-- 연간 요약: 목표 | 현재 매출 | 남은 금액 -->
+                <div class="flex flex-wrap items-center gap-6 mb-4 text-sm">
+                    <div>
+                        <span class="text-gray-500">연간 목표</span>
+                        <span id="goal-annual-target" class="ml-1 font-bold">-</span>
+                    </div>
+                    <div class="w-px h-5 bg-gray-200 hidden md:block"></div>
+                    <div>
+                        <span class="text-gray-500">현재 매출</span>
+                        <span id="goal-current-revenue" class="ml-1 font-bold text-brand-red">-</span>
+                    </div>
+                    <div class="w-px h-5 bg-gray-200 hidden md:block"></div>
+                    <div>
+                        <span class="text-gray-500">남은 금액</span>
+                        <span id="goal-remaining" class="ml-1 font-bold text-gray-600">-</span>
+                    </div>
+                    <div class="w-px h-5 bg-gray-200 hidden md:block"></div>
+                    <div>
+                        <span id="goal-rate-badge" class="text-sm font-bold px-2 py-0.5 rounded-full">-</span>
+                    </div>
+                </div>
+
+                <!-- 연간 프로그레스 바 -->
+                <div class="w-full bg-gray-200 rounded-full h-5 mb-5 overflow-hidden relative">
+                    <div id="goal-progress-bar"
+                        class="h-5 rounded-full transition-all duration-700 ease-out flex items-center justify-end pr-2"
+                        style="width: 0%;">
+                        <span id="goal-progress-text" class="text-xs font-bold text-white drop-shadow"></span>
+                    </div>
+                </div>
+
+                <!-- 월별 미니 프로그레스 바 (3열 x 4행 그리드) -->
+                <div id="goal-monthly-grid" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <!-- JS에서 동적 렌더링 (1~12월 미니바) -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== [C-3] 매출 목표 설정 모달 ===== -->
+        <!-- 비유: "올해 매출 계획 입력 팝업" — 연간 목표 + 선택적 월별 세부 설정 -->
+        <div id="goal-modal" class="fixed inset-0 z-[60] hidden">
+            <!-- 배경 오버레이 -->
+            <div class="absolute inset-0 bg-black/50" onclick="closeGoalModal()"></div>
+            <!-- 모달 본체 -->
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <!-- 모달 헤더 -->
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-bold flex items-center gap-2">
+                            <span class="material-symbols-outlined text-brand-red">flag</span>
+                            매출 목표 설정 — <span id="goal-modal-year">2026</span>년
+                        </h3>
+                        <button onclick="closeGoalModal()" class="text-gray-400 hover:text-gray-600">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+
+                    <!-- 연간 목표 입력 -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">연간 목표 금액</label>
+                        <div class="flex items-center gap-2">
+                            <input id="goal-annual-input" type="text" placeholder="1,500,000,000"
+                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red"
+                                oninput="formatGoalInput(this)">
+                            <span class="text-sm text-gray-500">원</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">숫자만 입력하면 자동으로 콤마가 추가됩니다.</p>
+                    </div>
+
+                    <!-- 월별 세부 목표 토글 -->
+                    <div class="mb-5">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input id="goal-monthly-toggle" type="checkbox" class="rounded border-gray-300"
+                                onchange="toggleMonthlyGoals()">
+                            <span class="text-sm font-medium text-gray-700">월별 세부 목표 설정</span>
+                        </label>
+                        <p class="text-xs text-gray-400 mt-1 ml-6">체크하지 않으면 연간 목표를 12등분하여 균등 배분합니다.</p>
+                    </div>
+
+                    <!-- 월별 입력란 (토글 시 표시) -->
+                    <div id="goal-monthly-inputs" class="hidden mb-5">
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- JS에서 1~12월 입력란 동적 생성하지 않고 정적 배치 -->
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">1월</label>
+                                <input data-month="1" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">2월</label>
+                                <input data-month="2" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">3월</label>
+                                <input data-month="3" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">4월</label>
+                                <input data-month="4" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">5월</label>
+                                <input data-month="5" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">6월</label>
+                                <input data-month="6" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">7월</label>
+                                <input data-month="7" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">8월</label>
+                                <input data-month="8" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">9월</label>
+                                <input data-month="9" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">10월</label>
+                                <input data-month="10" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">11월</label>
+                                <input data-month="11" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600 w-10">12월</label>
+                                <input data-month="12" type="text" class="goal-month-input flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-red" oninput="formatGoalInput(this)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 모달 하단 버튼 -->
+                    <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button onclick="closeGoalModal()"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                            취소
+                        </button>
+                        <button onclick="saveSalesGoal()"
+                            class="px-4 py-2 text-sm bg-brand-red text-white rounded-lg hover:bg-red-600 transition-colors">
+                            저장
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ===== 월별 매출 차트 ===== -->
         <!-- 비유: 월별 매출 막대그래프 + 주문수 라인 -- 한눈에 매출 추이 파악 -->
         <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">

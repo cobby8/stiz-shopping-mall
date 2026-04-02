@@ -18,6 +18,13 @@ let monthlyChartInstance = null;
 // 종목별 도넛 차트 인스턴스
 let sportChartInstance = null;
 
+// [C-3] 전역 변수: loadStats()에서 가져온 총매출을 달성률 계산에 재사용
+// 비유: 성적표에서 읽은 현재 점수를 목표 대비 계산기에 넘기는 것
+let currentTotalRevenue = 0;
+
+// [C-3] 전역 변수: 현재 로드된 월별 매출 데이터 (월별 미니바 계산에 사용)
+let currentMonthlyData = null;
+
 // 종목별 색상 매핑 — 각 종목을 직관적인 색상으로 구분
 // 비유: 농구공=주황, 축구장=초록, 배구=파랑 처럼 종목 이미지에 맞는 색상
 const SPORT_COLORS = {
@@ -55,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadSportChart(selectedYear);    // 종목별 매출 차트 갱신
             loadStaffStats(selectedYear);    // 담당자별 실적 갱신
             loadTopCustomers(selectedYear);  // 고객별 매출 랭킹 갱신
+            loadSalesGoal(selectedYear);     // [C-3] 매출 목표 달성률 갱신
         });
     }
 
@@ -66,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSportChart(currentYear);     // 종목별 매출 차트 초기 로드
     loadStaffStats(currentYear);
     loadTopCustomers(currentYear);
+    loadSalesGoal(currentYear);      // [C-3] 매출 목표 달성률 초기 로드
 });
 
 // checkAdminAuth, getAdminToken, adminFetch, formatCurrency, formatDate,
@@ -102,6 +111,9 @@ async function loadStats(year) {
         document.getElementById('stat-production').textContent = stats.statusCounts.production || 0;
         document.getElementById('stat-shipping').textContent = stats.statusCounts.shipping || 0;
         document.getElementById('stat-delivered').textContent = stats.statusCounts.delivered || 0;
+
+        // [C-3] 총매출을 전역 변수에 저장 — 달성률 계산에 재사용
+        currentTotalRevenue = stats.totalRevenue || 0;
 
         // 총 주문 + 매출
         document.getElementById('stat-total').textContent = `${stats.totalOrders}건`;
@@ -164,6 +176,9 @@ async function loadMonthlyChart(year) {
         if (!data.success) return;
 
         const monthly = data.monthly; // [{month:1, revenue:금액, orders:건수}, ...]
+
+        // [C-3] 월별 데이터를 전역에 저장 — 목표 달성률 월별 미니바에서 재사용
+        currentMonthlyData = monthly;
 
         // X축: 1월~12월, 막대: 매출, 라인: 주문수
         const labels = monthly.map(m => `${m.month}월`);
@@ -623,5 +638,345 @@ async function loadSportChart(year) {
         console.error('[Analytics] 종목별 매출 차트 로드 실패:', error);
     } finally {
         if (loading) loading.classList.add('hidden');
+    }
+}
+
+// ============================================================
+// [C-3] 매출 목표 달성률
+// 비유: 모금 현황판 — 올해 목표 대비 현재 얼마나 달성했는지 게이지로 표시
+// ============================================================
+
+/**
+ * 매출 목표를 서버에서 가져와 달성률 프로그레스 바를 렌더링
+ * @param {string} year - 조회할 연도
+ */
+async function loadSalesGoal(year) {
+    const selectedYear = year || new Date().getFullYear().toString();
+
+    try {
+        const res = await adminFetch(`/api/admin/sales-goals/${selectedYear}`);
+        if (!res) return;
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        // 제목에 연도 표시
+        const titleEl = document.getElementById('goal-title');
+        if (titleEl) titleEl.textContent = `${selectedYear}년 매출 목표 달성률`;
+
+        // 목표 미설정 시: 안내 UI 표시
+        const emptyEl = document.getElementById('goal-empty');
+        const contentEl = document.getElementById('goal-content');
+
+        if (!data.goal) {
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            if (contentEl) contentEl.classList.add('hidden');
+            return;
+        }
+
+        // 목표가 있으면: 안내 숨기고 달성률 표시
+        if (emptyEl) emptyEl.classList.add('hidden');
+        if (contentEl) contentEl.classList.remove('hidden');
+
+        renderGoalProgress(data.goal, selectedYear);
+
+    } catch (error) {
+        console.error('[Analytics] 매출 목표 로드 실패:', error);
+    }
+}
+
+/**
+ * 달성률 프로그레스 바 + 월별 미니바를 화면에 그린다
+ * @param {object} goal - { annualGoal, monthlyGoals }
+ * @param {string} year - 표시할 연도
+ */
+function renderGoalProgress(goal, year) {
+    const annualGoal = goal.annualGoal || 0;
+    const revenue = currentTotalRevenue || 0;
+
+    // --- 연간 요약 숫자 표시 ---
+    const targetEl = document.getElementById('goal-annual-target');
+    const currentEl = document.getElementById('goal-current-revenue');
+    const remainEl = document.getElementById('goal-remaining');
+    const rateBadge = document.getElementById('goal-rate-badge');
+
+    if (targetEl) targetEl.textContent = formatChartAmount(annualGoal);
+    if (currentEl) currentEl.textContent = formatChartAmount(revenue);
+
+    // 남은 금액 (목표 - 현재). 초과 시 음수이므로 0으로 처리
+    const remaining = Math.max(0, annualGoal - revenue);
+    if (remainEl) remainEl.textContent = remaining > 0 ? formatChartAmount(remaining) : '달성 완료';
+
+    // --- 달성률 % 계산 ---
+    const rate = annualGoal > 0 ? (revenue / annualGoal) * 100 : 0;
+    const rateText = rate.toFixed(1) + '%';
+
+    // 달성률에 따른 색상 결정
+    // 비유: 시험 점수처럼 — 30점 미만 빨강, 30~70점 주황, 70~100점 파랑, 100점+ 초록
+    let barColor, badgeBg, badgeText;
+    if (rate >= 100) {
+        barColor = 'bg-green-500';
+        badgeBg = 'bg-green-100 text-green-700';
+        badgeText = '목표 초과 달성!';
+    } else if (rate >= 70) {
+        barColor = 'bg-blue-500';
+        badgeBg = 'bg-blue-100 text-blue-700';
+        badgeText = rateText;
+    } else if (rate >= 30) {
+        barColor = 'bg-amber-500';
+        badgeBg = 'bg-amber-100 text-amber-700';
+        badgeText = rateText;
+    } else {
+        barColor = 'bg-red-500';
+        badgeBg = 'bg-red-100 text-red-700';
+        badgeText = rateText;
+    }
+
+    // 배지 표시
+    if (rateBadge) {
+        rateBadge.textContent = badgeText;
+        rateBadge.className = `text-sm font-bold px-2 py-0.5 rounded-full ${badgeBg}`;
+    }
+
+    // --- 연간 프로그레스 바 ---
+    const progressBar = document.getElementById('goal-progress-bar');
+    const progressText = document.getElementById('goal-progress-text');
+
+    if (progressBar) {
+        // 너비는 최대 100%로 제한 (초과해도 바가 넘치지 않게)
+        const barWidth = Math.min(100, rate);
+        progressBar.style.width = barWidth + '%';
+        // 기존 bg 클래스를 제거하고 새 색상 적용
+        progressBar.className = progressBar.className
+            .replace(/bg-(green|blue|amber|red)-500/g, '')
+            .trim() + ' ' + barColor;
+    }
+    if (progressText) {
+        progressText.textContent = rateText;
+    }
+
+    // --- 월별 미니 프로그레스 바 ---
+    renderMonthlyMinibars(goal, year);
+}
+
+/**
+ * 월별 미니 프로그레스 바 12개를 그리드로 렌더링
+ * 비유: 12개월 각각의 작은 게이지 — 이번 달은 목표의 몇 %를 달성했는지 개별 확인
+ * @param {object} goal - { annualGoal, monthlyGoals }
+ * @param {string} year - 표시할 연도
+ */
+function renderMonthlyMiniBar(goal, year) {
+    // 이 함수는 renderMonthlyMiniBarS에서 호출됨 (오타 방지용 래퍼 아님)
+}
+function renderMonthlyMiniBars(goal, year) {
+    const grid = document.getElementById('goal-monthly-grid');
+    if (!grid) return;
+
+    const annualGoal = goal.annualGoal || 0;
+    const monthlyGoals = goal.monthlyGoals || {};
+
+    // 월별 실적 데이터가 아직 로드되지 않았으면 빈 상태
+    const monthlyRevenue = {};
+    if (currentMonthlyData) {
+        currentMonthlyData.forEach(m => {
+            monthlyRevenue[m.month] = m.revenue || 0;
+        });
+    }
+
+    let html = '';
+    for (let m = 1; m <= 12; m++) {
+        // 월별 목표: 개별 설정이 있으면 그것 사용, 없으면 연간/12 균등 분배
+        const monthGoal = monthlyGoals[String(m)]
+            ? Number(monthlyGoals[String(m)])
+            : Math.round(annualGoal / 12);
+
+        const monthRev = monthlyRevenue[m] || 0;
+        const monthRate = monthGoal > 0 ? (monthRev / monthGoal) * 100 : 0;
+        const barWidth = Math.min(100, monthRate);
+
+        // 색상 결정 (연간과 동일한 로직)
+        let miniColor;
+        if (monthRate >= 100) miniColor = 'bg-green-500';
+        else if (monthRate >= 70) miniColor = 'bg-blue-500';
+        else if (monthRate >= 30) miniColor = 'bg-amber-500';
+        else miniColor = 'bg-red-500';
+
+        // 미래 달(아직 데이터 없는 달)은 회색 처리
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear().toString();
+        const isFuture = (year === currentYear && m > currentMonth);
+        if (isFuture) miniColor = 'bg-gray-300';
+
+        html += `
+            <div class="text-center">
+                <div class="text-xs text-gray-500 mb-1">${m}월</div>
+                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div class="${miniColor} h-2 rounded-full transition-all duration-500"
+                         style="width: ${isFuture ? 0 : barWidth}%"></div>
+                </div>
+                <div class="text-xs mt-1 ${isFuture ? 'text-gray-300' : 'text-gray-600'}">
+                    ${isFuture ? '-' : monthRate.toFixed(0) + '%'}
+                </div>
+            </div>
+        `;
+    }
+
+    grid.innerHTML = html;
+}
+
+// ============================================================
+// [C-3] 목표 설정 모달 관련 함수
+// ============================================================
+
+/**
+ * 목표 설정 모달 열기
+ * 현재 선택된 연도의 기존 목표가 있으면 입력란에 미리 채워넣는다
+ */
+async function openGoalModal() {
+    const modal = document.getElementById('goal-modal');
+    const yearLabel = document.getElementById('goal-modal-year');
+    const yearSelect = document.getElementById('stats-year-select');
+    const selectedYear = yearSelect ? yearSelect.value : new Date().getFullYear().toString();
+
+    if (yearLabel) yearLabel.textContent = selectedYear;
+
+    // 기존 목표 데이터 로드
+    try {
+        const res = await adminFetch(`/api/admin/sales-goals/${selectedYear}`);
+        if (res) {
+            const data = await res.json();
+            const goal = data.goal;
+
+            const annualInput = document.getElementById('goal-annual-input');
+            const monthlyToggle = document.getElementById('goal-monthly-toggle');
+
+            if (goal) {
+                // 기존 목표가 있으면 입력란에 미리 채움
+                if (annualInput) annualInput.value = goal.annualGoal ? goal.annualGoal.toLocaleString('ko-KR') : '';
+
+                // 월별 세부 목표가 있으면 토글 켜고 값 채움
+                const hasMonthly = goal.monthlyGoals && Object.keys(goal.monthlyGoals).length > 0;
+                if (monthlyToggle) {
+                    monthlyToggle.checked = hasMonthly;
+                    toggleMonthlyGoals();
+                }
+
+                if (hasMonthly) {
+                    document.querySelectorAll('.goal-month-input').forEach(input => {
+                        const month = input.getAttribute('data-month');
+                        const val = goal.monthlyGoals[month];
+                        input.value = val ? Number(val).toLocaleString('ko-KR') : '';
+                    });
+                }
+            } else {
+                // 목표가 없으면 입력란 초기화
+                if (annualInput) annualInput.value = '';
+                if (monthlyToggle) {
+                    monthlyToggle.checked = false;
+                    toggleMonthlyGoals();
+                }
+                document.querySelectorAll('.goal-month-input').forEach(input => {
+                    input.value = '';
+                });
+            }
+        }
+    } catch (e) {
+        console.error('[Analytics] 목표 모달 데이터 로드 실패:', e);
+    }
+
+    // 모달 표시
+    if (modal) modal.classList.remove('hidden');
+}
+
+/**
+ * 목표 설정 모달 닫기
+ */
+function closeGoalModal() {
+    const modal = document.getElementById('goal-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/**
+ * 월별 세부 목표 입력란 토글 (체크박스 on/off)
+ */
+function toggleMonthlyGoals() {
+    const toggle = document.getElementById('goal-monthly-toggle');
+    const inputs = document.getElementById('goal-monthly-inputs');
+    if (toggle && inputs) {
+        if (toggle.checked) {
+            inputs.classList.remove('hidden');
+        } else {
+            inputs.classList.add('hidden');
+        }
+    }
+}
+
+/**
+ * 입력란에 숫자 콤마 자동 포맷
+ * 비유: "1500000000" 입력하면 "1,500,000,000"으로 보기 좋게 변환
+ * @param {HTMLInputElement} el - 대상 입력란
+ */
+function formatGoalInput(el) {
+    // 숫자가 아닌 문자 제거 후 콤마 포맷
+    let value = el.value.replace(/[^0-9]/g, '');
+    if (value) {
+        el.value = Number(value).toLocaleString('ko-KR');
+    }
+}
+
+/**
+ * 매출 목표를 서버에 저장
+ * 모달의 입력값을 읽어서 PUT API로 전송
+ */
+async function saveSalesGoal() {
+    const yearSelect = document.getElementById('stats-year-select');
+    const selectedYear = yearSelect ? yearSelect.value : new Date().getFullYear().toString();
+
+    // 연간 목표 금액 파싱 (콤마 제거 후 숫자로 변환)
+    const annualInput = document.getElementById('goal-annual-input');
+    const annualValue = annualInput ? annualInput.value.replace(/[^0-9]/g, '') : '';
+
+    if (!annualValue || Number(annualValue) <= 0) {
+        alert('연간 목표 금액을 입력해주세요.');
+        return;
+    }
+
+    const annualGoal = Number(annualValue);
+
+    // 월별 세부 목표 수집
+    const monthlyToggle = document.getElementById('goal-monthly-toggle');
+    let monthlyGoals = {};
+
+    if (monthlyToggle && monthlyToggle.checked) {
+        document.querySelectorAll('.goal-month-input').forEach(input => {
+            const month = input.getAttribute('data-month');
+            const val = input.value.replace(/[^0-9]/g, '');
+            if (val) {
+                monthlyGoals[month] = Number(val);
+            }
+        });
+    }
+
+    // PUT API 호출
+    try {
+        const res = await adminFetch(`/api/admin/sales-goals/${selectedYear}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ annualGoal, monthlyGoals })
+        });
+
+        if (!res) return;
+
+        const data = await res.json();
+        if (data.success) {
+            closeGoalModal();
+            // 저장 성공 후 달성률 UI 갱신
+            loadSalesGoal(selectedYear);
+        } else {
+            alert('저장 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[Analytics] 매출 목표 저장 실패:', error);
+        alert('저장 중 오류가 발생했습니다.');
     }
 }

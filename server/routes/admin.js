@@ -1239,4 +1239,67 @@ router.get('/activity-log', (req, res) => {
     }
 });
 
+// ============================================================
+// [C-3] 매출 목표 달성률 API
+// 비유: "올해 목표 매출액"을 설정/조회하는 엔드포인트
+// 데이터는 sales-goals.json에 연도별로 저장된다
+// ============================================================
+
+// GET /api/admin/sales-goals/:year — 해당 연도 매출 목표 조회
+// 비유: "올해 목표가 뭐였지?" 확인
+router.get('/sales-goals/:year', (req, res) => {
+    try {
+        const year = req.params.year;
+        const goals = db.getAll('sales-goals');
+        // 연도(id)가 일치하는 목표를 찾는다
+        const goal = goals.find(g => g.id === year) || null;
+
+        res.json({ success: true, goal });
+    } catch (error) {
+        console.error('[Admin] Sales goal GET error:', error);
+        res.status(500).json({ success: false, error: '매출 목표 조회 실패' });
+    }
+});
+
+// PUT /api/admin/sales-goals/:year — 해당 연도 매출 목표 저장/수정
+// 비유: "올해 목표를 15억으로 설정" 저장
+router.put('/sales-goals/:year', (req, res) => {
+    try {
+        const year = req.params.year;
+        const { annualGoal, monthlyGoals } = req.body;
+
+        // 연간 목표 금액은 필수
+        if (annualGoal === undefined || annualGoal === null) {
+            return res.status(400).json({ success: false, error: '연간 목표 금액은 필수입니다' });
+        }
+
+        const goals = db.getAll('sales-goals');
+        const existingIndex = goals.findIndex(g => g.id === year);
+
+        const goalData = {
+            id: year,
+            year: year,
+            annualGoal: Number(annualGoal),
+            // 월별 목표가 있으면 저장, 없으면 빈 객체
+            monthlyGoals: monthlyGoals || {},
+            updatedAt: new Date().toISOString()
+        };
+
+        if (existingIndex >= 0) {
+            // 기존 목표 수정
+            goals[existingIndex] = goalData;
+        } else {
+            // 새 목표 추가
+            goals.push(goalData);
+        }
+
+        db.saveAll('sales-goals', goals);
+
+        res.json({ success: true, goal: goalData });
+    } catch (error) {
+        console.error('[Admin] Sales goal PUT error:', error);
+        res.status(500).json({ success: false, error: '매출 목표 저장 실패' });
+    }
+});
+
 export default router;
