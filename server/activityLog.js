@@ -1,5 +1,6 @@
 /**
  * 관리자 활동 로그 시스템 (D-2)
+ * [E-1] SQLite 전환 — fs 직접 읽기/쓰기를 db-sqlite.js 함수로 교체
  *
  * 비유: CCTV 녹화처럼 관리자가 어떤 작업을 했는지 자동으로 기록하는 시스템
  * - 주문 상태 변경, 복제, 입금 확인 등 주요 액션을 시간순으로 저장
@@ -7,38 +8,15 @@
  * - 비동기 처리로 API 응답 속도에 영향을 주지 않음
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOG_FILE = path.join(__dirname, 'data', 'activity-log.json');
+// SQLite DB 모듈에서 필요한 함수만 가져온다
+// 기존에는 fs로 JSON 파일을 직접 읽고 썼지만, 이제 DB를 통해 관리한다
+import { getAll, insert as dbInsert, database } from './db-sqlite.js';
 
 // 최대 보관 건수 — 1000건 넘으면 가장 오래된 것부터 자동 삭제
 const MAX_LOGS = 1000;
 
-/**
- * 로그 파일에서 전체 로그를 읽어온다 (동기)
- * 파일이 없으면 빈 배열 반환
- */
-function readLogs() {
-    try {
-        if (!fs.existsSync(LOG_FILE)) return [];
-        const raw = fs.readFileSync(LOG_FILE, 'utf-8');
-        return JSON.parse(raw);
-    } catch (err) {
-        // 파일이 깨져있거나 읽기 실패 시 빈 배열로 복구
-        console.error('[ActivityLog] 로그 파일 읽기 실패, 초기화:', err.message);
-        return [];
-    }
-}
-
-/**
- * 로그 파일에 전체 로그를 저장한다 (동기)
- */
-function writeLogs(logs) {
-    fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2), 'utf-8');
-}
+// 컬렉션 이름 (db-sqlite.js가 activity_log 테이블로 매핑)
+const COLLECTION = 'activity-log';
 
 /**
  * 활동 로그를 기록한다 (비동기 — 호출하는 쪽에서 await 없이 사용 가능)
@@ -63,8 +41,6 @@ export function logActivity(action, details = {}, user = {}) {
     // 비유: 메모를 적는 동안 고객 응대는 계속 진행
     setTimeout(() => {
         try {
-            const logs = readLogs();
-
             // 새 로그 항목 생성
             const entry = {
                 id: Date.now(),                              // 고유 ID (타임스탬프)
@@ -75,15 +51,21 @@ export function logActivity(action, details = {}, user = {}) {
                 timestamp: new Date().toISOString()           // 기록 시간
             };
 
-            // 맨 앞에 추가 (최신순 정렬 유지)
-            logs.unshift(entry);
+            // SQLite DB에 INSERT
+            dbInsert(COLLECTION, entry);
 
-            // 최대 건수 초과 시 오래된 것 삭제 — 비유: 서랍이 꽉 차면 맨 아래 서류부터 버림
-            if (logs.length > MAX_LOGS) {
-                logs.length = MAX_LOGS;
+            // 최대 건수 초과 시 오래된 것 삭제
+            // 비유: 서랍이 꽉 차면 맨 아래 서류부터 버림
+            // timestamp 기준 오래된 순으로 정렬하여 MAX_LOGS 초과분 삭제
+            const count = database.prepare('SELECT COUNT(*) as cnt FROM activity_log').get().cnt;
+            if (count > MAX_LOGS) {
+                // MAX_LOGS 건만 남기고 나머지(오래된 것) 삭제
+                database.prepare(`
+                    DELETE FROM activity_log WHERE id NOT IN (
+                        SELECT id FROM activity_log ORDER BY timestamp DESC LIMIT ?
+                    )
+                `).run(MAX_LOGS);
             }
-
-            writeLogs(logs);
         } catch (err) {
             // 로그 기록 실패가 서비스 전체를 멈추면 안 되므로 에러만 출력
             console.error('[ActivityLog] 로그 기록 실패:', err.message);
@@ -99,7 +81,15 @@ export function logActivity(action, details = {}, user = {}) {
  * @returns {Array} 로그 배열 (최신순)
  */
 export function getActivityLogs(limit = 50, action = null) {
-    let logs = readLogs();
+    // getAll로 전체 로그를 가져온다 (db-sqlite.js가 details JSON 파싱을 자동 처리)
+    let logs = getAll(COLLECTION);
+
+    // 최신순 정렬 (timestamp 내림차순)
+    logs.sort((a, b) => {
+        const aTime = a.timestamp || '';
+        const bTime = b.timestamp || '';
+        return bTime > aTime ? 1 : bTime < aTime ? -1 : 0;
+    });
 
     // 액션 종류로 필터링 (예: order_status_change만 보기)
     if (action) {

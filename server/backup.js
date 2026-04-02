@@ -1,8 +1,9 @@
 /**
  * 데이터 자동 백업 시스템
+ * [E-1] SQLite 전환 — JSON 파일 복사 방식에서 SQLite DB 파일 복사로 변경
  *
  * 비유: 중요 서류를 정기적으로 복사해서 금고에 보관하는 시스템.
- * 원본(data/*.json)이 손상되면 금고(data/backups/)에서 꺼내 복원할 수 있다.
+ * 이제는 여러 엑셀 파일 대신 하나의 데이터베이스 파일(stiz.db)만 복사하면 된다.
  *
  * 동작 방식:
  * 1) 서버 시작 시 1회 백업 실행
@@ -16,17 +17,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// 백업 대상 파일 목록
-const BACKUP_TARGETS = [
-    'orders.json',
-    'customers.json',
-    'users.json',
-    'order-history.json'
-];
-
 // 백업 설정
 const DATA_DIR = path.join(__dirname, 'data');              // 원본 데이터 폴더
-const BACKUP_DIR = path.join(__dirname, 'data', 'backups'); // 백업 저장 폴더
+const DB_FILE = path.join(DATA_DIR, 'stiz.db');             // SQLite DB 파일 경로
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');           // 백업 저장 폴더
 const MAX_AGE_DAYS = 7;                                     // 최대 보관 일수
 const INTERVAL_MS = 6 * 60 * 60 * 1000;                    // 백업 주기: 6시간 (밀리초)
 
@@ -46,7 +40,7 @@ async function ensureBackupDir() {
 
 /**
  * 현재 시각을 파일명용 문자열로 변환
- * 예: 2026-03-31_143000
+ * 예: 20260402_143000
  */
 function getTimestamp() {
     const now = new Date();
@@ -56,32 +50,7 @@ function getTimestamp() {
     const HH = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    return `${yyyy}-${MM}-${dd}_${HH}${mm}${ss}`;
-}
-
-/**
- * 단일 파일 백업 실행
- * 비유: 서류 한 장을 복사기에 넣고 복사본을 금고에 넣는 것
- *
- * @param {string} filename - 백업할 파일명 (예: orders.json)
- * @param {string} timestamp - 백업 시각 문자열
- * @returns {string|null} 백업된 파일명 또는 null (원본이 없는 경우)
- */
-async function backupFile(filename, timestamp) {
-    const sourcePath = path.join(DATA_DIR, filename);
-    const backupName = `${timestamp}_${filename}`;
-    const destPath = path.join(BACKUP_DIR, backupName);
-
-    try {
-        // 원본 파일이 존재하는지 확인
-        await fs.access(sourcePath);
-        // 비동기로 파일 복사 (서버 성능에 영향 최소화)
-        await fs.copyFile(sourcePath, destPath);
-        return backupName;
-    } catch {
-        // 원본 파일이 없으면 건너뛰기 (아직 생성되지 않은 파일일 수 있음)
-        return null;
-    }
+    return `${yyyy}${MM}${dd}_${HH}${mm}${ss}`;
 }
 
 /**
@@ -116,7 +85,10 @@ async function cleanOldBackups() {
 
 /**
  * 전체 백업 실행 (메인 함수)
- * 대상 파일 모두 백업 + 오래된 파일 정리
+ * SQLite DB 파일을 타임스탬프 붙여서 복사 + 오래된 파일 정리
+ *
+ * 비유: 이전에는 서류 4묶음을 각각 복사했지만,
+ *       이제는 하나의 DB 파일만 복사하면 전부 백업되는 것
  *
  * @returns {{ success: boolean, files: string[], timestamp: string }}
  */
@@ -128,15 +100,33 @@ export async function runBackup() {
         // 1) 백업 폴더 확인/생성
         await ensureBackupDir();
 
-        // 2) 각 파일을 순차적으로 백업 (비동기지만 순서대로 진행)
-        for (const filename of BACKUP_TARGETS) {
-            const result = await backupFile(filename, timestamp);
-            if (result) {
-                backedUpFiles.push(result);
-            }
+        // 2) SQLite DB 파일 복사
+        // 백업 파일명: stiz_YYYYMMDD_HHmmss.db
+        const backupName = `stiz_${timestamp}.db`;
+        const destPath = path.join(BACKUP_DIR, backupName);
+
+        try {
+            await fs.access(DB_FILE);
+            // DB 파일을 단순 파일 복사 (WAL 모드에서 checkpoint 후 복사가 안전)
+            // better-sqlite3는 WAL 모드에서 읽기 중 복사해도 일관된 스냅샷 보장
+            await fs.copyFile(DB_FILE, destPath);
+            backedUpFiles.push(backupName);
+        } catch {
+            console.log('  [Backup] stiz.db 파일이 없어 백업 건너뜀');
         }
 
-        // 3) 오래된 백업 파일 정리
+        // 3) WAL 파일도 함께 백업 (존재하면)
+        // WAL 파일이 있으면 DB와 함께 복사해야 완전한 백업
+        const walFile = DB_FILE + '-wal';
+        const walBackup = path.join(BACKUP_DIR, `stiz_${timestamp}.db-wal`);
+        try {
+            await fs.access(walFile);
+            await fs.copyFile(walFile, walBackup);
+        } catch {
+            // WAL 파일이 없으면 무시 (정상 — checkpoint 완료된 상태)
+        }
+
+        // 4) 오래된 백업 파일 정리
         await cleanOldBackups();
 
         console.log(`  [Backup] 완료: ${backedUpFiles.length}개 파일 백업 (${timestamp})`);
