@@ -421,6 +421,94 @@
             </div>
         </div>
 
+        <!-- ===== 수익률/마진 분석 ===== -->
+        <!-- 비유: "얼마나 팔았는가"가 아닌 "얼마나 남았는가"를 보여주는 엑스레이 -->
+        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-emerald-500">monitoring</span>
+                    수익률 / 마진 분석
+                </h3>
+                <span id="margin-loading" class="text-xs text-gray-400 hidden">불러오는 중...</span>
+            </div>
+
+            <!-- 마진 요약 카드 4칸 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div class="bg-gray-50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-gray-500 mb-1">총 매출</p>
+                    <p class="text-lg font-bold text-gray-800" id="margin-total-revenue">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-gray-500 mb-1">총 원가</p>
+                    <p class="text-lg font-bold text-gray-800" id="margin-total-cost">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-gray-500 mb-1">총 마진</p>
+                    <p class="text-lg font-bold" id="margin-total-margin">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-gray-500 mb-1">마진율</p>
+                    <p class="text-2xl font-bold" id="margin-rate">-</p>
+                </div>
+            </div>
+            <!-- 원가 입력률 표시 -->
+            <p class="text-xs text-gray-400 mb-4" id="margin-input-rate">원가 입력률: -</p>
+
+            <!-- 월별 마진 추이 차트 (기존 monthlyChart와 별도 canvas) -->
+            <div class="mb-6">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3">월별 마진 추이</h4>
+                <div style="position: relative; height: 320px;">
+                    <canvas id="marginChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 종목별/고객별 마진 테이블 (탭 전환) -->
+            <div>
+                <div class="flex border-b border-gray-200 mb-4">
+                    <button id="margin-tab-sport" class="px-4 py-2 text-sm font-medium border-b-2 border-gray-800 text-gray-800"
+                        onclick="switchMarginTab('sport')">종목별</button>
+                    <button id="margin-tab-customer" class="px-4 py-2 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600"
+                        onclick="switchMarginTab('customer')">고객 TOP 10</button>
+                </div>
+                <!-- 종목별 마진 테이블 -->
+                <div id="margin-table-sport" class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500">종목</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">매출</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">원가</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">마진</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">마진율</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">주문수</th>
+                            </tr>
+                        </thead>
+                        <tbody id="margin-sport-tbody"></tbody>
+                    </table>
+                </div>
+                <!-- 고객별 마진 테이블 -->
+                <div id="margin-table-customer" class="overflow-x-auto hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left px-4 py-3 font-medium text-gray-500">고객명</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">매출</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">원가</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">마진</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">마진율</th>
+                                <th class="text-right px-4 py-3 font-medium text-gray-500">주문수</th>
+                            </tr>
+                        </thead>
+                        <tbody id="margin-customer-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- 데이터 없을 때 -->
+            <div id="margin-empty" class="hidden text-center py-8 text-sm text-gray-400">
+                마진 분석 데이터가 없습니다.
+            </div>
+        </div>
+
         <!-- ===== 담당자별 실적 ===== -->
         <!-- 비유: 직원별 성적표 -- 누가 얼마나 일했고 매출은 얼마인지 한눈에 비교 -->
         <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8">

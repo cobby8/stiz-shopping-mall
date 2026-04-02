@@ -316,7 +316,7 @@ function fillFieldValues() {
         let value = getNestedValue(order, fieldPath);
 
         // 특수한 필드는 별도 포맷팅
-        if (fieldPath === 'payment.totalAmount' || fieldPath === 'payment.unitPrice') {
+        if (fieldPath === 'payment.totalAmount' || fieldPath === 'payment.unitPrice' || fieldPath === 'payment.costPerUnit' || fieldPath === 'payment.totalCost') {
             value = value ? formatCurrency(value) : '-';
         } else if (fieldPath === 'payment.paymentType') {
             value = PAYMENT_TYPE_LABELS[value] || value || '-';
@@ -339,6 +339,45 @@ function fillFieldValues() {
 
         el.textContent = value;
     });
+
+    // --- 원가/마진 자동 계산 표시 ---
+    // 비유: 매출에서 원가를 빼면 마진, 마진을 매출로 나누면 마진율
+    updateMarginDisplay(order);
+}
+
+/**
+ * 마진 표시 갱신 (읽기 모드 + 편집 모드 공용)
+ * @param {object} order - 현재 주문 데이터
+ * @param {number} [overrideCost] - 편집 중일 때 입력된 총원가 (optional)
+ */
+function updateMarginDisplay(order, overrideCost) {
+    const totalAmount = order.payment?.totalAmount || order.total || 0;
+    const totalCost = overrideCost !== undefined ? overrideCost : (order.payment?.totalCost || 0);
+
+    const marginEl = document.getElementById('calc-margin');
+    const marginRateEl = document.getElementById('calc-margin-rate');
+    if (!marginEl || !marginRateEl) return;
+
+    // 원가 미입력(0)이면 "미입력" 표시
+    if (!totalCost && overrideCost === undefined && !order.payment?.costPerUnit) {
+        marginEl.textContent = '-';
+        marginRateEl.textContent = '원가 미입력';
+        marginRateEl.className = 'field-value text-gray-400 text-sm';
+        return;
+    }
+
+    const margin = totalAmount - totalCost;
+    const marginRate = totalAmount > 0 ? Math.round((margin / totalAmount) * 1000) / 10 : 0;
+
+    marginEl.textContent = formatCurrency(margin);
+
+    // 마진율에 따라 색상 배지 적용: >=30% 초록, 15~29% 주황, <15% 빨강
+    let colorClass = 'text-red-600';        // <15%
+    if (marginRate >= 30) colorClass = 'text-green-600';
+    else if (marginRate >= 15) colorClass = 'text-amber-600';
+
+    marginRateEl.textContent = marginRate + '%';
+    marginRateEl.className = `field-value font-bold ${colorClass}`;
 }
 
 /** 주문 아이템 목록 렌더링 */
@@ -637,6 +676,7 @@ function convertToEditFields() {
         'shipping.carrier', 'shipping.trackingNumber',
         'payment.totalAmount', 'payment.unitPrice', 'payment.quantity', 'payment.paidDate',
         'payment.paymentType', 'payment.transactionMethod', 'payment.quoteUrl',
+        'payment.costPerUnit', 'payment.totalCost', 'payment.costNote',
         'manager'
     ];
 
@@ -652,6 +692,29 @@ function convertToEditFields() {
 
         el.innerHTML = `<input type="text" class="edit-input" data-edit-field="${fieldPath}" value="${escapeHtml(displayValue)}">`;
     });
+
+    // --- 원가 입력 시 총원가/마진/마진율 실시간 자동 계산 ---
+    // 비유: "벌당 원가"를 입력하면 수량을 곱해서 "총 원가"를 자동으로 채워주는 계산기
+    const costPerUnitInput = document.querySelector('[data-edit-field="payment.costPerUnit"]');
+    const totalCostInput = document.querySelector('[data-edit-field="payment.totalCost"]');
+
+    if (costPerUnitInput && totalCostInput) {
+        costPerUnitInput.addEventListener('input', () => {
+            const costPerUnit = parseInt(costPerUnitInput.value) || 0;
+            const quantity = order.payment?.quantity || order.items?.[0]?.quantity || 1;
+            const calculatedTotalCost = costPerUnit * quantity;
+            // 총원가 필드를 자동으로 채움 (사용자가 나중에 직접 수정도 가능)
+            totalCostInput.value = calculatedTotalCost;
+            // 마진 표시도 실시간 갱신
+            updateMarginDisplay(order, calculatedTotalCost);
+        });
+
+        // totalCost 직접 입력 시에도 마진 갱신 (벌당 단가가 다를 때 총원가를 직접 입력)
+        totalCostInput.addEventListener('input', () => {
+            const totalCost = parseInt(totalCostInput.value) || 0;
+            updateMarginDisplay(order, totalCost);
+        });
+    }
 }
 
 /** 편집 내용 저장 (PUT API 호출) */
@@ -666,6 +729,12 @@ async function saveChanges() {
         const value = input.value.trim();
         setNestedValue(updates, fieldPath, value);
     });
+
+    // 원가 필드가 변경되었으면 costUpdatedAt 타임스탬프 자동 기록
+    if (updates.payment?.costPerUnit || updates.payment?.totalCost) {
+        if (!updates.payment) updates.payment = {};
+        updates.payment.costUpdatedAt = new Date().toISOString();
+    }
 
     try {
         const res = await adminFetch(`/api/admin/orders/${currentOrder.id}`, {

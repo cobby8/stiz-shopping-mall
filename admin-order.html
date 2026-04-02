@@ -581,6 +581,37 @@
                             </div>
                         </div>
 
+                        <!-- 원가/마진 영역 -->
+                        <!-- 비유: 기존 금융 탭이 "매출 장부"라면, 여기는 "원가 장부" 한 페이지 추가 -->
+                        <div class="mt-6 pt-4 border-t border-gray-100">
+                            <h4 class="font-semibold text-sm text-gray-500 mb-3 flex items-center">
+                                <span class="material-symbols-outlined mr-1 text-base">calculate</span>
+                                원가 / 마진
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div>
+                                    <p class="field-label">벌당 원가</p>
+                                    <p class="field-value" data-field="payment.costPerUnit">-</p>
+                                </div>
+                                <div>
+                                    <p class="field-label">총 원가</p>
+                                    <p class="field-value" data-field="payment.totalCost">-</p>
+                                </div>
+                                <div>
+                                    <p class="field-label">마진</p>
+                                    <p class="field-value" id="calc-margin">-</p>
+                                </div>
+                                <div>
+                                    <p class="field-label">마진율</p>
+                                    <p class="field-value" id="calc-margin-rate">-</p>
+                                </div>
+                                <div class="md:col-span-4">
+                                    <p class="field-label">원가 메모</p>
+                                    <p class="field-value" data-field="payment.costNote">-</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 입금 확인 영역: 미수금 주문에만 버튼 표시, 입금 완료 시 완료 메시지 -->
                         <!-- 비유: 외상 장부에서 "입금 완료" 도장을 찍는 공간 -->
                         <div id="payment-confirm-section" class="mt-6 pt-4 border-t border-gray-100">

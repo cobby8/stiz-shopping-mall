@@ -984,6 +984,151 @@ router.get('/stats/by-sport', (req, res) => {
 });
 
 // ============================================================
+// GET /api/admin/stats/margin - 수익률/마진 분석 통계
+// 비유: "얼마나 팔았는가"가 아닌 "얼마나 남았는가"를 보여주는 엑스레이
+// 원가 입력된 주문만 마진 계산, 미입력 주문은 원가 0으로 처리하되 입력률로 신뢰도 표시
+// ============================================================
+router.get('/stats/margin', (req, res) => {
+    try {
+        const allOrders = db.getAll('orders');
+
+        // 연도 파라미터: 기본값은 현재 연도
+        const year = req.query.year || new Date().getFullYear().toString();
+
+        // 해당 연도 주문만 필터 (매출 기준일 기준, 취소 제외)
+        const orders = allOrders.filter(order => {
+            if (order.status === 'cancelled') return false;
+            const revenueDate = getRevenueDate(order);
+            if (!revenueDate) return false;
+            return revenueDate.startsWith(year);
+        });
+
+        // --- 전체 요약(summary) 집계 ---
+        let totalRevenue = 0;   // 총 매출
+        let totalCost = 0;      // 총 원가
+        let ordersWithCost = 0; // 원가 입력된 주문 건수
+
+        orders.forEach(order => {
+            const amount = order.payment?.totalAmount || order.total || 0;
+            const cost = order.payment?.totalCost || 0;
+            totalRevenue += amount;
+            totalCost += cost;
+            // costPerUnit 또는 totalCost가 0보다 크면 "입력됨"으로 간주
+            if (order.payment?.costPerUnit > 0 || order.payment?.totalCost > 0) {
+                ordersWithCost++;
+            }
+        });
+
+        const totalMargin = totalRevenue - totalCost;
+        // 마진율: 매출이 0이면 0% (0으로 나누기 방지)
+        const marginRate = totalRevenue > 0 ? Math.round((totalMargin / totalRevenue) * 1000) / 10 : 0;
+        // 원가 입력률: 전체 주문 중 원가를 입력한 비율
+        const costInputRate = orders.length > 0 ? Math.round((ordersWithCost / orders.length) * 1000) / 10 : 0;
+
+        // --- 월별(monthly) 집계: 1~12월 ---
+        // 비유: 12칸 성적표에 월별로 매출/원가/마진 기록
+        const monthly = [];
+        for (let m = 1; m <= 12; m++) {
+            monthly.push({ month: m, revenue: 0, cost: 0, margin: 0, marginRate: 0 });
+        }
+
+        orders.forEach(order => {
+            const revenueDate = getRevenueDate(order);
+            const monthIdx = parseInt(revenueDate.substring(5, 7), 10) - 1;
+            if (monthIdx >= 0 && monthIdx < 12) {
+                const amount = order.payment?.totalAmount || order.total || 0;
+                const cost = order.payment?.totalCost || 0;
+                monthly[monthIdx].revenue += amount;
+                monthly[monthIdx].cost += cost;
+            }
+        });
+
+        // 월별 마진/마진율 계산
+        monthly.forEach(m => {
+            m.margin = m.revenue - m.cost;
+            m.marginRate = m.revenue > 0 ? Math.round((m.margin / m.revenue) * 1000) / 10 : 0;
+        });
+
+        // --- 종목별(bySport) 집계 ---
+        const SPORT_LABELS = {
+            basketball: '농구', soccer: '축구', volleyball: '배구', baseball: '야구',
+            badminton: '배드민턴', futsal: '풋살', handball: '핸드볼', tennis: '테니스',
+            tabletennis: '탁구', hockey: '하키', etc: '기타', unknown: '미분류'
+        };
+
+        const sportMap = {};
+        orders.forEach(order => {
+            const sport = order.items?.[0]?.sport || 'unknown';
+            const amount = order.payment?.totalAmount || order.total || 0;
+            const cost = order.payment?.totalCost || 0;
+
+            if (!sportMap[sport]) sportMap[sport] = { revenue: 0, cost: 0, orders: 0 };
+            sportMap[sport].revenue += amount;
+            sportMap[sport].cost += cost;
+            sportMap[sport].orders += 1;
+        });
+
+        const bySport = Object.entries(sportMap)
+            .map(([sport, d]) => ({
+                sport,
+                label: SPORT_LABELS[sport] || sport,
+                revenue: d.revenue,
+                cost: d.cost,
+                margin: d.revenue - d.cost,
+                marginRate: d.revenue > 0 ? Math.round(((d.revenue - d.cost) / d.revenue) * 1000) / 10 : 0,
+                orders: d.orders
+            }))
+            .sort((a, b) => b.revenue - a.revenue);
+
+        // --- 고객별 TOP 10 (byCustomerTop10) 집계 ---
+        // 비유: 매출 기여도가 높은 VIP 고객의 마진 분석
+        const customerMap = {};
+        orders.forEach(order => {
+            const teamName = order.customer?.teamName || '미분류';
+            const amount = order.payment?.totalAmount || order.total || 0;
+            const cost = order.payment?.totalCost || 0;
+
+            if (!customerMap[teamName]) customerMap[teamName] = { revenue: 0, cost: 0, orders: 0 };
+            customerMap[teamName].revenue += amount;
+            customerMap[teamName].cost += cost;
+            customerMap[teamName].orders += 1;
+        });
+
+        const byCustomerTop10 = Object.entries(customerMap)
+            .map(([teamName, d]) => ({
+                teamName,
+                revenue: d.revenue,
+                cost: d.cost,
+                margin: d.revenue - d.cost,
+                marginRate: d.revenue > 0 ? Math.round(((d.revenue - d.cost) / d.revenue) * 1000) / 10 : 0,
+                orders: d.orders
+            }))
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 10);
+
+        res.json({
+            success: true,
+            year,
+            summary: {
+                totalRevenue,
+                totalCost,
+                totalMargin,
+                marginRate,
+                costInputRate,
+                ordersWithCost,
+                ordersTotal: orders.length
+            },
+            monthly,
+            bySport,
+            byCustomerTop10
+        });
+    } catch (error) {
+        console.error('[Admin] Margin stats error:', error);
+        res.status(500).json({ success: false, error: '마진 분석 조회 실패' });
+    }
+});
+
+// ============================================================
 // PATCH /api/admin/orders/:id/payment - 입금 확인 (미수금 → 입금 완료 처리)
 // 비유: 외상 장부에서 "입금 완료" 도장을 찍는 것
 // ============================================================

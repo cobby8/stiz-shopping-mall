@@ -18,6 +18,9 @@ let monthlyChartInstance = null;
 // 종목별 도넛 차트 인스턴스
 let sportChartInstance = null;
 
+// 마진 추이 차트 인스턴스
+let marginChartInstance = null;
+
 // [C-3] 전역 변수: loadStats()에서 가져온 총매출을 달성률 계산에 재사용
 // 비유: 성적표에서 읽은 현재 점수를 목표 대비 계산기에 넘기는 것
 let currentTotalRevenue = 0;
@@ -60,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadStats(selectedYear);         // 통계 카드 갱신
             loadMonthlyChart(selectedYear);  // 월별 매출 차트 갱신
             loadSportChart(selectedYear);    // 종목별 매출 차트 갱신
+            loadMarginAnalysis(selectedYear); // [C-4] 마진 분석 갱신
             loadStaffStats(selectedYear);    // 담당자별 실적 갱신
             loadTopCustomers(selectedYear);  // 고객별 매출 랭킹 갱신
             loadSalesGoal(selectedYear);     // [C-3] 매출 목표 달성률 갱신
@@ -72,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats(currentYear);
     loadMonthlyChart(currentYear);
     loadSportChart(currentYear);     // 종목별 매출 차트 초기 로드
+    loadMarginAnalysis(currentYear); // [C-4] 마진 분석 초기 로드
     loadStaffStats(currentYear);
     loadTopCustomers(currentYear);
     loadSalesGoal(currentYear);      // [C-3] 매출 목표 달성률 초기 로드
@@ -978,5 +983,263 @@ async function saveSalesGoal() {
     } catch (error) {
         console.error('[Analytics] 매출 목표 저장 실패:', error);
         alert('저장 중 오류가 발생했습니다.');
+    }
+}
+
+// ============================================================
+// [C-4] 수익률/마진 분석
+// 비유: "얼마나 팔았는가"가 아닌 "얼마나 남았는가"를 보여주는 엑스레이
+// ============================================================
+
+/**
+ * 마진 분석 데이터 로드 및 UI 전체 갱신
+ * @param {string} year - 조회할 연도
+ */
+async function loadMarginAnalysis(year) {
+    const loadingEl = document.getElementById('margin-loading');
+    const emptyEl = document.getElementById('margin-empty');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    try {
+        const res = await adminFetch(`/api/admin/stats/margin?year=${year}`);
+        if (!res) return;
+        const data = await res.json();
+
+        if (!data.success) {
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        // 마진 요약 카드 업데이트
+        renderMarginSummary(data.summary);
+
+        // 월별 마진 추이 차트
+        renderMarginChart(data.monthly);
+
+        // 종목별/고객별 마진 테이블
+        renderMarginTables(data.bySport, data.byCustomerTop10);
+
+        if (emptyEl) emptyEl.classList.add('hidden');
+    } catch (error) {
+        console.error('[Analytics] 마진 분석 로드 실패:', error);
+        if (emptyEl) emptyEl.classList.remove('hidden');
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+/**
+ * 마진 요약 카드 4칸 + 입력률 표시
+ * 비유: 매출 성적표의 "총점, 원가, 순이익, 이익률" 네 칸
+ */
+function renderMarginSummary(summary) {
+    // 억 단위로 보기 좋게 포맷 (1억 미만이면 만원 단위)
+    const fmt = (v) => {
+        if (v >= 100000000) return (v / 100000000).toFixed(1) + '억';
+        if (v >= 10000) return (v / 10000).toFixed(0) + '만';
+        return v.toLocaleString('ko-KR') + '원';
+    };
+
+    const revenueEl = document.getElementById('margin-total-revenue');
+    const costEl = document.getElementById('margin-total-cost');
+    const marginEl = document.getElementById('margin-total-margin');
+    const rateEl = document.getElementById('margin-rate');
+    const inputRateEl = document.getElementById('margin-input-rate');
+
+    if (revenueEl) revenueEl.textContent = fmt(summary.totalRevenue);
+    if (costEl) costEl.textContent = fmt(summary.totalCost);
+    if (marginEl) {
+        marginEl.textContent = fmt(summary.totalMargin);
+        // 마진이 양수면 초록, 음수면 빨강
+        marginEl.className = `text-lg font-bold ${summary.totalMargin >= 0 ? 'text-emerald-600' : 'text-red-600'}`;
+    }
+    if (rateEl) {
+        rateEl.textContent = summary.marginRate + '%';
+        // 마진율 색상: >=30% 초록, 15~29% 주황, <15% 빨강
+        let color = 'text-red-600';
+        if (summary.marginRate >= 30) color = 'text-emerald-600';
+        else if (summary.marginRate >= 15) color = 'text-amber-600';
+        rateEl.className = `text-2xl font-bold ${color}`;
+    }
+    if (inputRateEl) {
+        inputRateEl.textContent = `원가 입력률: ${summary.ordersTotal}건 중 ${summary.ordersWithCost}건 입력 (${summary.costInputRate}%)`;
+    }
+}
+
+/**
+ * 월별 마진 추이 차트 (Chart.js 복합: 매출+원가 막대 + 마진율 라인)
+ * 비유: "매출 막대 위에 원가를 겹치면, 남는 부분이 이익"
+ */
+function renderMarginChart(monthly) {
+    const canvas = document.getElementById('marginChart');
+    if (!canvas) return;
+
+    // 기존 차트가 있으면 파괴 (Chart.js는 같은 canvas에 중복 생성 불가)
+    if (marginChartInstance) {
+        marginChartInstance.destroy();
+        marginChartInstance = null;
+    }
+
+    const labels = monthly.map(m => m.month + '월');
+    const revenueData = monthly.map(m => m.revenue);
+    const costData = monthly.map(m => m.cost);
+    const marginRateData = monthly.map(m => m.marginRate);
+
+    marginChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: '매출',
+                    data: revenueData,
+                    backgroundColor: 'rgba(156, 163, 175, 0.5)',  // 회색
+                    borderColor: 'rgba(156, 163, 175, 1)',
+                    borderWidth: 1,
+                    order: 2  // 막대가 뒤에
+                },
+                {
+                    label: '원가',
+                    data: costData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.5)',    // 빨강
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1,
+                    order: 2
+                },
+                {
+                    label: '마진율(%)',
+                    data: marginRateData,
+                    type: 'line',                     // 라인 차트로 오버레이
+                    borderColor: 'rgba(16, 185, 129, 1)',  // 에메랄드
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                    fill: false,
+                    yAxisID: 'y1',                    // 오른쪽 Y축 사용
+                    order: 1  // 라인이 앞에
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    position: 'left',
+                    ticks: {
+                        callback: (v) => {
+                            if (v >= 100000000) return (v / 100000000).toFixed(0) + '억';
+                            if (v >= 10000) return (v / 10000).toFixed(0) + '만';
+                            return v;
+                        }
+                    },
+                    title: { display: true, text: '금액' }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    max: 100,
+                    grid: { drawOnChartArea: false },  // 오른쪽 축 그리드는 비표시
+                    ticks: { callback: (v) => v + '%' },
+                    title: { display: true, text: '마진율' }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            if (ctx.dataset.yAxisID === 'y1') {
+                                return ctx.dataset.label + ': ' + ctx.parsed.y + '%';
+                            }
+                            return ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('ko-KR') + '원';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * 마진율에 따라 색상 배지 HTML 생성
+ * >=30% 초록, 15~29% 주황, <15% 빨강
+ */
+function getMarginRateBadge(rate) {
+    let bgClass = 'bg-red-100 text-red-700';     // <15%
+    if (rate >= 30) bgClass = 'bg-green-100 text-green-700';
+    else if (rate >= 15) bgClass = 'bg-amber-100 text-amber-700';
+    return `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${bgClass}">${rate}%</span>`;
+}
+
+/**
+ * 종목별/고객별 마진 테이블 렌더링
+ */
+function renderMarginTables(bySport, byCustomerTop10) {
+    // --- 종목별 ---
+    const sportTbody = document.getElementById('margin-sport-tbody');
+    if (sportTbody) {
+        if (bySport.length === 0) {
+            sportTbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-400 text-sm">데이터 없음</td></tr>';
+        } else {
+            sportTbody.innerHTML = bySport.map(s => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium">${escapeHtml(s.label)}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(s.revenue)}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(s.cost)}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(s.margin)}</td>
+                    <td class="px-4 py-3 text-right">${getMarginRateBadge(s.marginRate)}</td>
+                    <td class="px-4 py-3 text-right">${s.orders}건</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // --- 고객별 TOP 10 ---
+    const customerTbody = document.getElementById('margin-customer-tbody');
+    if (customerTbody) {
+        if (byCustomerTop10.length === 0) {
+            customerTbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-400 text-sm">데이터 없음</td></tr>';
+        } else {
+            customerTbody.innerHTML = byCustomerTop10.map(c => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium">${escapeHtml(c.teamName)}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(c.revenue)}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(c.cost)}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(c.margin)}</td>
+                    <td class="px-4 py-3 text-right">${getMarginRateBadge(c.marginRate)}</td>
+                    <td class="px-4 py-3 text-right">${c.orders}건</td>
+                </tr>
+            `).join('');
+        }
+    }
+}
+
+/**
+ * 마진 분석 탭 전환 (종목별 / 고객 TOP 10)
+ * 비유: 같은 성적표를 "과목별"로 볼지 "학생별"로 볼지 전환하는 것
+ */
+function switchMarginTab(tab) {
+    const sportTab = document.getElementById('margin-tab-sport');
+    const customerTab = document.getElementById('margin-tab-customer');
+    const sportTable = document.getElementById('margin-table-sport');
+    const customerTable = document.getElementById('margin-table-customer');
+
+    // 활성 탭 스타일
+    const activeClass = 'border-gray-800 text-gray-800';
+    const inactiveClass = 'text-gray-400 border-transparent hover:text-gray-600';
+
+    if (tab === 'sport') {
+        sportTab.className = `px-4 py-2 text-sm font-medium border-b-2 ${activeClass}`;
+        customerTab.className = `px-4 py-2 text-sm font-medium border-b-2 ${inactiveClass}`;
+        sportTable.classList.remove('hidden');
+        customerTable.classList.add('hidden');
+    } else {
+        sportTab.className = `px-4 py-2 text-sm font-medium border-b-2 ${inactiveClass}`;
+        customerTab.className = `px-4 py-2 text-sm font-medium border-b-2 ${activeClass}`;
+        sportTable.classList.add('hidden');
+        customerTable.classList.remove('hidden');
     }
 }
