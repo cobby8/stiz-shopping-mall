@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 일정표</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <!-- FullCalendar v6 — JS 하나에 스타일까지 내장되어 있어서 별도 CSS 불필요 -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <style>
+        /* 캘린더 컨테이너가 화면 전체를 채우도록 */
+        #calendar {
+            min-height: 700px;
+        }
+
+        /* FullCalendar 내부 스타일 오버라이드 — 폰트를 Pretendard로 통일 */
+        .fc {
+            font-family: 'Pretendard', 'Inter', sans-serif !important;
+        }
+
+        /* 이벤트(포스트잇) 텍스트가 너무 길면 말줄임 처리 */
+        .fc-event {
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 4px;
+        }
+
+        /* 오늘 날짜 셀 하이라이트 */
+        .fc .fc-daygrid-day.fc-day-today {
+            background-color: #fef3c7 !important;
+        }
+
+        /* 범례(색상 안내) 스타일 */
+        .legend-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen font-sans">
+
+    <!-- ========================================== -->
+    <!-- 관리자 헤더 — 기존 admin 페이지와 동일 구조 -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- 로고 -->
+            <div class="flex items-center gap-3">
+                <span class="text-xl font-bold tracking-tight">STIZ Admin</span>
+            </div>
+
+            <!-- 네비게이션: 5탭 구조 — 일정표가 활성 상태 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
+                <a href="admin.html" class="text-gray-400 hover:text-white transition-colors">주문 관리</a>
+                <a href="admin-calendar.html" class="text-white font-medium border-b-2 border-brand-red pb-1">일정표</a>
+                <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <!-- 관리자 이름 + 로그아웃 -->
+            <div class="flex items-center gap-3">
+                <span id="admin-name" class="text-sm text-gray-300">관리자</span>
+                <button onclick="localStorage.removeItem('stiz_admin_token'); location.href='admin-login.html'"
+                    class="text-xs text-gray-400 hover:text-white">로그아웃</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠: 필터 바 + 캘린더 -->
+    <!-- ========================================== -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- 페이지 제목 -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold">일정표</h1>
+                <p class="text-sm text-gray-500 mt-1">주문 납기일/접수일/출고일을 캘린더에서 한눈에 확인합니다.</p>
+            </div>
+        </div>
+
+        <!-- 필터 바 — 이벤트 종류 + 상태 + 담당자 -->
+        <div class="bg-white rounded-xl shadow-sm border p-4 mb-4">
+            <div class="flex flex-wrap items-center gap-4">
+
+                <!-- 이벤트 종류 체크박스 (포스트잇 종류 선택) -->
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-medium text-gray-700">표시:</span>
+                    <label class="flex items-center gap-1 text-sm cursor-pointer">
+                        <input type="checkbox" id="filter-deadline" checked class="accent-red-500">
+                        <span class="legend-dot" style="background:#10B981"></span>납기일
+                    </label>
+                    <label class="flex items-center gap-1 text-sm cursor-pointer">
+                        <input type="checkbox" id="filter-receipt" checked class="accent-blue-500">
+                        <span class="legend-dot" style="background:#3B82F6"></span>접수일
+                    </label>
+                    <label class="flex items-center gap-1 text-sm cursor-pointer">
+                        <input type="checkbox" id="filter-release" checked class="accent-purple-500">
+                        <span class="legend-dot" style="background:#8B5CF6"></span>출고일
+                    </label>
+                </div>
+
+                <!-- 구분선 -->
+                <div class="h-6 w-px bg-gray-300"></div>
+
+                <!-- 상태 필터: 진행중만 vs 전체 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-gray-700">상태:</span>
+                    <select id="filter-status" class="text-sm border rounded-lg px-3 py-1.5 bg-white">
+                        <option value="active">진행중만</option>
+                        <option value="all">전체 (완료 포함)</option>
+                    </select>
+                </div>
+
+                <!-- 담당자 필터 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-gray-700">담당자:</span>
+                    <select id="filter-manager" class="text-sm border rounded-lg px-3 py-1.5 bg-white">
+                        <option value="">전체</option>
+                        <!-- JS에서 동적으로 담당자 목록 채움 -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- 색상 범례 -->
+            <div class="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t text-xs text-gray-500">
+                <span><span class="legend-dot" style="background:#E63946"></span>납기 D-3 이내</span>
+                <span><span class="legend-dot" style="background:#F59E0B"></span>납기 D-7 이내</span>
+                <span><span class="legend-dot" style="background:#10B981"></span>납기 여유</span>
+                <span><span class="legend-dot" style="background:#3B82F6"></span>접수일</span>
+                <span><span class="legend-dot" style="background:#8B5CF6"></span>출고일</span>
+                <span><span class="legend-dot" style="background:#9CA3AF"></span>완료/취소</span>
+            </div>
+        </div>
+
+        <!-- 캘린더 영역 -->
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+            <div id="calendar"></div>
+        </div>
+
+    </main>
+
+    <!-- ===== 스크립트 ===== -->
+    <!-- admin-common.js를 먼저 로드 — adminFetch, checkAdminAuth 등 전역 함수 제공 -->
+    <script src="js/admin-common.js"></script>
+    <!-- 캘린더 전용 로직 -->
+    <script src="js/admin-calendar.js"></script>
+
+</body>
+
+</html>
