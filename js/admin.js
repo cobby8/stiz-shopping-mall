@@ -1106,3 +1106,281 @@ async function bulkUpdateStatus() {
         alert('일괄 상태 변경 중 오류가 발생했습니다.');
     }
 }
+
+// ============================================================
+// [D-5] 주문 템플릿 기능
+// 비유: 워드의 "문서 템플릿" — 자주 쓰는 주문 설정을 저장/불러오기
+// 3개 모달: 선택(새 주문), 관리(목록/수정/삭제), 수정(개별 편집)
+// ============================================================
+
+// --- 템플릿 선택 모달 (새 주문 생성용) ---
+
+// 모달 열기: API에서 템플릿 목록을 불러와 표시
+async function openTemplateSelectModal() {
+    document.getElementById('template-select-modal').classList.remove('hidden');
+    document.getElementById('tpl-select-search').value = '';
+    await loadTemplateSelectList();
+}
+
+function closeTemplateSelectModal() {
+    document.getElementById('template-select-modal').classList.add('hidden');
+}
+
+// 템플릿 목록 로드 + 카테고리 드롭다운 갱신
+async function loadTemplateSelectList() {
+    const listEl = document.getElementById('tpl-select-list');
+    const searchVal = document.getElementById('tpl-select-search').value.trim();
+    const categoryVal = document.getElementById('tpl-select-category').value;
+
+    try {
+        // 쿼리 파라미터 구성
+        const params = new URLSearchParams();
+        if (searchVal) params.set('search', searchVal);
+        if (categoryVal) params.set('category', categoryVal);
+
+        const res = await adminFetch(`/api/admin/templates?${params.toString()}`);
+        if (!res) return;
+        const data = await res.json();
+
+        if (!data.success || !data.templates) {
+            listEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">템플릿 조회 실패</p>';
+            return;
+        }
+
+        const templates = data.templates;
+
+        // 카테고리 드롭다운 갱신 (검색 중이 아닐 때만)
+        if (!searchVal && !categoryVal) {
+            const categorySelect = document.getElementById('tpl-select-category');
+            const categories = [...new Set(templates.map(t => t.category).filter(Boolean))];
+            // 기존 옵션 유지하면서 갱신
+            const currentOptions = categorySelect.value;
+            categorySelect.innerHTML = '<option value="">전체 카테고리</option>';
+            categories.forEach(cat => {
+                categorySelect.innerHTML += `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`;
+            });
+            categorySelect.value = currentOptions; // 선택 유지
+        }
+
+        if (templates.length === 0) {
+            listEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">등록된 템플릿이 없습니다.</p>';
+            return;
+        }
+
+        // 템플릿 목록 렌더링 — 각 항목 클릭 시 해당 템플릿으로 주문 생성
+        listEl.innerHTML = templates.map(t => `
+            <div class="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                 onclick="createOrderFromTemplate(${t.id})">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-sm">${escapeHtml(t.name)}</p>
+                        ${t.category ? `<span class="text-xs text-gray-400">${escapeHtml(t.category)}</span>` : ''}
+                        ${t.description ? `<p class="text-xs text-gray-500 mt-1">${escapeHtml(t.description)}</p>` : ''}
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-gray-400">사용 ${t.usageCount || 0}회</span>
+                        <span class="material-symbols-outlined text-gray-300 text-base ml-2">arrow_forward</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('[Admin] 템플릿 목록 로드 실패:', error);
+        listEl.innerHTML = '<p class="text-center text-red-400 text-sm py-8">로드 실패</p>';
+    }
+}
+
+// 템플릿으로 새 주문 생성: API 호출 후 주문 상세 페이지로 이동
+async function createOrderFromTemplate(templateId) {
+    if (!confirm('이 템플릿으로 새 주문을 생성하시겠습니까?')) return;
+
+    try {
+        const res = await adminFetch(`/api/admin/orders/from-template/${templateId}`, {
+            method: 'POST'
+        });
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success && data.order) {
+            alert(data.message || '새 주문이 생성되었습니다.');
+            closeTemplateSelectModal();
+            // 새 주문의 상세 페이지로 이동
+            window.location.href = `admin-order.html?id=${data.order.id}`;
+        } else {
+            alert('주문 생성 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[Admin] 템플릿에서 주문 생성 실패:', error);
+        alert('주문 생성 중 오류가 발생했습니다.');
+    }
+}
+
+// --- 템플릿 관리 모달 (목록/수정/삭제) ---
+
+async function openTemplateManageModal() {
+    document.getElementById('template-manage-modal').classList.remove('hidden');
+    document.getElementById('tpl-manage-search').value = '';
+    await loadTemplateManageList();
+}
+
+function closeTemplateManageModal() {
+    document.getElementById('template-manage-modal').classList.add('hidden');
+}
+
+// 관리 목록 로드: 테이블 형식으로 이름/카테고리/사용횟수/수정/삭제 표시
+async function loadTemplateManageList() {
+    const listEl = document.getElementById('tpl-manage-list');
+    const searchVal = document.getElementById('tpl-manage-search').value.trim();
+
+    try {
+        const params = new URLSearchParams();
+        if (searchVal) params.set('search', searchVal);
+
+        const res = await adminFetch(`/api/admin/templates?${params.toString()}`);
+        if (!res) return;
+        const data = await res.json();
+
+        if (!data.success || !data.templates) {
+            listEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">조회 실패</p>';
+            return;
+        }
+
+        const templates = data.templates;
+
+        if (templates.length === 0) {
+            listEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">등록된 템플릿이 없습니다.</p>';
+            return;
+        }
+
+        // 테이블 렌더링
+        listEl.innerHTML = `
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-medium text-gray-500">이름</th>
+                        <th class="text-left px-3 py-2 font-medium text-gray-500">카테고리</th>
+                        <th class="text-center px-3 py-2 font-medium text-gray-500">사용횟수</th>
+                        <th class="text-left px-3 py-2 font-medium text-gray-500">생성자</th>
+                        <th class="text-center px-3 py-2 font-medium text-gray-500">작업</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${templates.map(t => `
+                        <tr class="border-t border-gray-100 hover:bg-gray-50">
+                            <td class="px-3 py-2">
+                                <p class="font-medium">${escapeHtml(t.name)}</p>
+                                ${t.description ? `<p class="text-xs text-gray-400">${escapeHtml(t.description)}</p>` : ''}
+                            </td>
+                            <td class="px-3 py-2 text-gray-500">${escapeHtml(t.category || '-')}</td>
+                            <td class="px-3 py-2 text-center">${t.usageCount || 0}</td>
+                            <td class="px-3 py-2 text-gray-500">${escapeHtml(t.createdBy || '-')}</td>
+                            <td class="px-3 py-2 text-center">
+                                <button onclick="openTemplateEditModal(${t.id})" class="text-gray-400 hover:text-gray-700 mr-2" title="수정">
+                                    <span class="material-symbols-outlined text-base">edit</span>
+                                </button>
+                                <button onclick="deleteTemplate(${t.id}, '${escapeHtml(t.name)}')" class="text-gray-400 hover:text-red-500" title="삭제">
+                                    <span class="material-symbols-outlined text-base">delete</span>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('[Admin] 템플릿 관리 목록 로드 실패:', error);
+        listEl.innerHTML = '<p class="text-center text-red-400 text-sm py-8">로드 실패</p>';
+    }
+}
+
+// --- 템플릿 수정 모달 ---
+
+// 수정 모달 열기: API에서 상세 정보를 가져와 폼에 채움
+async function openTemplateEditModal(templateId) {
+    try {
+        const res = await adminFetch(`/api/admin/templates/${templateId}`);
+        if (!res) return;
+        const data = await res.json();
+
+        if (!data.success || !data.template) {
+            alert('템플릿 조회 실패');
+            return;
+        }
+
+        const t = data.template;
+        document.getElementById('tpl-edit-id').value = t.id;
+        document.getElementById('tpl-edit-name').value = t.name || '';
+        document.getElementById('tpl-edit-category').value = t.category || '';
+        document.getElementById('tpl-edit-description').value = t.description || '';
+
+        document.getElementById('template-edit-modal').classList.remove('hidden');
+    } catch (error) {
+        console.error('[Admin] 템플릿 상세 조회 실패:', error);
+        alert('템플릿 정보를 불러올 수 없습니다.');
+    }
+}
+
+function closeTemplateEditModal() {
+    document.getElementById('template-edit-modal').classList.add('hidden');
+}
+
+// 수정 저장: PUT /api/admin/templates/:id
+async function saveTemplateEdit() {
+    const id = document.getElementById('tpl-edit-id').value;
+    const name = document.getElementById('tpl-edit-name').value.trim();
+
+    if (!name) {
+        alert('템플릿 이름을 입력해주세요.');
+        return;
+    }
+
+    const category = document.getElementById('tpl-edit-category').value.trim();
+    const description = document.getElementById('tpl-edit-description').value.trim();
+
+    try {
+        const res = await adminFetch(`/api/admin/templates/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, category, description })
+        });
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success) {
+            alert(data.message || '템플릿이 수정되었습니다.');
+            closeTemplateEditModal();
+            // 관리 목록 새로고침
+            loadTemplateManageList();
+        } else {
+            alert('수정 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[Admin] 템플릿 수정 실패:', error);
+        alert('수정 중 오류가 발생했습니다.');
+    }
+}
+
+// --- 템플릿 삭제 ---
+async function deleteTemplate(templateId, templateName) {
+    if (!confirm(`템플릿 "${templateName}"을(를) 삭제하시겠습니까?\n\n삭제된 템플릿은 복구할 수 없습니다.`)) {
+        return;
+    }
+
+    try {
+        const res = await adminFetch(`/api/admin/templates/${templateId}`, {
+            method: 'DELETE'
+        });
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success) {
+            alert(data.message || '템플릿이 삭제되었습니다.');
+            loadTemplateManageList(); // 목록 새로고침
+        } else {
+            alert('삭제 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[Admin] 템플릿 삭제 실패:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+    }
+}

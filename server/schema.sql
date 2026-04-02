@@ -76,6 +76,23 @@ CREATE TABLE IF NOT EXISTS sales_goals (
   updatedAt TEXT
 );
 
+-- order_templates 테이블: 자주 반복되는 주문 설정을 템플릿으로 저장
+-- 비유: 워드의 "문서 템플릿" — 매번 빈 문서에서 시작하지 않고, 미리 만든 양식을 불러와 내용만 채우는 것
+-- templateData만 JSON 문자열이고 나머지는 일반 컬럼 (sales_goals 패턴)
+CREATE TABLE IF NOT EXISTS order_templates (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,            -- 템플릿 이름 (예: "축구 승화전사 기본")
+  description TEXT DEFAULT '',   -- 설명 (선택)
+  category TEXT DEFAULT '',      -- 분류 (예: "축구", "농구") — 필터용
+  templateData TEXT NOT NULL,    -- 저장할 설정 JSON blob
+  usageCount INTEGER DEFAULT 0,  -- 사용 횟수 (인기 순 정렬용)
+  createdBy TEXT DEFAULT '',     -- 생성자
+  createdAt TEXT,
+  updatedAt TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_order_templates_category ON order_templates(category);
+CREATE INDEX IF NOT EXISTS idx_order_templates_name ON order_templates(name);
+
 -- users 테이블: 사용자 인증
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,

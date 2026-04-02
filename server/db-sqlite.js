@@ -43,6 +43,7 @@ function tableName(collection) {
         'order-history': 'order_history',
         'activity-log': 'activity_log',
         'sales-goals': 'sales_goals',
+        'order-templates': 'order_templates',
     };
     return map[collection] || collection;
 }
@@ -112,6 +113,16 @@ export function getAll(collection) {
         return rows.map(row => {
             if (row.monthlyGoals && typeof row.monthlyGoals === 'string') {
                 try { row.monthlyGoals = JSON.parse(row.monthlyGoals); } catch (e) { /* 문자열 그대로 */ }
+            }
+            return row;
+        });
+    }
+
+    // order_templates: templateData(JSON 문자열)를 파싱해서 JS 객체로 복원
+    if (collection === 'order-templates' || collection === 'order_templates') {
+        return rows.map(row => {
+            if (row.templateData && typeof row.templateData === 'string') {
+                try { row.templateData = JSON.parse(row.templateData); } catch (e) { /* 문자열 그대로 */ }
             }
             return row;
         });
@@ -200,6 +211,25 @@ export function saveAll(collection, data) {
                     updatedAt: record.updatedAt || null,
                 });
             }
+        } else if (tbl === 'order_templates') {
+            // order_templates: templateData만 JSON 문자열, 나머지 일반 컬럼
+            const stmt = db.prepare(`
+                INSERT INTO order_templates (id, name, description, category, templateData, usageCount, createdBy, createdAt, updatedAt)
+                VALUES (@id, @name, @description, @category, @templateData, @usageCount, @createdBy, @createdAt, @updatedAt)
+            `);
+            for (const record of records) {
+                stmt.run({
+                    id: record.id,
+                    name: record.name || '',
+                    description: record.description || '',
+                    category: record.category || '',
+                    templateData: typeof record.templateData === 'object' ? JSON.stringify(record.templateData) : (record.templateData || '{}'),
+                    usageCount: record.usageCount || 0,
+                    createdBy: record.createdBy || '',
+                    createdAt: record.createdAt || null,
+                    updatedAt: record.updatedAt || null,
+                });
+            }
         } else if (tbl === 'users') {
             const stmt = db.prepare(`
                 INSERT INTO users (id, name, email, password, role, joinedAt)
@@ -283,6 +313,22 @@ export function insert(collection, record) {
             monthlyGoals: typeof record.monthlyGoals === 'object' ? JSON.stringify(record.monthlyGoals) : (record.monthlyGoals || '{}'),
             updatedAt: record.updatedAt || null,
         });
+    } else if (tbl === 'order_templates') {
+        // order_templates: templateData만 JSON, 나머지 일반 컬럼
+        db.prepare(`
+            INSERT INTO order_templates (id, name, description, category, templateData, usageCount, createdBy, createdAt, updatedAt)
+            VALUES (@id, @name, @description, @category, @templateData, @usageCount, @createdBy, @createdAt, @updatedAt)
+        `).run({
+            id: record.id,
+            name: record.name || '',
+            description: record.description || '',
+            category: record.category || '',
+            templateData: typeof record.templateData === 'object' ? JSON.stringify(record.templateData) : (record.templateData || '{}'),
+            usageCount: record.usageCount || 0,
+            createdBy: record.createdBy || '',
+            createdAt: record.createdAt || null,
+            updatedAt: record.updatedAt || null,
+        });
     } else if (tbl === 'users') {
         db.prepare(`
             INSERT INTO users (id, name, email, password, role, joinedAt)
@@ -332,6 +378,10 @@ export function findOne(collection, field, value) {
     }
     if (tbl === 'sales_goals' && row.monthlyGoals && typeof row.monthlyGoals === 'string') {
         try { row.monthlyGoals = JSON.parse(row.monthlyGoals); } catch (e) { /* 그대로 */ }
+    }
+    // order_templates의 templateData JSON 파싱
+    if (tbl === 'order_templates' && row.templateData && typeof row.templateData === 'string') {
+        try { row.templateData = JSON.parse(row.templateData); } catch (e) { /* 그대로 */ }
     }
 
     return row;
@@ -435,6 +485,25 @@ export function updateById(collection, id, updates) {
             year: merged.year || null,
             annualGoal: merged.annualGoal || 0,
             monthlyGoals: typeof merged.monthlyGoals === 'object' ? JSON.stringify(merged.monthlyGoals) : (merged.monthlyGoals || '{}'),
+            updatedAt: merged.updatedAt || null,
+        });
+    } else if (tbl === 'order_templates') {
+        // order_templates: templateData만 JSON, 나머지 일반 컬럼
+        db.prepare(`
+            UPDATE order_templates SET
+                name = @name, description = @description, category = @category,
+                templateData = @templateData, usageCount = @usageCount,
+                createdBy = @createdBy, createdAt = @createdAt, updatedAt = @updatedAt
+            WHERE id = @id
+        `).run({
+            id: merged.id,
+            name: merged.name || '',
+            description: merged.description || '',
+            category: merged.category || '',
+            templateData: typeof merged.templateData === 'object' ? JSON.stringify(merged.templateData) : (merged.templateData || '{}'),
+            usageCount: merged.usageCount || 0,
+            createdBy: merged.createdBy || '',
+            createdAt: merged.createdAt || null,
             updatedAt: merged.updatedAt || null,
         });
     } else if (tbl === 'users') {

@@ -1474,4 +1474,345 @@ router.get('/reorder-candidates', (req, res) => {
     }
 });
 
+// ============================================================
+// [D-5] 주문 템플릿 — CRUD + 주문↔템플릿 변환
+// 비유: 워드의 "문서 템플릿" 기능
+//  - 자주 쓰는 주문 설정을 저장해두고
+//  - 새 주문 생성 시 불러와 자동 채우기
+// ============================================================
+
+// --- GET /api/admin/templates --- 템플릿 목록 (검색/카테고리 필터)
+router.get('/templates', (req, res) => {
+    try {
+        let templates = db.getAll('order_templates');
+
+        // 카테고리 필터 (예: ?category=축구)
+        if (req.query.category) {
+            templates = templates.filter(t => t.category === req.query.category);
+        }
+
+        // 텍스트 검색 (이름, 설명에서 검색)
+        if (req.query.search) {
+            const keyword = req.query.search.toLowerCase();
+            templates = templates.filter(t =>
+                (t.name || '').toLowerCase().includes(keyword) ||
+                (t.description || '').toLowerCase().includes(keyword)
+            );
+        }
+
+        // 정렬: 사용 횟수 내림차순 (인기순) → 최신순
+        templates.sort((a, b) => {
+            if (b.usageCount !== a.usageCount) return b.usageCount - a.usageCount;
+            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+
+        res.json({ success: true, templates });
+    } catch (error) {
+        console.error('[Admin] Templates list error:', error);
+        res.status(500).json({ success: false, error: '템플릿 목록 조회 실패' });
+    }
+});
+
+// --- GET /api/admin/templates/:id --- 템플릿 상세
+router.get('/templates/:id', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const template = db.findById('order_templates', id);
+
+        if (!template) {
+            return res.status(404).json({ success: false, error: '템플릿을 찾을 수 없습니다.' });
+        }
+
+        res.json({ success: true, template });
+    } catch (error) {
+        console.error('[Admin] Template detail error:', error);
+        res.status(500).json({ success: false, error: '템플릿 조회 실패' });
+    }
+});
+
+// --- POST /api/admin/templates --- 템플릿 생성
+router.post('/templates', (req, res) => {
+    try {
+        const { name, description, category, templateData } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ success: false, error: '템플릿 이름은 필수입니다.' });
+        }
+        if (!templateData) {
+            return res.status(400).json({ success: false, error: '템플릿 데이터가 없습니다.' });
+        }
+
+        const now = new Date().toISOString();
+        const template = {
+            id: Date.now(),
+            name: name.trim(),
+            description: (description || '').trim(),
+            category: (category || '').trim(),
+            templateData,         // JS 객체 — db-sqlite.js가 JSON.stringify 처리
+            usageCount: 0,
+            createdBy: req.user?.name || '관리자',
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        const saved = db.insert('order_templates', template);
+
+        // [D-2] 활동 로그
+        logActivity('template_create', {
+            templateName: saved.name,
+            templateId: saved.id,
+            category: saved.category
+        }, req.user);
+
+        console.log(`[Admin] Template created: "${saved.name}" by ${req.user?.name}`);
+        res.json({ success: true, template: saved, message: `템플릿 "${saved.name}"이 생성되었습니다.` });
+    } catch (error) {
+        console.error('[Admin] Template create error:', error);
+        res.status(500).json({ success: false, error: '템플릿 생성 실패' });
+    }
+});
+
+// --- PUT /api/admin/templates/:id --- 템플릿 수정
+router.put('/templates/:id', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const existing = db.findById('order_templates', id);
+
+        if (!existing) {
+            return res.status(404).json({ success: false, error: '템플릿을 찾을 수 없습니다.' });
+        }
+
+        // 수정 가능 필드만 추출
+        const updates = {};
+        if (req.body.name !== undefined) updates.name = req.body.name.trim();
+        if (req.body.description !== undefined) updates.description = req.body.description.trim();
+        if (req.body.category !== undefined) updates.category = req.body.category.trim();
+        if (req.body.templateData !== undefined) updates.templateData = req.body.templateData;
+        updates.updatedAt = new Date().toISOString();
+
+        const updated = db.updateById('order_templates', id, updates);
+
+        logActivity('template_update', {
+            templateName: updated.name,
+            templateId: updated.id
+        }, req.user);
+
+        console.log(`[Admin] Template updated: "${updated.name}" by ${req.user?.name}`);
+        res.json({ success: true, template: updated, message: '템플릿이 수정되었습니다.' });
+    } catch (error) {
+        console.error('[Admin] Template update error:', error);
+        res.status(500).json({ success: false, error: '템플릿 수정 실패' });
+    }
+});
+
+// --- DELETE /api/admin/templates/:id --- 템플릿 삭제
+router.delete('/templates/:id', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const existing = db.findById('order_templates', id);
+
+        if (!existing) {
+            return res.status(404).json({ success: false, error: '템플릿을 찾을 수 없습니다.' });
+        }
+
+        db.deleteById('order_templates', id);
+
+        logActivity('template_delete', {
+            templateName: existing.name,
+            templateId: existing.id
+        }, req.user);
+
+        console.log(`[Admin] Template deleted: "${existing.name}" by ${req.user?.name}`);
+        res.json({ success: true, message: `템플릿 "${existing.name}"이 삭제되었습니다.` });
+    } catch (error) {
+        console.error('[Admin] Template delete error:', error);
+        res.status(500).json({ success: false, error: '템플릿 삭제 실패' });
+    }
+});
+
+// --- POST /api/admin/orders/:id/save-as-template --- 기존 주문에서 템플릿 추출 저장
+// 비유: 완성된 문서에서 "양식만 추출"해서 템플릿으로 저장
+// 고객 정보, 주문번호, 상태, 날짜, 결제완료 정보는 제거
+router.post('/orders/:id/save-as-template', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const order = db.findById('orders', id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
+        }
+
+        const { name, description, category } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).json({ success: false, error: '템플릿 이름은 필수입니다.' });
+        }
+
+        // 템플릿에 포함할 설정만 추출 (고객/주문번호/상태/날짜/결제완료 정보 제거)
+        const templateData = {
+            items: JSON.parse(JSON.stringify(order.items || [])),       // 종목, 품목, 공법 등
+            design: {
+                designer: order.design?.designer || '',                // 디자이너만 유지
+            },
+            production: {
+                factory: order.production?.factory || '',              // 공장만 유지
+            },
+            payment: {
+                unitPrice: order.payment?.unitPrice || 0,
+                qpp: order.payment?.qpp || 1,
+                paymentType: order.payment?.paymentType || '',
+                transactionMethod: order.payment?.transactionMethod || '',
+            },
+            manager: order.manager || '',
+            store: order.store || '',
+            revenueType: order.revenueType || '',
+        };
+
+        const now = new Date().toISOString();
+        const template = {
+            id: Date.now(),
+            name: name.trim(),
+            description: (description || '').trim(),
+            category: (category || '').trim(),
+            templateData,
+            usageCount: 0,
+            createdBy: req.user?.name || '관리자',
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        const saved = db.insert('order_templates', template);
+
+        logActivity('template_from_order', {
+            templateName: saved.name,
+            templateId: saved.id,
+            sourceOrderNumber: order.orderNumber
+        }, req.user);
+
+        console.log(`[Admin] Template from order: "${saved.name}" from ${order.orderNumber} by ${req.user?.name}`);
+        res.json({ success: true, template: saved, message: `템플릿 "${saved.name}"이 생성되었습니다.` });
+    } catch (error) {
+        console.error('[Admin] Save as template error:', error);
+        res.status(500).json({ success: false, error: '템플릿 저장 실패' });
+    }
+});
+
+// --- POST /api/admin/orders/from-template/:templateId --- 템플릿으로 새 주문 생성
+// 비유: 템플릿 양식을 불러와서 새 문서를 시작하는 것
+// 주문번호 생성은 기존 duplicate 로직 재사용
+router.post('/orders/from-template/:templateId', (req, res) => {
+    try {
+        const templateId = parseInt(req.params.templateId);
+        const template = db.findById('order_templates', templateId);
+
+        if (!template) {
+            return res.status(404).json({ success: false, error: '템플릿을 찾을 수 없습니다.' });
+        }
+
+        // templateData가 문자열이면 파싱 (안전장치)
+        const tData = typeof template.templateData === 'string'
+            ? JSON.parse(template.templateData)
+            : template.templateData;
+
+        // --- 주문번호 생성 (duplicate 로직 재사용) ---
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+        const allOrders = db.getAll('orders');
+        const todayPrefix = `ORD-${dateStr}-`;
+
+        const todayNumbers = allOrders
+            .filter(o => o.orderNumber && o.orderNumber.startsWith(todayPrefix))
+            .map(o => parseInt(o.orderNumber.replace(todayPrefix, '')) || 0);
+        const nextNum = todayNumbers.length > 0 ? Math.max(...todayNumbers) + 1 : 1;
+        const newOrderNumber = `${todayPrefix}${String(nextNum).padStart(3, '0')}`;
+
+        // 새 주문 데이터: 템플릿 설정 + 빈 고객/결제 정보
+        const newOrder = {
+            id: Date.now(),
+            orderNumber: newOrderNumber,
+            groupId: null,
+            customer: { name: '', phone: '', teamName: '', dealType: '' },  // 빈 고객 정보
+            items: JSON.parse(JSON.stringify(tData.items || [])),
+            design: {
+                status: 'design_requested',
+                revisionCount: 0,
+                designer: tData.design?.designer || '',
+                orderSheetUrl: '',
+                designFileUrl: ''
+            },
+            production: {
+                status: '',
+                factory: tData.production?.factory || '',
+                gradingDone: false
+            },
+            shipping: {
+                address: '',
+                desiredDate: '',
+                releaseDate: '',
+                shippedDate: '',
+                trackingNumber: '',
+                carrier: ''
+            },
+            payment: {
+                totalAmount: 0,
+                unitPrice: tData.payment?.unitPrice || 0,
+                quantity: 0,
+                packQuantity: 0,
+                qpp: tData.payment?.qpp || 1,
+                paidDate: null,
+                paymentType: tData.payment?.paymentType || '',
+                transactionMethod: tData.payment?.transactionMethod || '',
+                quoteUrl: '',
+                autoQuote: false
+            },
+            manager: tData.manager || '',
+            store: tData.store || '',
+            status: 'design_requested',
+            memo: `[템플릿] ${template.name}`,
+            detail: '',
+            revenueType: tData.revenueType || '',
+            createdAt: today.toISOString(),
+            updatedAt: today.toISOString(),
+            designRequestDate: today.toISOString(),
+            orderReceiptDate: null,
+            customerId: null,
+            _fromTemplateId: template.id,       // 원본 템플릿 추적용
+        };
+
+        const saved = db.insert('orders', newOrder);
+
+        // 상태 변경 이력 기록
+        db.insert('order-history', {
+            id: Date.now() + 1,
+            orderId: saved.id,
+            fromStatus: null,
+            toStatus: 'design_requested',
+            changedBy: req.user?.name || '관리자',
+            memo: `템플릿에서 생성 (${template.name})`,
+            createdAt: today.toISOString()
+        });
+
+        // usageCount 증가
+        db.updateById('order_templates', templateId, {
+            usageCount: (template.usageCount || 0) + 1,
+            updatedAt: today.toISOString()
+        });
+
+        logActivity('order_from_template', {
+            templateName: template.name,
+            templateId: template.id,
+            newOrderNumber,
+        }, req.user);
+
+        console.log(`[Admin] Order from template: "${template.name}" → ${newOrderNumber} by ${req.user?.name}`);
+        res.json({
+            success: true,
+            order: saved,
+            message: `템플릿 "${template.name}"에서 새 주문이 생성되었습니다. 주문번호: ${newOrderNumber}`
+        });
+    } catch (error) {
+        console.error('[Admin] Order from template error:', error);
+        res.status(500).json({ success: false, error: '템플릿에서 주문 생성 실패' });
+    }
+});
+
 export default router;

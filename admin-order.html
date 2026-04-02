@@ -288,6 +288,12 @@
                         <span class="material-symbols-outlined text-base">content_copy</span>
                         <span>복제</span>
                     </button>
+                    <!-- [D-5] 템플릿으로 저장: 이 주문의 설정(종목/단가/담당자 등)만 추출해서 재사용 양식으로 저장 -->
+                    <button onclick="openSaveAsTemplateModal()"
+                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
+                        <span class="material-symbols-outlined text-base">bookmark_add</span>
+                        <span>템플릿 저장</span>
+                    </button>
                 </div>
             </div>
 
@@ -657,6 +663,52 @@
             </div>
         </div>
     </main>
+
+    <!-- ========================================== -->
+    <!-- [D-5] 템플릿으로 저장 모달 -->
+    <!-- 비유: "다른 이름으로 저장" 대화상자 — 현재 주문 설정을 양식으로 저장 -->
+    <!-- ========================================== -->
+    <div id="save-template-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg">템플릿으로 저장</h3>
+                <button onclick="closeSaveAsTemplateModal()" class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <p class="text-sm text-gray-500 mb-4">이 주문의 종목/단가/담당자 설정을 템플릿으로 저장합니다.<br>고객 정보와 결제 내역은 포함되지 않습니다.</p>
+
+            <div class="mb-3">
+                <label class="text-sm text-gray-500 mb-1 block">템플릿 이름 <span class="text-red-500">*</span></label>
+                <input type="text" id="template-name" placeholder="예: 축구 승화전사 기본"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+            </div>
+
+            <div class="mb-3">
+                <label class="text-sm text-gray-500 mb-1 block">카테고리</label>
+                <input type="text" id="template-category" placeholder="예: 축구, 농구, 배구"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
+            </div>
+
+            <div class="mb-6">
+                <label class="text-sm text-gray-500 mb-1 block">설명 (선택)</label>
+                <textarea id="template-description" rows="2" placeholder="템플릿에 대한 메모..."
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black resize-none"></textarea>
+            </div>
+
+            <div class="flex space-x-3">
+                <button onclick="saveAsTemplate()"
+                    class="flex-1 bg-brand-black text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
+                    저장
+                </button>
+                <button onclick="closeSaveAsTemplateModal()"
+                    class="flex-1 border border-gray-300 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
+                    취소
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- ========================================== -->
     <!-- 상태 변경 모달 -->

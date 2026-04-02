@@ -925,6 +925,72 @@ async function duplicateOrder() {
 }
 
 // ============================================================
+// [D-5] 템플릿으로 저장
+// 비유: 현재 주문서에서 "양식만 추출"해서 재사용 가능한 템플릿으로 저장
+// 고객 정보, 주문번호, 상태, 날짜 등은 자동으로 제거됨
+// ============================================================
+
+// 모달 열기: 현재 주문의 종목 정보를 기본 이름/카테고리로 자동 채움
+function openSaveAsTemplateModal() {
+    if (!currentOrder) return;
+
+    const modal = document.getElementById('save-template-modal');
+    const nameInput = document.getElementById('template-name');
+    const categoryInput = document.getElementById('template-category');
+    const descInput = document.getElementById('template-description');
+
+    // 첫 번째 아이템의 종목/공법을 기본 이름으로 제안
+    const firstItem = currentOrder.items?.[0];
+    const sportName = firstItem?.sport || '';
+    const methodName = firstItem?.method || '';
+    nameInput.value = [sportName, methodName].filter(Boolean).join(' ') || '';
+    categoryInput.value = sportName || '';
+    descInput.value = '';
+
+    modal.classList.remove('hidden');
+}
+
+// 모달 닫기
+function closeSaveAsTemplateModal() {
+    document.getElementById('save-template-modal').classList.add('hidden');
+}
+
+// 저장 실행: POST /api/admin/orders/:id/save-as-template 호출
+async function saveAsTemplate() {
+    if (!currentOrder) return;
+
+    const name = document.getElementById('template-name').value.trim();
+    if (!name) {
+        alert('템플릿 이름을 입력해주세요.');
+        return;
+    }
+
+    const category = document.getElementById('template-category').value.trim();
+    const description = document.getElementById('template-description').value.trim();
+
+    try {
+        const res = await adminFetch(`/api/admin/orders/${currentOrder.id}/save-as-template`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description, category })
+        });
+
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success) {
+            alert(data.message || '템플릿이 저장되었습니다.');
+            closeSaveAsTemplateModal();
+        } else {
+            alert('템플릿 저장 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[AdminOrder] 템플릿 저장 실패:', error);
+        alert('템플릿 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// ============================================================
 // 알림 발송
 // ============================================================
 async function sendNotification() {
