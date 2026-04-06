@@ -57,14 +57,83 @@ function getTagBadges(tags) {
 // 비유: "진행중" 서랍을 열면 그 안에 "시안요청", "제작중" 등 작은 칸막이가 있는 것
 const STATUS_TABS = [
     { code: '', label: '전체 진행중' },
+    { code: 'consult_started', label: '상담개시' },
     { code: 'design_requested', label: '시안요청' },
-    { code: 'design_confirmed', label: '디자인확정' },
     { code: 'draft_done', label: '초안완료' },
-    { code: 'line_work', label: '라인작업' },
+    { code: 'design_confirmed', label: '디자인확정' },
+    { code: 'order_received', label: '주문서접수' },
+    { code: 'payment_completed', label: '결제완료' },
+    { code: 'work_instruction_pending', label: '지시서 전송전' },
+    { code: 'work_instruction_sent', label: '지시서 전송후' },
+    { code: 'work_instruction_received', label: '지시서 접수' },
     { code: 'in_production', label: '제작중' },
+    { code: 'factory_released', label: '공장출고' },
+    { code: 'warehouse_received', label: '창고입고' },
     { code: 'released', label: '출고' },
     { code: 'hold', label: '보류' }
 ];
+
+const PAGE_PRESETS = {
+    all: {
+        title: '주문 관리',
+        subtitle: 'Google Sheets 대신 여기서 모든 주문을 관리합니다.',
+        requiredScope: null,
+        allowedStatuses: null,
+        visibleColumns: ['select', 'orderNumber', 'receiptDate', 'teamName', 'customerName', 'sport', 'status', 'manager', 'amount', 'paidDate', 'workInstructionSentDate', 'deadline'],
+        visibleFilters: ['status', 'manager', 'sport', 'dealType', 'tag', 'search', 'dateFrom', 'dateTo', 'amountMin', 'amountMax'],
+        showStats: true,
+        showRevenueSummary: true,
+        showMainTabs: true,
+        showStatusTabs: true,
+        showBulkActions: true,
+        allowBulkStatusChange: true
+    },
+    design: {
+        title: '디자인 파트',
+        subtitle: '디자인팀이 확인해야 할 주문만 모아서 봅니다.',
+        requiredScope: 'design',
+        allowedStatuses: ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed'],
+        visibleColumns: ['orderNumber', 'receiptDate', 'teamName', 'customerName', 'sport', 'status', 'manager', 'deadline'],
+        visibleFilters: ['status', 'manager', 'sport', 'search', 'dateFrom', 'dateTo'],
+        showStats: false,
+        showRevenueSummary: false,
+        showMainTabs: false,
+        showStatusTabs: true,
+        showBulkActions: false,
+        allowBulkStatusChange: false
+    },
+    cs: {
+        title: 'CS 파트',
+        subtitle: '상담, 주문서, 결제, 작업지시서 전송 흐름만 집중해서 봅니다.',
+        requiredScope: 'cs',
+        allowedStatuses: ['consult_started', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent'],
+        visibleColumns: ['orderNumber', 'receiptDate', 'teamName', 'customerName', 'status', 'manager', 'amount', 'paidDate', 'workInstructionSentDate', 'deadline'],
+        visibleFilters: ['status', 'manager', 'dealType', 'search', 'dateFrom', 'dateTo', 'amountMin', 'amountMax'],
+        showStats: false,
+        showRevenueSummary: false,
+        showMainTabs: false,
+        showStatusTabs: false,
+        showBulkActions: false,
+        allowBulkStatusChange: false
+    },
+    production: {
+        title: '제작 파트',
+        subtitle: '작업지시서 접수 이후 생산과 출고 준비 주문만 봅니다.',
+        requiredScope: 'production',
+        allowedStatuses: ['work_instruction_received', 'in_production', 'production_done', 'factory_released', 'warehouse_received', 'released'],
+        visibleColumns: ['orderNumber', 'receiptDate', 'teamName', 'sport', 'status', 'manager', 'workInstructionSentDate', 'deadline'],
+        visibleFilters: ['status', 'manager', 'sport', 'search', 'dateFrom', 'dateTo'],
+        showStats: false,
+        showRevenueSummary: false,
+        showMainTabs: false,
+        showStatusTabs: false,
+        showBulkActions: false,
+        allowBulkStatusChange: false
+    }
+};
+
+let currentPagePreset = PAGE_PRESETS.all;
+let visibleColumns = new Set(PAGE_PRESETS.all.visibleColumns);
 
 // ============================================================
 // D-day 계산 헬퍼 — 납기까지 남은 일수를 계산
@@ -114,6 +183,29 @@ function calcDday(desiredDate, orderStatus) {
     return { text, cssClass };
 }
 
+function getStatusProgressIndex(status) {
+    return STATUS_TABS.findIndex(tab => tab.code === status);
+}
+
+function getTimelineDateCell(orderStatus, milestoneStatus, rawValue) {
+    const currentIndex = getStatusProgressIndex(orderStatus);
+    const milestoneIndex = getStatusProgressIndex(milestoneStatus);
+
+    if (rawValue) {
+        return `<span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">${formatDate(rawValue)}</span>`;
+    }
+
+    if (currentIndex === -1 || milestoneIndex === -1 || currentIndex < milestoneIndex) {
+        return '<span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-500">대기</span>';
+    }
+
+    if (currentIndex === milestoneIndex) {
+        return '<span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">미입력</span>';
+    }
+
+    return '<span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700">지연</span>';
+}
+
 // 현재 선택된 메인 탭을 추적 (active/all/unpaid)
 let currentMainTab = 'active';
 
@@ -133,17 +225,156 @@ let currentFilters = {
     page: 1
 };
 
+function getCurrentPagePreset() {
+    const view = new URLSearchParams(window.location.search).get('view') || 'all';
+    return PAGE_PRESETS[view] || PAGE_PRESETS.all;
+}
+
+function getCurrentViewParam() {
+    const view = new URLSearchParams(window.location.search).get('view') || 'all';
+    return view === 'all' ? '' : `&view=${view}`;
+}
+
+function getVisibleColumnClass(column) {
+    return visibleColumns.has(column) ? '' : 'hidden';
+}
+
+function applyColumnVisibility() {
+    document.querySelectorAll('[data-column]').forEach(el => {
+        const column = el.getAttribute('data-column');
+        el.classList.toggle('hidden', !visibleColumns.has(column));
+    });
+}
+
+function setElementVisibility(id, visible) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.toggle('hidden', !visible);
+    }
+}
+
+function applyFilterVisibility() {
+    const allowed = new Set(currentPagePreset.visibleFilters || []);
+
+    document.querySelectorAll('[data-filter-key]').forEach(input => {
+        const key = input.getAttribute('data-filter-key');
+        const wrapper = input.closest('div');
+        if (!wrapper) return;
+        wrapper.classList.toggle('hidden', !allowed.has(key));
+    });
+}
+
+function applyNavActiveState() {
+    const navMap = {
+        all: 'nav-all',
+        design: 'nav-design',
+        cs: 'nav-cs',
+        production: 'nav-production'
+    };
+
+    Object.values(navMap).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = 'text-gray-400 hover:text-white transition-colors';
+    });
+
+    const activeId = navMap[getCurrentPagePreset().requiredScope ? getCurrentPagePreset().requiredScope : 'all'] || navMap.all;
+    const activeEl = document.getElementById(activeId);
+    if (activeEl) {
+        activeEl.className = 'text-white font-medium border-b-2 border-brand-red pb-1';
+    }
+}
+
+function applyStatusOptionVisibility() {
+    const allowed = currentPagePreset.allowedStatuses;
+    const filterStatus = document.getElementById('filter-status');
+    const bulkStatus = document.getElementById('bulk-status-select');
+    const statusTabsRow = document.getElementById('status-tabs-row');
+    const tabAll = document.getElementById('tab-all');
+    const tabUnpaid = document.getElementById('tab-unpaid');
+
+    if (!allowed) {
+        if (statusTabsRow) statusTabsRow.classList.remove('hidden');
+        if (tabAll) tabAll.classList.remove('hidden');
+        if (tabUnpaid) tabUnpaid.classList.remove('hidden');
+        return;
+    }
+
+    if (statusTabsRow) {
+        statusTabsRow.querySelectorAll('.status-sub-tab').forEach(btn => {
+            const code = btn.dataset.statusCode || '';
+            btn.classList.toggle('hidden', !!code && !allowed.includes(code));
+        });
+    }
+
+    [filterStatus, bulkStatus].forEach(select => {
+        if (!select) return;
+        Array.from(select.options).forEach(option => {
+            if (!option.value) return;
+            option.hidden = !allowed.includes(option.value);
+        });
+    });
+
+    if (tabAll) tabAll.classList.add('hidden');
+    if (tabUnpaid) tabUnpaid.classList.add('hidden');
+}
+
+function applyPagePreset() {
+    currentPagePreset = getCurrentPagePreset();
+
+    if (currentPagePreset.requiredScope && !hasAdminScope(currentPagePreset.requiredScope)) {
+        alert('해당 파트 페이지에 접근할 권한이 없습니다.');
+        redirectToDefaultAdminPage();
+        return false;
+    }
+
+    visibleColumns = new Set(currentPagePreset.visibleColumns);
+    applyColumnVisibility();
+    applyStatusOptionVisibility();
+    applyFilterVisibility();
+    applyNavActiveState();
+
+    setElementVisibility('stats-header-section', currentPagePreset.showStats);
+    setElementVisibility('stats-cards-section', currentPagePreset.showStats);
+    setElementVisibility('revenue-summary-section', currentPagePreset.showRevenueSummary);
+    setElementVisibility('main-tabs-section', currentPagePreset.showMainTabs);
+    setElementVisibility('status-tabs-row', currentPagePreset.showStatusTabs);
+    setElementVisibility('bulk-action-bar', currentPagePreset.showBulkActions);
+    setElementVisibility('unpaid-summary-panel', false);
+
+    const titleEl = document.getElementById('page-title');
+    const subtitleEl = document.getElementById('page-subtitle');
+    if (titleEl) titleEl.textContent = currentPagePreset.title;
+    if (subtitleEl) subtitleEl.textContent = currentPagePreset.subtitle;
+    document.title = `STIZ Admin - ${currentPagePreset.title}`;
+
+    if (currentPagePreset.allowedStatuses) {
+        currentFilters.status = '';
+        const filterStatus = document.getElementById('filter-status');
+        if (filterStatus) filterStatus.value = '';
+        highlightStatusTab('');
+    }
+
+    return true;
+}
+
+function applyPresetOrderFilter(orders) {
+    if (!currentPagePreset.allowedStatuses) return orders;
+    return orders.filter(order => currentPagePreset.allowedStatuses.includes(order.status));
+}
+
 // ============================================================
 // 초기화: 페이지 로드 시 실행
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     // 1) 관리자 인증 확인
     checkAdminAuth();
+    if (!applyPagePreset()) return;
 
     // 2) 연도 드롭다운 이벤트 리스너 등록
     // 비유: 연도를 바꾸면 해당 연도의 매출/건수 등 통계 + 차트가 함께 갱신됨
     const yearSelect = document.getElementById('stats-year-select');
-    if (yearSelect) {
+    if (yearSelect && currentPagePreset.showStats) {
         // 연도 변경 시 통계 카드만 갱신 (차트/실적/랭킹은 admin-analytics.html로 이동됨)
         yearSelect.addEventListener('change', () => {
             loadStats(yearSelect.value);
@@ -153,7 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3) 데이터 로드 — 현재 연도 기준 통계 + 차트 + 주문 목록
     const currentYear = new Date().getFullYear().toString();
     if (yearSelect) yearSelect.value = currentYear; // 드롭다운 기본값을 현재 연도로
-    loadStats(currentYear);
+    if (currentPagePreset.showStats) {
+        loadStats(currentYear);
+    }
     // 차트/실적/랭킹 초기 로드 제거: admin-analytics.html로 이동됨
     loadOrders();
 });
@@ -301,15 +534,21 @@ async function loadOrders() {
             return;
         }
 
-        if (data.orders.length === 0) {
+        const filteredOrders = applyPresetOrderFilter(data.orders);
+
+        if (filteredOrders.length === 0) {
             showEmpty();
             return;
         }
 
         // 테이블에 주문 데이터 렌더링
-        renderOrdersTable(data.orders);
+        renderOrdersTable(filteredOrders);
         // 페이지네이션 렌더링
-        renderPagination(data.pagination);
+        if (currentPagePreset.allowedStatuses) {
+            document.getElementById('pagination').classList.add('hidden');
+        } else {
+            renderPagination(data.pagination);
+        }
         // 탭 건수 업데이트 — 진행중 건수와 전체 건수를 탭에 표시
         updateTabCounts(data.pagination);
     } catch (error) {
@@ -351,32 +590,36 @@ function renderOrdersTable(orders) {
         // 접수일 (매출 기준일: orderReceiptDate 우선, 없으면 createdAt 폴백)
         const receiptDate = order.orderReceiptDate || order.createdAt;
         const createdDate = receiptDate ? formatDate(receiptDate) : '-';
+        const paidDateCell = getTimelineDateCell(order.status, 'payment_completed', order.payment?.paidDate);
+        const workInstructionSentDateCell = getTimelineDateCell(order.status, 'work_instruction_sent', order.workInstruction?.sentAt);
 
         // D-day 계산: 희망납기까지 남은 일수 (초록/주황/빨강으로 긴급도 표시)
         const dday = calcDday(order.shipping?.desiredDate, order.status);
 
         row.innerHTML = `
-            <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
+            <td class="px-3 py-3 w-10 ${getVisibleColumnClass('select')}" onclick="event.stopPropagation()">
                 <input type="checkbox" class="order-checkbox w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer"
                     data-order-id="${order.id}"
                     onchange="onOrderCheckboxChange()">
             </td>
-            <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">${order.orderNumber || '-'}</td>
-            <td class="px-4 py-3 font-medium whitespace-nowrap">${escapeHtml(teamName)}${gradeBadge}${getTagBadges(order.tags)}</td>
-            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(customerName)}</td>
-            <td class="px-4 py-3 whitespace-nowrap">
+            <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap ${getVisibleColumnClass('orderNumber')}">${order.orderNumber || '-'}</td>
+            <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap ${getVisibleColumnClass('receiptDate')}">${createdDate}</td>
+            <td class="px-4 py-3 font-medium whitespace-nowrap ${getVisibleColumnClass('teamName')}">${escapeHtml(teamName)}${gradeBadge}${getTagBadges(order.tags)}</td>
+            <td class="px-4 py-3 text-gray-600 whitespace-nowrap ${getVisibleColumnClass('customerName')}">${escapeHtml(customerName)}</td>
+            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('sport')}">
                 <span>${sportLabel}</span>
                 ${itemCount > 1 ? `<span class="ml-1 text-xs text-gray-400">(${itemDisplay})</span>` : ''}
             </td>
-            <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
-            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${escapeHtml(order.manager || '미배정')}</td>
-            <td class="px-4 py-3 text-right whitespace-nowrap font-medium">${formatCurrency(amount)}</td>
-            <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${createdDate}</td>
-            <td class="px-4 py-3 text-center text-xs whitespace-nowrap ${dday.cssClass}">${dday.text}</td>
+            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('status')}">${statusBadge}</td>
+            <td class="px-4 py-3 text-gray-600 whitespace-nowrap ${getVisibleColumnClass('manager')}">${escapeHtml(order.manager || '미배정')}</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap font-medium ${getVisibleColumnClass('amount')}">${formatCurrency(amount)}</td>
+            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('paidDate')}">${paidDateCell}</td>
+            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('workInstructionSentDate')}">${workInstructionSentDateCell}</td>
+            <td class="px-4 py-3 text-center text-xs whitespace-nowrap ${dday.cssClass} ${getVisibleColumnClass('deadline')}">${dday.text}</td>
         `;
 
         // 행 클릭 시 주문 상세 페이지로 이동 (체크박스 영역은 stopPropagation으로 제외)
-        row.onclick = () => window.location.href = `admin-order.html?id=${order.id}`;
+        row.onclick = () => window.location.href = `admin-order.html?id=${order.id}${getCurrentViewParam()}`;
 
         tbody.appendChild(row);
     });
@@ -422,9 +665,9 @@ function getStatusBadge(status) {
     const label = STATUS_LABELS[status] || status || '알 수 없음';
 
     // 상태를 4그룹으로 나눠 색상 결정
-    const designStatuses = ['design_requested', 'draft_done', 'revision', 'design_confirmed'];
-    const productionStatuses = ['payment_pending', 'payment_done', 'grading', 'line_work', 'in_production', 'production_done'];
-    const shippingStatuses = ['released', 'shipped'];
+    const designStatuses = ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed'];
+    const productionStatuses = ['order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'production_done', 'factory_released'];
+    const shippingStatuses = ['warehouse_received', 'released', 'shipped'];
 
     let badgeClass = 'badge-delivered'; // 기본: 회색
     if (designStatuses.includes(status)) badgeClass = 'badge-design';       // 파란색
@@ -510,6 +753,7 @@ function switchTabUI(tab) {
     const tabActive = document.getElementById('tab-active');
     const tabAll = document.getElementById('tab-all');
     const tabUnpaid = document.getElementById('tab-unpaid');
+    if (!tabActive || !tabAll || !tabUnpaid) return;
 
     // 기본 스타일 (비활성 상태)
     const inactiveClass = 'px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
@@ -657,9 +901,9 @@ function filterByStatus(group) {
     // 상태 카드의 그룹(design/production/shipping/delivered)을
     // 실제 상태값 범위로 매핑
     const statusMap = {
-        design: 'design_requested',      // 시안 관련 첫 번째 상태
-        production: 'payment_pending',    // 제작 관련 첫 번째 상태
-        shipping: 'released',            // 배송 관련 첫 번째 상태
+        design: 'consult_started',
+        production: 'order_received',
+        shipping: 'warehouse_received',
         delivered: 'delivered',
         hold: 'hold',                    // 보류
         cancelled: 'cancelled'           // 취소
@@ -814,16 +1058,15 @@ function resetFilters() {
         excludeCompleted: true, // 초기화 시 "진행중" 탭으로 복원
         page: 1
     };
-    // 탭 UI도 "진행중"으로 복원
-    currentMainTab = 'active';
-    switchTabUI('active');
-    // 상태별 하위 탭도 "전체 진행중"으로 복원 + 표시
-    highlightStatusTab('');
-    const statusTabsEl = document.getElementById('status-tabs-row');
-    if (statusTabsEl) statusTabsEl.classList.remove('hidden');
-    // 미수금 요약 패널 숨기기
-    const unpaidPanel = document.getElementById('unpaid-summary-panel');
-    if (unpaidPanel) unpaidPanel.classList.add('hidden');
+    if (!currentPagePreset.allowedStatuses) {
+        currentMainTab = 'active';
+        switchTabUI('active');
+        highlightStatusTab('');
+        const statusTabsEl = document.getElementById('status-tabs-row');
+        if (statusTabsEl) statusTabsEl.classList.remove('hidden');
+        const unpaidPanel = document.getElementById('unpaid-summary-panel');
+        if (unpaidPanel) unpaidPanel.classList.add('hidden');
+    }
     loadOrders();
 }
 

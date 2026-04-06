@@ -8,7 +8,7 @@
 
 import express from 'express';
 import db from '../db.js';
-import { STATUS_FLOW, STATUS_LABELS, getCustomerStatus } from './orders.js';
+import { STATUS_FLOW, STATUS_LABELS, getCustomerStatus, normalizeStatus } from './orders.js';
 import { runBackup } from '../backup.js';  // 수동 백업 API용
 import { logActivity, getActivityLogs } from '../activityLog.js';  // 관리자 활동 로그 (D-2)
 
@@ -20,111 +20,127 @@ function getRevenueDate(order) {
     return order.orderReceiptDate || order.createdAt;
 }
 
+function getLastStatusChangeAt(order, historyByOrderId) {
+    const history = historyByOrderId[order.id] || [];
+    if (history.length > 0) {
+        return history[0].createdAt;
+    }
+    return order.updatedAt || order.createdAt || null;
+}
+
+function normalizeOrderStatus(order) {
+    return {
+        ...order,
+        status: normalizeStatus(order.status),
+        workInstruction: {
+            status: order.workInstruction?.status || '',
+            sentAt: order.workInstruction?.sentAt || '',
+            receivedAt: order.workInstruction?.receivedAt || '',
+            sentBy: order.workInstruction?.sentBy || '',
+            url: order.workInstruction?.url || '',
+            note: order.workInstruction?.note || '',
+            ...order.workInstruction
+        }
+    };
+}
+
 // ============================================================
 // GET /api/admin/orders - 전체 주문 목록 (필터/검색/정렬/페이지네이션)
 // 비유: Google Sheets의 필터 기능을 API로 구현한 것
 // ============================================================
 router.get('/orders', (req, res) => {
     try {
-        // 쿼리 파라미터에서 필터 조건 추출
-        const filters = {};
-
-        // 상태 필터 (예: ?status=in_production)
-        if (req.query.status) filters.status = req.query.status;
-        // 담당자 필터 (예: ?manager=신경록)
-        if (req.query.manager) filters.manager = req.query.manager;
-
-        // 중첩 필드 필터 (종목, 거래유형)
-        // findByFilter에서 'customer.dealType' 같은 dot notation 지원
-        if (req.query.sport) filters['items.0.sport'] = req.query.sport; // 첫 번째 아이템의 종목
-        if (req.query.dealType) filters['customer.dealType'] = req.query.dealType;
-
-        // 완료 주문 제외 여부 (기본값: true = 진행중만 표시)
-        // 비유: 기본으로 "이미 끝난 주문"은 숨기고, "전체" 탭 클릭 시에만 전부 표시
+        const requestedStatus = normalizeStatus(req.query.status || '');
+        const requestedManager = req.query.manager || '';
+        const requestedSport = req.query.sport || '';
+        const requestedDealType = req.query.dealType || '';
+        const requestedTag = req.query.tag || '';
+        const search = (req.query.search || '').toLowerCase();
+        const sortBy = req.query.sortBy || 'createdAt';
+        const sortOrder = (req.query.sortOrder || 'desc').toLowerCase();
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 20;
         const excludeCompleted = req.query.excludeCompleted !== 'false';
+        const dateFrom = req.query.dateFrom || '';
+        const dateTo = req.query.dateTo || '';
+        const amountMin = req.query.amountMin ? parseFloat(req.query.amountMin) : null;
+        const amountMax = req.query.amountMax ? parseFloat(req.query.amountMax) : null;
+        const activeExcluded = ['delivered', 'cancelled'];
+        const statusTabs = ['consult_started', 'design_requested', 'draft_done', 'design_confirmed', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'factory_released', 'warehouse_received', 'released', 'hold'];
 
-        // 정렬/페이지네이션/검색 옵션 + 범위 필터
-        const options = {
-            search: req.query.search || '',
-            sortBy: req.query.sortBy || 'createdAt',
-            sortOrder: req.query.sortOrder || 'desc',
-            page: req.query.page || 1,
-            limit: req.query.limit || 20,
-            // 날짜 범위 필터 (예: ?dateFrom=2026-01-01&dateTo=2026-03-31)
-            dateFrom: req.query.dateFrom || '',
-            dateTo: req.query.dateTo || '',
-            // 금액 범위 필터 (예: ?amountMin=500000&amountMax=1000000)
-            amountMin: req.query.amountMin || '',
-            amountMax: req.query.amountMax || '',
-            // 완료 상태 제외: delivered(배송완료), cancelled(취소)를 목록에서 빼기
-            excludeStatuses: excludeCompleted ? ['delivered', 'cancelled'] : []
+        const allOrders = db.getAll('orders').map(normalizeOrderStatus);
+
+        const matchesCommonFilters = (order) => {
+            if (requestedManager && (order.manager || '') !== requestedManager) return false;
+            if (requestedSport && (order.items?.[0]?.sport || '') !== requestedSport) return false;
+            if (requestedDealType && (order.customer?.dealType || '') !== requestedDealType) return false;
+            if (requestedTag && !(order.tags || []).includes(requestedTag)) return false;
+            if (dateFrom) {
+                const orderDate = order.orderReceiptDate || order.createdAt;
+                if (!orderDate || new Date(orderDate) < new Date(dateFrom)) return false;
+            }
+            if (dateTo) {
+                const to = new Date(dateTo);
+                to.setDate(to.getDate() + 1);
+                const orderDate = order.orderReceiptDate || order.createdAt;
+                if (!orderDate || new Date(orderDate) >= to) return false;
+            }
+            const amount = order.payment?.totalAmount || order.total || 0;
+            if (amountMin !== null && amount < amountMin) return false;
+            if (amountMax !== null && amount > amountMax) return false;
+            if (search) {
+                const haystack = [
+                    order.orderNumber || '',
+                    order.customer?.name || '',
+                    order.customer?.teamName || '',
+                    order.memo || ''
+                ].join(' ').toLowerCase();
+                if (!haystack.includes(search)) return false;
+            }
+            return true;
         };
 
-        // 탭 건수 계산용: 동일 필터 조건에서 진행중/전체 각각의 건수를 구한다
-        // 비유: "진행중 (309건)" / "전체 (8,073건)" 표시를 위해 두 가지 건수 모두 필요
-        const optionsAll = { ...options, excludeStatuses: [], page: 1, limit: 1 };
-        const resultAll = db.findByFilter('orders', filters, optionsAll);
-        const optionsActive = { ...options, excludeStatuses: ['delivered', 'cancelled'], page: 1, limit: 1 };
-        const resultActive = db.findByFilter('orders', filters, optionsActive);
+        const allFiltered = allOrders.filter(matchesCommonFilters);
+        const activeFiltered = allFiltered.filter(order => !activeExcluded.includes(order.status));
 
-        // 상태별 건수 계산: 진행중 하위 탭에 각 상태별 건수를 표시하기 위함
-        // 비유: "시안요청 (12건)" / "제작중 (5건)" 등 세부 상태별 숫자
-        // 상태 필터를 제외한 나머지 필터 조건(담당자, 종목 등)은 유지
-        const statusTabs = ['design_requested', 'design_confirmed', 'draft_done', 'line_work', 'in_production', 'released', 'hold'];
         const statusCounts = {};
-        const filtersWithoutStatus = { ...filters };
-        delete filtersWithoutStatus.status; // 상태 필터만 제거
-        statusTabs.forEach(st => {
-            const stFilters = { ...filtersWithoutStatus, status: st };
-            const stOptions = { ...options, excludeStatuses: [], page: 1, limit: 1 };
-            const stResult = db.findByFilter('orders', stFilters, stOptions);
-            statusCounts[st] = stResult.total;
+        statusTabs.forEach(status => {
+            statusCounts[status] = activeFiltered.filter(order => order.status === status).length;
         });
 
-        let result = db.findByFilter('orders', filters, options);
+        let filteredOrders = excludeCompleted ? activeFiltered : [...allFiltered];
+        if (requestedStatus) {
+            filteredOrders = filteredOrders.filter(order => order.status === requestedStatus);
+        }
 
-        // deadline 정렬: 납기(desiredDate) 오름차순 — 가장 급한 주문이 맨 위
-        // 비유: 마감일이 빠른 숙제부터 먼저 보여주는 것
-        if (req.query.sortBy === 'deadline') {
-            result.data.sort((a, b) => {
+        if (req.query.unpaid === 'true') {
+            filteredOrders = allFiltered.filter(order => {
+                const amount = order.payment?.totalAmount || 0;
+                const paidDate = order.payment?.paidDate;
+                return !paidDate && amount > 0 && order.status !== 'cancelled';
+            });
+        }
+
+        filteredOrders.sort((a, b) => {
+            if (sortBy === 'deadline') {
                 const aDate = a.shipping?.desiredDate || null;
                 const bDate = b.shipping?.desiredDate || null;
-                // 납기 없는 주문은 맨 뒤로 밀기
                 if (!aDate && !bDate) return 0;
-                if (!aDate) return 1;   // a에 납기 없으면 뒤로
-                if (!bDate) return -1;  // b에 납기 없으면 뒤로
-                // 둘 다 있으면 날짜 오름차순 (이른 날짜가 위)
+                if (!aDate) return 1;
+                if (!bDate) return -1;
                 return new Date(aDate) - new Date(bDate);
-            });
-        }
+            }
 
-        // 태그 필터: 특정 태그가 있는 주문만 표시
-        // 비유: "급함" 스티커가 붙은 주문서만 골라내는 것
-        if (req.query.tag) {
-            const tagFilter = req.query.tag;
-            result.data = result.data.filter(o => (o.tags || []).includes(tagFilter));
-            result.total = result.data.length;
-            result.totalPages = Math.ceil(result.total / (parseInt(options.limit) || 20));
-        }
+            const aVal = a[sortBy] ?? '';
+            const bVal = b[sortBy] ?? '';
+            if (sortOrder === 'asc') return aVal > bVal ? 1 : -1;
+            return aVal < bVal ? 1 : -1;
+        });
 
-        // 미수금 필터: 결제일이 없고 금액이 있는 주문만 (비유: 외상 장부만 보기)
-        if (req.query.unpaid === 'true') {
-            const allOrders = db.getAll('orders');
-            const unpaidOrders = allOrders.filter(o => {
-                const amount = o.payment?.totalAmount || 0;
-                const paidDate = o.payment?.paidDate;
-                return !paidDate && amount > 0 && o.status !== 'cancelled';
-            });
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 20;
-            const start = (page - 1) * limit;
-            result = {
-                data: unpaidOrders.slice(start, start + limit),
-                total: unpaidOrders.length,
-                page,
-                totalPages: Math.ceil(unpaidOrders.length / limit)
-            };
-        }
+        const total = filteredOrders.length;
+        const totalPages = Math.ceil(total / limit) || 1;
+        const start = (page - 1) * limit;
+        const paginatedOrders = filteredOrders.slice(start, start + limit);
 
         // 각 주문의 고객에 VIP 등급 배지를 표시하기 위해
         // customerId가 있으면 customers.json에서 실제 고객 데이터를 조회하여 grade 계산
@@ -132,7 +148,7 @@ router.get('/orders', (req, res) => {
         const customerMap = {};  // 캐시: 같은 고객 중복 조회 방지
         allCustomers.forEach(c => { customerMap[c.id] = c; });
 
-        result.data.forEach(order => {
+        paginatedOrders.forEach(order => {
             if (order.customerId && customerMap[order.customerId]) {
                 const cust = customerMap[order.customerId];
                 const totalSpent = cust.totalSpent || 0;
@@ -148,19 +164,15 @@ router.get('/orders', (req, res) => {
 
         res.json({
             success: true,
-            orders: result.data,
+            orders: paginatedOrders,
             pagination: {
-                total: result.total,
-                page: result.page,
-                totalPages: result.totalPages,
-                limit: parseInt(options.limit),
-                // totalAll: 현재 필터 조건에서 상태 제외 없이 센 전체 건수
-                // totalActive: 완료/취소 제외한 진행중 건수
-                // 비유: "진행중 탭"과 "전체 탭"에 각각 표시할 건수
-                totalAll: resultAll.total,
-                totalActive: resultActive.total,
-                // 상태별 건수: 진행중 하위 탭에 표시
-                statusCounts: statusCounts
+                total,
+                page,
+                totalPages,
+                limit,
+                totalAll: allFiltered.length,
+                totalActive: activeFiltered.length,
+                statusCounts
             }
         });
     } catch (error) {
@@ -170,12 +182,77 @@ router.get('/orders', (req, res) => {
 });
 
 // ============================================================
+// GET /api/admin/orders/stale - 일정 시간 이상 상태 변화가 없는 진행중 주문
+// 비유: 오래 멈춰 있는 주문서를 따로 모아 "확인 필요" 바구니에 담는 것
+// ============================================================
+router.get('/orders/stale', (req, res) => {
+    try {
+        const hours = Math.max(1, parseInt(req.query.hours, 10) || 48);
+        const limit = Math.max(1, parseInt(req.query.limit, 10) || 5);
+        const cutoff = Date.now() - (hours * 60 * 60 * 1000);
+
+        const orders = db.getAll('orders').map(normalizeOrderStatus);
+        const history = db.getAll('order-history')
+            .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+        const historyByOrderId = {};
+        history.forEach(entry => {
+            if (!historyByOrderId[entry.orderId]) {
+                historyByOrderId[entry.orderId] = [];
+            }
+            historyByOrderId[entry.orderId].push(entry);
+        });
+
+        const staleOrders = orders
+            .filter(order => !['delivered', 'cancelled', 'hold'].includes(order.status))
+            .map(order => {
+                const lastStatusChangeAt = getLastStatusChangeAt(order, historyByOrderId);
+                const lastChangedTs = lastStatusChangeAt ? new Date(lastStatusChangeAt).getTime() : 0;
+                const staleHours = lastChangedTs
+                    ? Math.floor((Date.now() - lastChangedTs) / (1000 * 60 * 60))
+                    : null;
+
+                return {
+                    ...order,
+                    lastStatusChangeAt,
+                    staleHours
+                };
+            })
+            .filter(order => order.lastStatusChangeAt && new Date(order.lastStatusChangeAt).getTime() <= cutoff)
+            .sort((a, b) => new Date(a.lastStatusChangeAt || 0) - new Date(b.lastStatusChangeAt || 0))
+            .slice(0, limit)
+            .map(order => ({
+                id: order.id,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                statusLabel: STATUS_LABELS[order.status] || order.status,
+                manager: order.manager || '미배정',
+                teamName: order.customer?.teamName || '',
+                customerName: order.customer?.name || '',
+                desiredDate: order.shipping?.desiredDate || '',
+                lastStatusChangeAt: order.lastStatusChangeAt,
+                staleHours: order.staleHours
+            }));
+
+        res.json({
+            success: true,
+            hours,
+            orders: staleOrders
+        });
+    } catch (error) {
+        console.error('[Admin] Stale orders error:', error);
+        res.status(500).json({ success: false, error: '확인 필요 주문 조회 실패' });
+    }
+});
+
+// ============================================================
 // GET /api/admin/orders/:id - 주문 상세 조회
 // ============================================================
 router.get('/orders/:id', (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const order = db.findById('orders', id);
+        const rawOrder = db.findById('orders', id);
+        const order = rawOrder ? normalizeOrderStatus(rawOrder) : null;
 
         if (!order) {
             return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
@@ -185,7 +262,12 @@ router.get('/orders/:id', (req, res) => {
         const allHistory = db.getAll('order-history');
         const history = allHistory
             .filter(h => h.orderId === id)
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .map(entry => ({
+                ...entry,
+                fromStatus: normalizeStatus(entry.fromStatus),
+                toStatus: normalizeStatus(entry.toStatus)
+            }));
 
         res.json({
             success: true,
@@ -223,7 +305,7 @@ router.put('/orders/:id', (req, res) => {
 
         console.log(`[Admin] Order updated: ${existing.orderNumber} by ${req.user.name}`);
 
-        res.json({ success: true, order: updated });
+        res.json({ success: true, order: normalizeOrderStatus(updated) });
     } catch (error) {
         console.error('[Admin] Order update error:', error);
         res.status(500).json({ success: false, error: '주문 수정 실패' });
@@ -238,14 +320,15 @@ router.put('/orders/:id', (req, res) => {
 router.patch('/orders/:id/status', (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const { status, memo } = req.body;
+        const { status, memo, orderReceiptDate, payment, workInstruction } = req.body;
+        const normalizedStatus = normalizeStatus(status);
 
-        if (!status) {
+        if (!normalizedStatus) {
             return res.status(400).json({ success: false, error: '변경할 상태를 지정하세요.' });
         }
 
         // 유효한 상태값인지 확인
-        if (!STATUS_FLOW.includes(status)) {
+        if (!STATUS_FLOW.includes(normalizedStatus)) {
             return res.status(400).json({
                 success: false,
                 error: `유효하지 않은 상태입니다. 가능한 값: ${STATUS_FLOW.join(', ')}`
@@ -257,42 +340,60 @@ router.patch('/orders/:id/status', (req, res) => {
             return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
         }
 
-        const fromStatus = existing.status;
+        const fromStatus = normalizeStatus(existing.status);
 
         // 주문 상태 업데이트
-        const updated = db.updateById('orders', id, {
-            status,
+        const patch = {
+            status: normalizedStatus,
             updatedAt: new Date().toISOString()
-        });
+        };
+
+        if (orderReceiptDate) {
+            patch.orderReceiptDate = orderReceiptDate;
+        }
+        if (payment) {
+            patch.payment = {
+                ...(existing.payment || {}),
+                ...payment
+            };
+        }
+        if (workInstruction) {
+            patch.workInstruction = {
+                ...(existing.workInstruction || {}),
+                ...workInstruction
+            };
+        }
+
+        const updated = db.updateById('orders', id, patch);
 
         // 상태 변경 이력 자동 기록 (order-history.json에 추가)
         db.insert('order-history', {
             orderId: id,
             orderNumber: existing.orderNumber,
             fromStatus,
-            toStatus: status,
+            toStatus: normalizedStatus,
             changedBy: `admin_${req.user.name}`,   // 누가 바꿨는지
             memo: memo || '',                       // 변경 사유
             createdAt: new Date().toISOString()
         });
 
-        console.log(`[Admin] Status changed: ${existing.orderNumber} ${fromStatus} → ${status} by ${req.user.name}`);
+        console.log(`[Admin] Status changed: ${existing.orderNumber} ${fromStatus} → ${normalizedStatus} by ${req.user.name}`);
 
         // [D-2] 활동 로그 기록 — 비동기로 API 응답에 영향 없음
         logActivity('order_status_change', {
             orderNumber: existing.orderNumber,
             orderId: id,
             fromStatus: STATUS_LABELS[fromStatus] || fromStatus,
-            toStatus: STATUS_LABELS[status] || status,
+            toStatus: STATUS_LABELS[normalizedStatus] || normalizedStatus,
             memo: memo || ''
         }, req.user);
 
         res.json({
             success: true,
-            order: updated,
+            order: normalizeOrderStatus(updated),
             statusChange: {
                 from: { status: fromStatus, label: STATUS_LABELS[fromStatus] },
-                to: { status, label: STATUS_LABELS[status] }
+                to: { status: normalizedStatus, label: STATUS_LABELS[normalizedStatus] }
             }
         });
     } catch (error) {
@@ -347,6 +448,14 @@ router.post('/orders/:id/duplicate', (req, res) => {
                 factory: original.production?.factory || '',
                 gradingDone: false
             },
+            workInstruction: {
+                status: '',
+                sentAt: '',
+                receivedAt: '',
+                sentBy: '',
+                url: '',
+                note: ''
+            },
             shipping: {                                // 배송: 주소만 복사, 나머지 초기화
                 address: original.shipping?.address || '',
                 desiredDate: '',
@@ -369,7 +478,7 @@ router.post('/orders/:id/duplicate', (req, res) => {
             },
             manager: original.manager || '',           // 담당자 유지
             store: original.store || '',               // 거래점 유지
-            status: 'design_requested',                // 처음부터 시작
+            status: 'consult_started',                 // 처음부터 시작
             memo: `[복제] 원본: ${original.orderNumber}`,  // 원본 추적용 메모
             detail: '',
             revenueType: original.revenueType || '',   // 매출구분 유지
@@ -389,7 +498,7 @@ router.post('/orders/:id/duplicate', (req, res) => {
             id: Date.now() + 1,
             orderId: saved.id,
             fromStatus: null,
-            toStatus: 'design_requested',
+            toStatus: 'consult_started',
             changedBy: req.user.name || '관리자',
             memo: `주문 복제 (원본: ${original.orderNumber})`,
             createdAt: today.toISOString()
@@ -406,7 +515,7 @@ router.post('/orders/:id/duplicate', (req, res) => {
 
         res.json({
             success: true,
-            order: saved,
+            order: normalizeOrderStatus(saved),
             message: `주문이 복제되었습니다. 새 주문번호: ${newOrderNumber}`
         });
     } catch (error) {
@@ -422,17 +531,18 @@ router.post('/orders/:id/duplicate', (req, res) => {
 router.patch('/orders/bulk-status', (req, res) => {
     try {
         const { orderIds, status } = req.body;
+        const normalizedStatus = normalizeStatus(status);
 
         // 필수 파라미터 검증
         if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
             return res.status(400).json({ success: false, error: '변경할 주문 ID 목록을 지정하세요.' });
         }
-        if (!status) {
+        if (!normalizedStatus) {
             return res.status(400).json({ success: false, error: '변경할 상태를 지정하세요.' });
         }
 
         // 유효한 상태값인지 확인
-        if (!STATUS_FLOW.includes(status)) {
+        if (!STATUS_FLOW.includes(normalizedStatus)) {
             return res.status(400).json({
                 success: false,
                 error: `유효하지 않은 상태입니다. 가능한 값: ${STATUS_FLOW.join(', ')}`
@@ -455,10 +565,10 @@ router.patch('/orders/bulk-status', (req, res) => {
                 return;
             }
 
-            const fromStatus = existing.status;
+            const fromStatus = normalizeStatus(existing.status);
 
             // 이미 같은 상태면 건너뛰기 (불필요한 이력 방지)
-            if (fromStatus === status) {
+            if (fromStatus === normalizedStatus) {
                 results.push({ id, success: true, skipped: true, orderNumber: existing.orderNumber });
                 updated++;
                 return;
@@ -466,7 +576,7 @@ router.patch('/orders/bulk-status', (req, res) => {
 
             // 상태 업데이트
             db.updateById('orders', id, {
-                status,
+                status: normalizedStatus,
                 updatedAt: new Date().toISOString()
             });
 
@@ -475,21 +585,21 @@ router.patch('/orders/bulk-status', (req, res) => {
                 orderId: id,
                 orderNumber: existing.orderNumber,
                 fromStatus,
-                toStatus: status,
+                toStatus: normalizedStatus,
                 changedBy: `admin_${req.user.name}`,
                 memo: `일괄 변경 (${orderIds.length}건 중)`,
                 createdAt: new Date().toISOString()
             });
 
-            results.push({ id, success: true, orderNumber: existing.orderNumber, fromStatus, toStatus: status });
+            results.push({ id, success: true, orderNumber: existing.orderNumber, fromStatus, toStatus: normalizedStatus });
             updated++;
         });
 
-        console.log(`[Admin] Bulk status change: ${updated} updated, ${failed} failed → ${status} by ${req.user.name}`);
+        console.log(`[Admin] Bulk status change: ${updated} updated, ${failed} failed → ${normalizedStatus} by ${req.user.name}`);
 
         // [D-2] 활동 로그 기록
         logActivity('order_bulk_status', {
-            toStatus: STATUS_LABELS[status] || status,
+            toStatus: STATUS_LABELS[normalizedStatus] || normalizedStatus,
             totalCount: orderIds.length,
             updatedCount: updated,
             failedCount: failed
@@ -500,7 +610,7 @@ router.patch('/orders/bulk-status', (req, res) => {
             updated,
             failed,
             results,
-            statusLabel: STATUS_LABELS[status]
+            statusLabel: STATUS_LABELS[normalizedStatus]
         });
     } catch (error) {
         console.error('[Admin] Bulk status change error:', error);
@@ -517,7 +627,12 @@ router.get('/orders/:id/history', (req, res) => {
         const allHistory = db.getAll('order-history');
         const history = allHistory
             .filter(h => h.orderId === id)
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .map(entry => ({
+                ...entry,
+                fromStatus: normalizeStatus(entry.fromStatus),
+                toStatus: normalizeStatus(entry.toStatus)
+            }));
 
         res.json({
             success: true,
@@ -544,7 +659,7 @@ router.get('/stats', (req, res) => {
 
         // 매출 기준일(orderReceiptDate) 기준으로 해당 연도 주문만 필터링
         // 폴백: orderReceiptDate가 없으면 createdAt(상담개시일) 사용
-        const orders = allOrders.filter(order => {
+        const orders = allOrders.map(normalizeOrderStatus).filter(order => {
             const revenueDate = getRevenueDate(order);
             if (!revenueDate) return false;
             return revenueDate.startsWith(year);

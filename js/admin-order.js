@@ -15,9 +15,10 @@
 // 12단계 상태 흐름 (순서대로) — 주문 상세 페이지 고유
 // 정상 진행 흐름 + 특수 상태(보류/취소)
 const STATUS_FLOW = [
-    'design_requested', 'draft_done', 'revision', 'design_confirmed',
-    'payment_pending', 'payment_done',
-    'grading', 'line_work', 'in_production', 'production_done',
+    'consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed',
+    'order_received', 'payment_completed',
+    'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received',
+    'in_production', 'production_done', 'factory_released', 'warehouse_received',
     'released', 'shipped', 'delivered',
     'hold', 'cancelled'
 ];
@@ -50,6 +51,152 @@ let currentOrder = null;
 let currentHistory = [];
 let isEditMode = false;
 let currentTab = 'customer';
+let currentDetailPreset = null;
+
+const ORDER_DETAIL_PRESETS = {
+    all: {
+        requiredScope: null,
+        defaultTab: 'customer',
+        tabs: ['customer', 'design', 'production', 'shipping', 'payment', 'history'],
+        fields: null,
+        showQuickStatus: true,
+        showContact: true,
+        showComments: true,
+        showTags: true,
+        showEdit: true,
+        showPaymentConfirm: true,
+        showDesignPreview: true,
+        showOrderSheetPreview: true
+    },
+    design: {
+        requiredScope: 'design',
+        defaultTab: 'design',
+        tabs: ['customer', 'design', 'history'],
+        fields: [
+            'customer.name', 'customer.teamName', 'customer.phone', 'customer.dealType', 'memo',
+            'design.status', 'design.revisionCount', 'design.designer', 'design.orderSheetUrl', 'design.designFileUrl'
+        ],
+        showQuickStatus: true,
+        showContact: false,
+        showComments: true,
+        showTags: true,
+        showEdit: true,
+        showPaymentConfirm: false,
+        showDesignPreview: true,
+        showOrderSheetPreview: true
+    },
+    cs: {
+        requiredScope: 'cs',
+        defaultTab: 'customer',
+        tabs: ['customer', 'payment', 'history'],
+        fields: [
+            'customer.name', 'customer.teamName', 'customer.email', 'customer.phone', 'customer.dealType',
+            'groupId', 'store', 'revenueType', 'memo',
+            'payment.totalAmount', 'payment.unitPrice', 'payment.quantity', 'payment.paidDate',
+            'payment.paymentType', 'payment.transactionMethod', 'payment.quoteUrl',
+            'workInstruction.status', 'workInstruction.sentAt', 'workInstruction.sentBy', 'workInstruction.url', 'workInstruction.note'
+        ],
+        showQuickStatus: true,
+        showContact: true,
+        showComments: true,
+        showTags: true,
+        showEdit: true,
+        showPaymentConfirm: true,
+        showDesignPreview: false,
+        showOrderSheetPreview: true
+    },
+    production: {
+        requiredScope: 'production',
+        defaultTab: 'production',
+        tabs: ['customer', 'production', 'shipping', 'history'],
+        fields: [
+            'customer.name', 'customer.teamName', 'customer.phone', 'memo',
+            'production.status', 'production.factory', 'production.gradingDone',
+            'workInstruction.status', 'workInstruction.sentAt', 'workInstruction.receivedAt', 'workInstruction.sentBy', 'workInstruction.url', 'workInstruction.note',
+            'shipping.address', 'shipping.desiredDate', 'shipping.releaseDate', 'shipping.shippedDate', 'shipping.carrier', 'shipping.trackingNumber'
+        ],
+        showQuickStatus: true,
+        showContact: false,
+        showComments: true,
+        showTags: true,
+        showEdit: true,
+        showPaymentConfirm: false,
+        showDesignPreview: false,
+        showOrderSheetPreview: false
+    }
+};
+
+function getCurrentDetailView() {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    if (view && ORDER_DETAIL_PRESETS[view]) return view;
+
+    if (hasAdminScope('design') && !hasAdminScope('cs') && !hasAdminScope('production')) return 'design';
+    if (hasAdminScope('cs') && !hasAdminScope('design') && !hasAdminScope('production')) return 'cs';
+    if (hasAdminScope('production') && !hasAdminScope('design') && !hasAdminScope('cs')) return 'production';
+    return 'all';
+}
+
+function setDetailElementVisibility(id, visible) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !visible);
+}
+
+function updateOrderListLink() {
+    const link = document.getElementById('order-list-link');
+    if (!link) return;
+
+    const view = getCurrentDetailView();
+    link.href = view === 'all' ? 'admin.html' : `admin.html?view=${view}`;
+}
+
+function getCurrentOrderViewQuery() {
+    const view = getCurrentDetailView();
+    return view === 'all' ? '' : `&view=${view}`;
+}
+
+function applyDetailPreset() {
+    const view = getCurrentDetailView();
+    currentDetailPreset = ORDER_DETAIL_PRESETS[view] || ORDER_DETAIL_PRESETS.all;
+
+    if (currentDetailPreset.requiredScope && !hasAdminScope(currentDetailPreset.requiredScope)) {
+        alert('해당 파트 주문 상세에 접근할 권한이 없습니다.');
+        redirectToDefaultAdminPage();
+        return false;
+    }
+
+    updateOrderListLink();
+
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+        const tab = btn.getAttribute('data-tab');
+        btn.classList.toggle('hidden', !currentDetailPreset.tabs.includes(tab));
+    });
+
+    setDetailElementVisibility('quick-status-card', currentDetailPreset.showQuickStatus);
+    setDetailElementVisibility('contact-card', currentDetailPreset.showContact);
+    setDetailElementVisibility('comments-card', currentDetailPreset.showComments);
+    setDetailElementVisibility('tags-section', currentDetailPreset.showTags);
+    setDetailElementVisibility('edit-toggle-btn', currentDetailPreset.showEdit);
+    setDetailElementVisibility('payment-confirm-section', currentDetailPreset.showPaymentConfirm);
+    setDetailElementVisibility('design-preview-section', currentDetailPreset.showDesignPreview);
+    setDetailElementVisibility('ordersheet-preview-section', currentDetailPreset.showOrderSheetPreview);
+
+    currentTab = currentDetailPreset.defaultTab;
+    return true;
+}
+
+function applyFieldVisibilityPreset() {
+    const allowedFields = currentDetailPreset?.fields;
+    if (!allowedFields) return;
+
+    const allowed = new Set(allowedFields);
+    document.querySelectorAll('[data-field]').forEach(el => {
+        const fieldPath = el.getAttribute('data-field');
+        const wrapper = el.closest('div');
+        if (!wrapper) return;
+        wrapper.classList.toggle('hidden', !allowed.has(fieldPath));
+    });
+}
 
 // ============================================================
 // 초기화
@@ -57,6 +204,7 @@ let currentTab = 'customer';
 document.addEventListener('DOMContentLoaded', () => {
     // 관리자 인증 확인
     checkAdminAuth();
+    if (!applyDetailPreset()) return;
     // URL에서 주문 ID 추출 후 데이터 로드
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('id');
@@ -91,9 +239,15 @@ async function loadOrderDetail(orderId) {
         // 화면에 데이터 렌더링
         renderOrderDetail();
         renderHistory();
-        renderQuickStatusButtons();
-        renderContactInfo();
-        loadComments(currentOrder.id);  // 코멘트 타임라인 로드
+        if (currentDetailPreset.showQuickStatus) {
+            renderQuickStatusButtons();
+        }
+        if (currentDetailPreset.showContact) {
+            renderContactInfo();
+        }
+        if (currentDetailPreset.showComments) {
+            loadComments(currentOrder.id);  // 코멘트 타임라인 로드
+        }
 
         // 로딩 숨기고 콘텐츠 표시
         document.getElementById('loading').classList.add('hidden');
@@ -119,30 +273,21 @@ function renderOrderDetail() {
     document.getElementById('current-manager').textContent = order.manager || '미배정';
     document.getElementById('current-date').textContent = order.createdAt ? formatDateTime(order.createdAt) : '-';
     document.getElementById('current-updated').textContent = order.updatedAt ? formatDateTime(order.updatedAt) : '-';
+    document.getElementById('timeline-consult-started').textContent = order.createdAt ? formatDateTime(order.createdAt) : '-';
 
     // 시안요청일 — 값이 있을 때만 표시
-    const designReqEl = document.getElementById('date-design-request');
-    if (order.designRequestDate) {
-        document.getElementById('current-design-request-date').textContent = formatDateTime(order.designRequestDate);
-        designReqEl.classList.remove('hidden');
-        designReqEl.classList.add('flex', 'items-center', 'gap-4');
-    } else {
-        designReqEl.classList.add('hidden');
-    }
+    toggleTimelineDate('date-design-request', 'current-design-request-date', order.designRequestDate);
 
     // 접수일(매출기준일) — 값이 있을 때만 표시
-    const orderRecEl = document.getElementById('date-order-receipt');
-    if (order.orderReceiptDate) {
-        document.getElementById('current-order-receipt-date').textContent = formatDateTime(order.orderReceiptDate);
-        orderRecEl.classList.remove('hidden');
-        orderRecEl.classList.add('flex', 'items-center', 'gap-4');
-    } else {
-        orderRecEl.classList.add('hidden');
-    }
+    toggleTimelineDate('date-order-receipt', 'current-order-receipt-date', order.orderReceiptDate);
+    toggleTimelineDate('date-payment-completed', 'current-payment-completed-date', order.payment?.paidDate);
+    toggleTimelineDate('date-workinstruction-sent', 'current-workinstruction-sent-date', order.workInstruction?.sentAt);
+    toggleTimelineDate('date-workinstruction-received', 'current-workinstruction-received-date', order.workInstruction?.receivedAt);
 
     // 각 탭의 data-field 요소에 값 채우기
     // 비유: 양식 문서의 빈칸에 데이터를 적어넣는 것
     fillFieldValues();
+    applyFieldVisibilityPreset();
 
     // 아이템 목록 렌더링
     renderItems();
@@ -157,14 +302,38 @@ function renderOrderDetail() {
     }
 
     // 입금 확인 영역 렌더링 (금융 탭 내)
-    renderPaymentConfirmSection();
+    if (currentDetailPreset.showPaymentConfirm) {
+        renderPaymentConfirmSection();
+    }
 
     // 태그(라벨) 영역 렌더링 — 프리셋 + 커스텀 태그 표시
-    renderTags();
+    if (currentDetailPreset.showTags) {
+        renderTags();
+    }
 
     // 시안/주문서 미리보기 렌더링
-    renderDesignPreview();
-    renderOrderSheetPreview();
+    if (currentDetailPreset.showDesignPreview) {
+        renderDesignPreview();
+    }
+    if (currentDetailPreset.showOrderSheetPreview) {
+        renderOrderSheetPreview();
+    }
+
+    switchTab(currentTab);
+}
+
+function toggleTimelineDate(wrapperId, valueId, value) {
+    const wrapper = document.getElementById(wrapperId);
+    const valueEl = document.getElementById(valueId);
+    if (!wrapper || !valueEl) return;
+
+    if (value) {
+        valueEl.textContent = formatDateTime(value);
+        wrapper.classList.remove('hidden');
+    } else {
+        valueEl.textContent = '-';
+        wrapper.classList.add('hidden');
+    }
 }
 
 // ============================================================
@@ -328,9 +497,17 @@ function fillFieldValues() {
             value = STATUS_LABELS[value] || value || '-';
         } else if (fieldPath === 'production.status') {
             value = STATUS_LABELS[value] || value || '-';
+        } else if (fieldPath === 'workInstruction.status') {
+            value = STATUS_LABELS[value] || value || '-';
+        } else if (['workInstruction.sentAt', 'workInstruction.receivedAt', 'payment.paidDate', 'shipping.desiredDate', 'shipping.releaseDate', 'shipping.shippedDate'].includes(fieldPath)) {
+            value = value ? formatDateTime(value) : '-';
         } else {
             // URL 필드는 링크로 표시
             if (fieldPath.includes('Url') && value && value.startsWith('http')) {
+                el.innerHTML = `<a href="${escapeHtml(value)}" target="_blank" class="text-blue-600 hover:underline text-sm">${escapeHtml(value)}</a>`;
+                return;
+            }
+            if (fieldPath === 'workInstruction.url' && value && value.startsWith('http')) {
                 el.innerHTML = `<a href="${escapeHtml(value)}" target="_blank" class="text-blue-600 hover:underline text-sm">${escapeHtml(value)}</a>`;
                 return;
             }
@@ -493,9 +670,9 @@ function renderCurrentStatusBadge(status) {
     const label = STATUS_LABELS[status] || status || '알 수 없음';
 
     // 상태 그룹별 색상
-    const designStatuses = ['design_requested', 'draft_done', 'revision', 'design_confirmed'];
-    const productionStatuses = ['payment_pending', 'payment_done', 'grading', 'line_work', 'in_production', 'production_done'];
-    const shippingStatuses = ['released', 'shipped'];
+    const designStatuses = ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed'];
+    const productionStatuses = ['order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'production_done', 'factory_released'];
+    const shippingStatuses = ['warehouse_received', 'released', 'shipped'];
 
     let bgColor = 'bg-gray-100 text-gray-700';
     if (designStatuses.includes(status)) bgColor = 'bg-blue-100 text-blue-800';
@@ -608,6 +785,10 @@ function renderContactInfo() {
 // 탭 전환
 // ============================================================
 function switchTab(tabName) {
+    if (currentDetailPreset && !currentDetailPreset.tabs.includes(tabName)) {
+        return;
+    }
+
     currentTab = tabName;
 
     // 모든 탭 콘텐츠 숨기기
@@ -620,8 +801,8 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    // 클릭된 버튼에 active 클래스 추가
-    event.target.classList.add('active');
+    const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
 }
 
 // ============================================================
@@ -672,6 +853,7 @@ function convertToEditFields() {
         'groupId', 'store', 'revenueType', 'memo',
         'design.status', 'design.revisionCount', 'design.designer', 'design.orderSheetUrl', 'design.designFileUrl',
         'production.status', 'production.factory',
+        'workInstruction.status', 'workInstruction.sentAt', 'workInstruction.receivedAt', 'workInstruction.sentBy', 'workInstruction.url', 'workInstruction.note',
         'shipping.address', 'shipping.desiredDate', 'shipping.releaseDate', 'shipping.shippedDate',
         'shipping.carrier', 'shipping.trackingNumber',
         'payment.totalAmount', 'payment.unitPrice', 'payment.quantity', 'payment.paidDate',
@@ -688,9 +870,33 @@ function convertToEditFields() {
         if (!editableFields.includes(fieldPath)) return;
 
         const value = getNestedValue(order, fieldPath);
-        const displayValue = (value === null || value === undefined) ? '' : String(value);
+        let displayValue = (value === null || value === undefined) ? '' : String(value);
+        if (['workInstruction.sentAt', 'workInstruction.receivedAt', 'payment.paidDate', 'shipping.desiredDate', 'shipping.releaseDate', 'shipping.shippedDate'].includes(fieldPath) && displayValue.includes('T')) {
+            displayValue = displayValue.slice(0, 16);
+        }
 
-        el.innerHTML = `<input type="text" class="edit-input" data-edit-field="${fieldPath}" value="${escapeHtml(displayValue)}">`;
+        if (fieldPath === 'workInstruction.status') {
+            el.innerHTML = `
+                <select class="edit-input" data-edit-field="${fieldPath}">
+                    <option value="">선택 안 함</option>
+                    <option value="work_instruction_pending" ${displayValue === 'work_instruction_pending' ? 'selected' : ''}>작업지시서 전송전</option>
+                    <option value="work_instruction_sent" ${displayValue === 'work_instruction_sent' ? 'selected' : ''}>작업지시서 전송후</option>
+                    <option value="work_instruction_received" ${displayValue === 'work_instruction_received' ? 'selected' : ''}>작업지시서 접수</option>
+                </select>
+            `;
+            return;
+        }
+
+        if (fieldPath === 'workInstruction.note') {
+            el.innerHTML = `<textarea class="edit-input" data-edit-field="${fieldPath}" rows="3">${escapeHtml(displayValue)}</textarea>`;
+            return;
+        }
+
+        const inputType = ['workInstruction.sentAt', 'workInstruction.receivedAt'].includes(fieldPath)
+            ? 'datetime-local'
+            : 'text';
+
+        el.innerHTML = `<input type="${inputType}" class="edit-input" data-edit-field="${fieldPath}" value="${escapeHtml(displayValue)}">`;
     });
 
     // --- 원가 입력 시 총원가/마진/마진율 실시간 자동 계산 ---
@@ -721,6 +927,7 @@ function convertToEditFields() {
 async function saveChanges() {
     const inputs = document.querySelectorAll('[data-edit-field]');
     const updates = {};
+    const workInstructionFlowStatuses = ['order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received'];
 
     // 입력된 값들을 객체로 구성
     // 비유: 수정한 양식의 내용을 모아서 서버에 제출하는 것
@@ -735,6 +942,20 @@ async function saveChanges() {
         if (!updates.payment) updates.payment = {};
         updates.payment.costUpdatedAt = new Date().toISOString();
     }
+
+    // 작업지시서 상태를 수정하면 대표 상태도 같은 구간에서 함께 맞춘다.
+    if (workInstructionFlowStatuses.includes(currentOrder.status)) {
+        const workInstructionStatus = updates.workInstruction?.status || '';
+        if (workInstructionStatus) {
+            updates.status = workInstructionStatus;
+        } else if (updates.workInstruction?.receivedAt) {
+            updates.status = 'work_instruction_received';
+        } else if (updates.workInstruction?.sentAt) {
+            updates.status = 'work_instruction_sent';
+        }
+    }
+
+    applyStatusDateDefaults(updates, updates.status || currentOrder.status);
 
     try {
         const res = await adminFetch(`/api/admin/orders/${currentOrder.id}`, {
@@ -819,9 +1040,12 @@ async function confirmStatusChange() {
  */
 async function changeStatus(newStatus, memo) {
     try {
+        const updates = {};
+        applyStatusDateDefaults(updates, newStatus);
+
         const res = await adminFetch(`/api/admin/orders/${currentOrder.id}/status`, {
             method: 'PATCH',
-            body: JSON.stringify({ status: newStatus, memo })
+            body: JSON.stringify({ status: newStatus, memo, ...updates })
         });
 
         if (!res) return;
@@ -837,6 +1061,51 @@ async function changeStatus(newStatus, memo) {
     } catch (error) {
         console.error('[AdminOrder] 상태 변경 실패:', error);
         alert('상태 변경 중 오류가 발생했습니다.');
+    }
+}
+
+function applyStatusDateDefaults(updates, targetStatus) {
+    const now = new Date().toISOString();
+    const currentPayment = currentOrder?.payment || {};
+    const currentWorkInstruction = currentOrder?.workInstruction || {};
+    const targetIndex = STATUS_FLOW.indexOf(targetStatus);
+    const hasReached = (status) => {
+        const idx = STATUS_FLOW.indexOf(status);
+        return idx !== -1 && targetIndex >= idx;
+    };
+
+    if (hasReached('order_received') && !currentOrder?.orderReceiptDate && !updates.orderReceiptDate) {
+        updates.orderReceiptDate = now;
+    }
+
+    if (hasReached('payment_completed')) {
+        if (!updates.payment) updates.payment = {};
+        if (!currentPayment.paidDate && !updates.payment.paidDate) {
+            updates.payment.paidDate = now;
+        }
+    }
+
+    if (hasReached('work_instruction_sent')) {
+        if (!updates.workInstruction) updates.workInstruction = {};
+        if (!updates.workInstruction.status && !hasReached('work_instruction_received')) {
+            updates.workInstruction.status = 'work_instruction_sent';
+        }
+        if (!currentWorkInstruction.sentAt && !updates.workInstruction.sentAt) {
+            updates.workInstruction.sentAt = now;
+        }
+    }
+
+    if (hasReached('work_instruction_received')) {
+        if (!updates.workInstruction) updates.workInstruction = {};
+        if (!updates.workInstruction.status) {
+            updates.workInstruction.status = 'work_instruction_received';
+        }
+        if (!currentWorkInstruction.sentAt && !updates.workInstruction.sentAt) {
+            updates.workInstruction.sentAt = now;
+        }
+        if (!currentWorkInstruction.receivedAt && !updates.workInstruction.receivedAt) {
+            updates.workInstruction.receivedAt = now;
+        }
     }
 }
 
@@ -983,7 +1252,7 @@ async function duplicateOrder() {
         if (data.success && data.order) {
             alert(data.message || '주문이 복제되었습니다.');
             // 새로 생성된 주문의 상세 페이지로 이동
-            window.location.href = `admin-order.html?id=${data.order.id}`;
+            window.location.href = `admin-order.html?id=${data.order.id}${getCurrentOrderViewQuery()}`;
         } else {
             alert('주문 복제 실패: ' + (data.error || '알 수 없는 오류'));
         }

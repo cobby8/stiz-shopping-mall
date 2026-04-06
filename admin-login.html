@@ -162,6 +162,21 @@
         // ============================================================
         const API_BASE = 'http://localhost:4000';
 
+        function getDefaultAdminPage(payload) {
+            if (!payload) return 'admin-home.html';
+            if (payload.defaultPage) return payload.defaultPage;
+
+            const scopes = Array.isArray(payload.scopes) && payload.scopes.length > 0
+                ? payload.scopes
+                : ['all'];
+
+            if (scopes.includes('all')) return 'admin-home.html';
+            if (scopes.includes('design')) return 'admin-design.html';
+            if (scopes.includes('cs')) return 'admin-cs.html';
+            if (scopes.includes('production')) return 'admin-production.html';
+            return 'admin-home.html';
+        }
+
         // ============================================================
         // 페이지 로드 시: 이미 유효한 토큰이 있으면 대시보드로 바로 이동
         // ============================================================
@@ -176,7 +191,7 @@
                     const now = Math.floor(Date.now() / 1000);
                     if (payload.role === 'admin' && payload.exp && payload.exp > now) {
                         // 유효한 관리자 토큰 → 대시보드로 바로 이동
-                        window.location.href = 'admin-home.html';
+                        window.location.href = getDefaultAdminPage(payload);
                         return;
                     }
                 } catch (e) {
@@ -236,7 +251,7 @@
 
                 // 관리자 확인 완료 → 토큰 저장 후 대시보드로 이동
                 localStorage.setItem('stiz_admin_token', token);
-                window.location.href = 'admin-home.html';
+                window.location.href = getDefaultAdminPage(payload);
 
             } catch (err) {
                 // 네트워크 오류 등 예외 처리

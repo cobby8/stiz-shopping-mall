@@ -40,61 +40,77 @@ function generateOrderNumber() {
  *       고객에게는 "제작 중"이라고만 알려주는 것과 같다.
  */
 export const STATUS_FLOW = [
-    'design_requested',   // 시안 요청
-    'draft_done',         // 초안 완료
-    'revision',           // 수정 중
-    'design_confirmed',   // 디자인 확정
-    'payment_pending',    // 결제 대기
-    'payment_done',       // 결제 완료
-    'grading',            // 그레이딩 (사이즈 작업)
-    'line_work',          // 라인 작업
-    'in_production',      // 생산 중
-    'production_done',    // 생산 완료
-    'released',           // 출고
-    'shipped',            // 배송 중
-    'delivered',          // 배송 완료
-    'hold',               // 보류 (고객 사정 등으로 임시 중단)
-    'cancelled'           // 취소
+    'consult_started',          // 상담개시
+    'design_requested',         // 시안요청
+    'draft_done',               // 초안완료
+    'revision',                 // 수정 중
+    'design_confirmed',         // 디자인확정
+    'order_received',           // 주문서접수
+    'payment_completed',        // 결제완료
+    'work_instruction_pending', // 작업지시서 전송전
+    'work_instruction_sent',    // 작업지시서 전송후
+    'work_instruction_received',// 작업지시서 접수
+    'in_production',            // 생산중
+    'production_done',          // 생산완료
+    'factory_released',         // 공장출고
+    'warehouse_received',       // 창고입고
+    'released',                 // 출고
+    'shipped',                  // 배송중
+    'delivered',                // 배송완료
+    'hold',                     // 보류
+    'cancelled'                 // 취소
 ];
+
+export const LEGACY_STATUS_MAP = {
+    payment_pending: 'order_received',
+    payment_done: 'payment_completed',
+    grading: 'work_instruction_received',
+    line_work: 'work_instruction_received',
+    pending: 'consult_started',
+    processing: 'in_production'
+};
+
+export function normalizeStatus(status) {
+    if (!status) return status;
+    return LEGACY_STATUS_MAP[status] || status;
+}
 
 // 고객에게 보여줄 4단계 매핑
 export function getCustomerStatus(detailedStatus) {
-    const designStatuses = ['design_requested', 'draft_done', 'revision', 'design_confirmed'];
-    const productionStatuses = ['payment_pending', 'payment_done', 'grading', 'line_work', 'in_production', 'production_done'];
-    const shippingStatuses = ['released', 'shipped'];
+    const normalized = normalizeStatus(detailedStatus);
+    const designStatuses = ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed'];
+    const productionStatuses = ['order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'production_done', 'factory_released'];
+    const shippingStatuses = ['warehouse_received', 'released', 'shipped'];
 
-    if (designStatuses.includes(detailedStatus)) return { step: 1, label: '시안 진행중' };
-    if (productionStatuses.includes(detailedStatus)) return { step: 2, label: '제작 진행중' };
-    if (shippingStatuses.includes(detailedStatus)) return { step: 3, label: '배송 준비중' };
-    if (detailedStatus === 'delivered') return { step: 4, label: '배송완료' };
-
-    // 기존 호환용 (pending, processing 등 이전 상태값)
-    if (detailedStatus === 'pending') return { step: 1, label: '시안 진행중' };
-    if (detailedStatus === 'processing') return { step: 2, label: '제작 진행중' };
+    if (designStatuses.includes(normalized)) return { step: 1, label: '상담/시안 진행중' };
+    if (productionStatuses.includes(normalized)) return { step: 2, label: '제작 준비/생산중' };
+    if (shippingStatuses.includes(normalized)) return { step: 3, label: '출고/배송중' };
+    if (normalized === 'delivered') return { step: 4, label: '배송완료' };
 
     return { step: 0, label: '확인중' };
 }
 
 // 상태 한글 라벨 매핑
 export const STATUS_LABELS = {
-    design_requested: '시안 요청',
+    consult_started: '상담개시',
+    design_requested: '시안요청',
     draft_done: '초안 완료',
     revision: '수정 중',
-    design_confirmed: '디자인 확정',
-    payment_pending: '결제 대기',
-    payment_done: '결제 완료',
-    grading: '그레이딩',
-    line_work: '라인 작업',
-    in_production: '생산 중',
-    production_done: '생산 완료',
+    design_confirmed: '디자인확정',
+    order_received: '주문서접수',
+    payment_completed: '결제완료',
+    work_instruction_pending: '작업지시서 전송전',
+    work_instruction_sent: '작업지시서 전송후',
+    work_instruction_received: '작업지시서 접수',
+    in_production: '생산중',
+    production_done: '생산완료',
+    factory_released: '공장출고',
+    warehouse_received: '창고입고',
     released: '출고',
-    shipped: '배송 중',
-    delivered: '배송 완료',
-    hold: '보류',         // 고객 사정 등으로 임시 중단
-    cancelled: '취소',    // 주문 취소
-    // 기존 호환
-    pending: '대기',
-    processing: '처리중'
+    shipped: '배송중',
+    delivered: '배송완료',
+    hold: '보류',
+    cancelled: '취소'
 };
 
 /**
@@ -102,8 +118,10 @@ export const STATUS_LABELS = {
  * 비유: 낡은 서류 양식에 새 항목 칸을 추가하고 빈칸에 기본값을 채워넣는 것
  */
 function migrateOrder(order) {
+    const normalizedStatus = normalizeStatus(order.status || 'consult_started');
     return {
         ...order,
+        status: normalizedStatus,
         // 기존 주문 중 orderNumber가 없는 경우 자동 생성
         orderNumber: order.orderNumber || generateOrderNumber(),
         groupId: order.groupId || null,
@@ -126,6 +144,15 @@ function migrateOrder(order) {
             status: '',
             factory: '',
             gradingDone: false
+        },
+        workInstruction: {
+            status: order.workInstruction?.status || '',
+            sentAt: order.workInstruction?.sentAt || '',
+            receivedAt: order.workInstruction?.receivedAt || '',
+            sentBy: order.workInstruction?.sentBy || '',
+            url: order.workInstruction?.url || '',
+            note: order.workInstruction?.note || '',
+            ...order.workInstruction
         },
         shipping: {
             address: order.shipping?.address || '',
@@ -173,7 +200,7 @@ router.post('/', (req, res) => {
         order.orderNumber = order.orderNumber || generateOrderNumber();
 
         // 확장된 스키마 기본값 설정
-        order.status = order.status || 'design_requested';
+        order.status = normalizeStatus(order.status || 'consult_started');
         order.createdAt = new Date().toISOString();
         order.updatedAt = order.createdAt;
 
@@ -213,7 +240,8 @@ router.get('/track/:orderNumber', (req, res) => {
         }
 
         // 고객에게는 민감 정보를 제외하고 필요한 것만 반환
-        const customerStatus = getCustomerStatus(order.status);
+        const normalizedStatus = normalizeStatus(order.status);
+        const customerStatus = getCustomerStatus(normalizedStatus);
 
         // 상태 변경 이력 조회 (고객에게 보여줄 타임라인)
         const allHistory = db.getAll('order-history');
@@ -237,9 +265,9 @@ router.get('/track/:orderNumber', (req, res) => {
                     sport: item.sport,
                     quantity: item.quantity
                 })),
-                status: order.status,
+                status: normalizedStatus,
                 customerStatus,                      // 4단계 단순화 상태
-                statusLabel: STATUS_LABELS[order.status] || order.status,
+                statusLabel: STATUS_LABELS[normalizedStatus] || normalizedStatus,
                 trackingNumber: order.shipping?.trackingNumber || '',
                 carrier: order.shipping?.carrier || '',
                 desiredDate: order.shipping?.desiredDate || '',

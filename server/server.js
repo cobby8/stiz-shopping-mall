@@ -71,9 +71,9 @@ app.use('/api/admin/customers', adminAuth, customerRoutes);
 app.listen(port, () => {
     console.log(`\nSTIZ Server running at http://localhost:${port}`);
     console.log(`  Routes: /api/auth, /api/orders, /api/admin, /api/admin/customers, /api/generate`);
-    console.log(`  DB: JSON file-based (./data/)`);
+    console.log(`  DB: SQLite (server/data/stiz.db)`);
     console.log(`  Auth: JWT + bcrypt`);
-    console.log(`  AI: ${process.env.GOOGLE_API_KEY ? 'Online' : 'Offline (No Key)'}`);
+    console.log(`  AI: ${process.env.GOOGLE_API_KEY ? 'Online (Gemini)' : 'Offline (No GOOGLE_API_KEY)'}`);
 
     // 서버 시작 시 자동 백업 스케줄러 가동
     // 비유: 서버가 문을 열면 금고 관리인도 함께 출근하는 것

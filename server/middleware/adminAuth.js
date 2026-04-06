@@ -13,6 +13,21 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../routes/auth.js';
 import db from '../db.js';
 
+function getAdminScopes(user) {
+    if (Array.isArray(user.scopes) && user.scopes.length > 0) return user.scopes;
+    return ['all'];
+}
+
+function getDefaultAdminPage(user) {
+    if (user.defaultPage) return user.defaultPage;
+    const scopes = getAdminScopes(user);
+    if (scopes.includes('all')) return 'admin-home.html';
+    if (scopes.includes('design')) return 'admin-design.html';
+    if (scopes.includes('cs')) return 'admin-cs.html';
+    if (scopes.includes('production')) return 'admin-production.html';
+    return 'admin-home.html';
+}
+
 // 관리자 전용 미들웨어 - admin.js 라우트 앞에 장착
 export function adminAuth(req, res, next) {
     try {
@@ -53,7 +68,9 @@ export function adminAuth(req, res, next) {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            scopes: getAdminScopes(user),
+            defaultPage: getDefaultAdminPage(user)
         };
 
         next(); // 다음 미들웨어/라우트로 진행
@@ -90,7 +107,9 @@ export function requireAuth(req, res, next) {
         req.user = {
             id: decoded.id,
             email: decoded.email,
-            role: decoded.role
+            role: decoded.role,
+            scopes: decoded.scopes || [],
+            defaultPage: decoded.defaultPage || ''
         };
 
         next();
@@ -102,4 +121,25 @@ export function requireAuth(req, res, next) {
     }
 }
 
-export default { adminAuth, requireAuth };
+export function requireAdminScope(scope) {
+    return function scopedAdminGuard(req, res, next) {
+        if (!req.user || req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: '관리자 권한이 필요합니다.'
+            });
+        }
+
+        const scopes = req.user.scopes || ['all'];
+        if (scopes.includes('all') || scopes.includes(scope)) {
+            return next();
+        }
+
+        return res.status(403).json({
+            success: false,
+            error: '해당 파트 권한이 없습니다.'
+        });
+    };
+}
+
+export default { adminAuth, requireAuth, requireAdminScope };

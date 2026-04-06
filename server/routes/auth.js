@@ -11,6 +11,24 @@ const JWT_SECRET = process.env.JWT_SECRET || 'stiz-shop-secret-key-2026';
 // 토큰 유효기간: 7일 (7일 후 다시 로그인 필요)
 const JWT_EXPIRES_IN = '7d';
 
+function getAdminScopes(user) {
+    if (user.role !== 'admin') return [];
+    if (Array.isArray(user.scopes) && user.scopes.length > 0) return user.scopes;
+    return ['all'];
+}
+
+function getDefaultAdminPage(user) {
+    if (user.role !== 'admin') return '';
+    if (user.defaultPage) return user.defaultPage;
+
+    const scopes = getAdminScopes(user);
+    if (scopes.includes('all')) return 'admin-home.html';
+    if (scopes.includes('design')) return 'admin-design.html';
+    if (scopes.includes('cs')) return 'admin-cs.html';
+    if (scopes.includes('production')) return 'admin-production.html';
+    return 'admin-home.html';
+}
+
 // POST /api/auth/register - 회원가입
 router.post('/register', async (req, res) => {
     try {
@@ -79,7 +97,13 @@ router.post('/login', async (req, res) => {
         // JWT 토큰 생성 - 사용자 정보를 담은 "출입증" 발급
         // 비유: 놀이공원 입장 팔찌 - 이름/등급이 적혀있고 7일 후 만료
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role },
+            {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                scopes: getAdminScopes(user),
+                defaultPage: getDefaultAdminPage(user)
+            },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
         );
@@ -94,6 +118,8 @@ router.post('/login', async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,           // 역할 정보도 응답에 포함
+                scopes: getAdminScopes(user),
+                defaultPage: getDefaultAdminPage(user),
                 joinedAt: user.joinedAt
             }
         });
@@ -128,6 +154,8 @@ router.get('/me', (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                scopes: getAdminScopes(user),
+                defaultPage: getDefaultAdminPage(user),
                 joinedAt: user.joinedAt
             }
         });

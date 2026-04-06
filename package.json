@@ -1,4 +1,12 @@
 {
+  "name": "stiz-project-root",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "npm start --prefix server",
+    "dev": "npm run dev --prefix server",
+    "migrate": "node server/migrate-to-sqlite.js"
+  },
   "dependencies": {
     "better-sqlite3": "^12.8.0"
   }

@@ -160,12 +160,15 @@
 
             <!-- 네비게이션: 4탭 구조 — 주문 관리가 활성 상태 -->
             <nav class="hidden md:flex items-center space-x-8">
-                <a href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
-                <a href="admin.html" class="text-white font-medium border-b-2 border-brand-red pb-1">주문 관리</a>
-                <a href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
-                <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
-                <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
-                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+                <a id="nav-home" href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
+                <a id="nav-all" href="admin.html" class="text-gray-400 hover:text-white transition-colors">전체 주문</a>
+                <a id="nav-design" href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
+                <a id="nav-cs" href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
+                <a id="nav-production" href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
+                <a id="nav-calendar" href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
+                <a id="nav-analytics" href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a id="nav-customers" href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a id="nav-store" href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
             </nav>
 
             <!-- 사용자 정보 + 로그아웃 -->
@@ -188,8 +191,8 @@
         <!-- 페이지 타이틀 -->
         <div class="flex items-center justify-between mb-8">
             <div>
-                <h1 class="text-2xl font-bold">주문 관리</h1>
-                <p class="text-sm text-gray-500 mt-1">Google Sheets 대신 여기서 모든 주문을 관리합니다.</p>
+                <h1 id="page-title" class="text-2xl font-bold">주문 관리</h1>
+                <p id="page-subtitle" class="text-sm text-gray-500 mt-1">Google Sheets 대신 여기서 모든 주문을 관리합니다.</p>
             </div>
             <button onclick="loadOrders()" class="flex items-center space-x-1 text-sm text-gray-500 hover:text-gray-800 transition-colors">
                 <span class="material-symbols-outlined text-base">refresh</span>
@@ -199,7 +202,7 @@
 
         <!-- ===== 연도 선택 헤더 ===== -->
         <!-- 비유: 연간 보고서의 연도 탭 — 드롭다운으로 해당 연도 통계만 조회 -->
-        <div class="flex items-center justify-between mb-4">
+        <div id="stats-header-section" class="flex items-center justify-between mb-4">
             <h2 id="stats-year-title" class="text-lg font-bold text-gray-800">
                 <span id="stats-year-label">2026</span>년 주문 현황
             </h2>
@@ -214,7 +217,7 @@
         </div>
 
         <!-- ===== 상태 요약 카드 4개 ===== -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div id="stats-cards-section" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <!-- 시안 진행중 -->
             <div class="stat-card bg-white rounded-xl p-5 border border-gray-100 cursor-pointer"
                 onclick="filterByStatus('design')">
@@ -254,7 +257,7 @@
         </div>
 
         <!-- ===== 매출 요약 + 미수금/보류 ===== -->
-        <div class="bg-white rounded-xl p-5 border border-gray-100 mb-8 flex flex-wrap items-center gap-6">
+        <div id="revenue-summary-section" class="bg-white rounded-xl p-5 border border-gray-100 mb-8 flex flex-wrap items-center gap-6">
             <div>
                 <p class="text-sm text-gray-500">총 주문</p>
                 <p id="stat-total" class="text-xl font-bold">-</p>
@@ -289,7 +292,7 @@
 
         <!-- ===== 메인 탭: 진행중/전체/미수금 ===== -->
         <!-- 비유: 식당에서 "조리중 주문"과 "전체 주문"과 "외상 주문"을 탭으로 분리 -->
-        <div class="flex items-center space-x-1 mb-2">
+        <div id="main-tabs-section" class="flex items-center space-x-1 mb-2">
             <!-- 진행중 탭 (기본 활성) -->
             <button id="tab-active" onclick="switchTab('active')"
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors
@@ -320,13 +323,13 @@
                 <span class="tab-count">-</span>
             </button>
             <button class="status-sub-tab"
-                data-status-code="design_requested" onclick="switchStatusTab('design_requested')">
-                <span class="tab-label">시안요청</span>
+                data-status-code="consult_started" onclick="switchStatusTab('consult_started')">
+                <span class="tab-label">상담개시</span>
                 <span class="tab-count">-</span>
             </button>
             <button class="status-sub-tab"
-                data-status-code="design_confirmed" onclick="switchStatusTab('design_confirmed')">
-                <span class="tab-label">디자인확정</span>
+                data-status-code="design_requested" onclick="switchStatusTab('design_requested')">
+                <span class="tab-label">시안요청</span>
                 <span class="tab-count">-</span>
             </button>
             <button class="status-sub-tab"
@@ -335,13 +338,48 @@
                 <span class="tab-count">-</span>
             </button>
             <button class="status-sub-tab"
-                data-status-code="line_work" onclick="switchStatusTab('line_work')">
-                <span class="tab-label">라인작업</span>
+                data-status-code="design_confirmed" onclick="switchStatusTab('design_confirmed')">
+                <span class="tab-label">디자인확정</span>
+                <span class="tab-count">-</span>
+            </button>
+            <button class="status-sub-tab"
+                data-status-code="order_received" onclick="switchStatusTab('order_received')">
+                <span class="tab-label">주문서접수</span>
+                <span class="tab-count">-</span>
+            </button>
+            <button class="status-sub-tab"
+                data-status-code="payment_completed" onclick="switchStatusTab('payment_completed')">
+                <span class="tab-label">결제완료</span>
+                <span class="tab-count">-</span>
+            </button>
+            <button class="status-sub-tab"
+                data-status-code="work_instruction_pending" onclick="switchStatusTab('work_instruction_pending')">
+                <span class="tab-label">지시서 전송전</span>
+                <span class="tab-count">-</span>
+            </button>
+            <button class="status-sub-tab"
+                data-status-code="work_instruction_sent" onclick="switchStatusTab('work_instruction_sent')">
+                <span class="tab-label">지시서 전송후</span>
+                <span class="tab-count">-</span>
+            </button>
+            <button class="status-sub-tab"
+                data-status-code="work_instruction_received" onclick="switchStatusTab('work_instruction_received')">
+                <span class="tab-label">지시서 접수</span>
                 <span class="tab-count">-</span>
             </button>
             <button class="status-sub-tab"
                 data-status-code="in_production" onclick="switchStatusTab('in_production')">
                 <span class="tab-label">제작중</span>
+                <span class="tab-count">-</span>
+            </button>
+            <button class="status-sub-tab"
+                data-status-code="factory_released" onclick="switchStatusTab('factory_released')">
+                <span class="tab-label">공장출고</span>
+                <span class="tab-count">-</span>
+            </button>
+            <button class="status-sub-tab"
+                data-status-code="warehouse_received" onclick="switchStatusTab('warehouse_received')">
+                <span class="tab-label">창고입고</span>
                 <span class="tab-count">-</span>
             </button>
             <button class="status-sub-tab"
@@ -382,23 +420,27 @@
         </div>
 
         <!-- ===== 필터 바 ===== -->
-        <div class="bg-white rounded-xl p-4 border border-gray-100 mb-6">
+        <div id="filters-section" class="bg-white rounded-xl p-4 border border-gray-100 mb-6">
             <!-- 1줄: 상태, 담당자, 종목, 검색, 초기화 -->
             <div class="flex flex-wrap gap-3 items-center">
                 <!-- 상태 필터 -->
-                <select id="filter-status" onchange="applyFilters()"
+                <select id="filter-status" data-filter-key="status" onchange="applyFilters()"
                     class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <option value="">전체 상태</option>
+                    <option value="consult_started">상담개시</option>
                     <option value="design_requested">시안 요청</option>
                     <option value="draft_done">초안 완료</option>
                     <option value="revision">수정 중</option>
                     <option value="design_confirmed">디자인 확정</option>
-                    <option value="payment_pending">결제 대기</option>
-                    <option value="payment_done">결제 완료</option>
-                    <option value="grading">그레이딩</option>
-                    <option value="line_work">라인 작업</option>
+                    <option value="order_received">주문서접수</option>
+                    <option value="payment_completed">결제완료</option>
+                    <option value="work_instruction_pending">작업지시서 전송전</option>
+                    <option value="work_instruction_sent">작업지시서 전송후</option>
+                    <option value="work_instruction_received">작업지시서 접수</option>
                     <option value="in_production">생산 중</option>
                     <option value="production_done">생산 완료</option>
+                    <option value="factory_released">공장출고</option>
+                    <option value="warehouse_received">창고입고</option>
                     <option value="released">출고</option>
                     <option value="shipped">배송 중</option>
                     <option value="delivered">배송 완료</option>
@@ -407,14 +449,14 @@
                 </select>
 
                 <!-- 담당자 필터 -->
-                <select id="filter-manager" onchange="applyFilters()"
+                <select id="filter-manager" data-filter-key="manager" onchange="applyFilters()"
                     class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <option value="">전체 담당자</option>
                     <!-- JS에서 동적 생성 -->
                 </select>
 
                 <!-- 종목 필터 -->
-                <select id="filter-sport" onchange="applyFilters()"
+                <select id="filter-sport" data-filter-key="sport" onchange="applyFilters()"
                     class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <option value="">전체 종목</option>
                     <option value="basketball">농구</option>
@@ -430,14 +472,14 @@
                 </select>
 
                 <!-- 거래유형 필터 -->
-                <select id="filter-dealType" onchange="applyFilters()"
+                <select id="filter-dealType" data-filter-key="dealType" onchange="applyFilters()"
                     class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <option value="">전체 거래유형</option>
                     <!-- JS에서 동적 생성 -->
                 </select>
 
                 <!-- 태그 필터: 특정 태그가 붙은 주문만 보기 -->
-                <select id="filter-tag" onchange="applyFilters()"
+                <select id="filter-tag" data-filter-key="tag" onchange="applyFilters()"
                     class="filter-select border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <option value="">전체 태그</option>
                     <option value="급함">급함</option>
@@ -451,7 +493,7 @@
                 <div class="flex-1 min-w-[200px]">
                     <div class="relative">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">search</span>
-                        <input type="text" id="filter-search" placeholder="팀명, 주문번호, 고객명 검색..."
+                        <input type="text" id="filter-search" data-filter-key="search" placeholder="팀명, 주문번호, 고객명 검색..."
                             onkeyup="handleSearchKeyup(event)"
                             class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     </div>
@@ -491,11 +533,11 @@
                 <!-- 날짜 범위: 시작일 -->
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-500 whitespace-nowrap">접수일</span>
-                    <input type="date" id="filter-dateFrom" onchange="applyFilters()"
+                    <input type="date" id="filter-dateFrom" data-filter-key="dateFrom" onchange="applyFilters()"
                         class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <span class="text-xs text-gray-400">~</span>
                     <!-- 날짜 범위: 종료일 -->
-                    <input type="date" id="filter-dateTo" onchange="applyFilters()"
+                    <input type="date" id="filter-dateTo" data-filter-key="dateTo" onchange="applyFilters()"
                         class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                 </div>
 
@@ -505,11 +547,11 @@
                 <!-- 금액 범위: 최소 -->
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-500 whitespace-nowrap">금액</span>
-                    <input type="number" id="filter-amountMin" placeholder="최소" onchange="applyFilters()"
+                    <input type="number" id="filter-amountMin" data-filter-key="amountMin" placeholder="최소" onchange="applyFilters()"
                         class="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <span class="text-xs text-gray-400">~</span>
                     <!-- 금액 범위: 최대 -->
-                    <input type="number" id="filter-amountMax" placeholder="최대" onchange="applyFilters()"
+                    <input type="number" id="filter-amountMax" data-filter-key="amountMax" placeholder="최대" onchange="applyFilters()"
                         class="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-black">
                     <span class="text-xs text-gray-400">원</span>
                 </div>
@@ -529,16 +571,20 @@
                     class="bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm
                            focus:outline-none focus:ring-2 focus:ring-white">
                     <option value="">상태 선택...</option>
+                    <option value="consult_started">상담개시</option>
                     <option value="design_requested">시안 요청</option>
                     <option value="draft_done">초안 완료</option>
                     <option value="revision">수정 중</option>
                     <option value="design_confirmed">디자인 확정</option>
-                    <option value="payment_pending">결제 대기</option>
-                    <option value="payment_done">결제 완료</option>
-                    <option value="grading">그레이딩</option>
-                    <option value="line_work">라인 작업</option>
+                    <option value="order_received">주문서접수</option>
+                    <option value="payment_completed">결제완료</option>
+                    <option value="work_instruction_pending">작업지시서 전송전</option>
+                    <option value="work_instruction_sent">작업지시서 전송후</option>
+                    <option value="work_instruction_received">작업지시서 접수</option>
                     <option value="in_production">생산 중</option>
                     <option value="production_done">생산 완료</option>
+                    <option value="factory_released">공장출고</option>
+                    <option value="warehouse_received">창고입고</option>
                     <option value="released">출고</option>
                     <option value="shipped">배송 중</option>
                     <option value="delivered">배송 완료</option>
@@ -578,20 +624,22 @@
                     <thead class="bg-gray-50 border-b border-gray-100">
                         <tr>
                             <!-- 전체 선택 체크박스 -->
-                            <th class="px-3 py-3 w-10">
+                            <th data-column="select" class="px-3 py-3 w-10">
                                 <input type="checkbox" id="select-all-checkbox"
                                     onchange="toggleSelectAll(this)"
                                     class="w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer">
                             </th>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문번호</th>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">종목</th>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">상태</th>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">담당자</th>
-                            <th class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">금액</th>
-                            <th class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">접수일</th>
-                            <th class="text-center px-4 py-3 font-medium text-gray-500 whitespace-nowrap">납기</th>
+                            <th data-column="orderNumber" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">주문번호</th>
+                            <th data-column="receiptDate" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">접수일</th>
+                            <th data-column="teamName" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">팀명</th>
+                            <th data-column="customerName" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">고객명</th>
+                            <th data-column="sport" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">종목</th>
+                            <th data-column="status" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">상태</th>
+                            <th data-column="manager" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">담당자</th>
+                            <th data-column="amount" class="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">금액</th>
+                            <th data-column="paidDate" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">결제완료</th>
+                            <th data-column="workInstructionSentDate" class="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">지시서전송</th>
+                            <th data-column="deadline" class="text-center px-4 py-3 font-medium text-gray-500 whitespace-nowrap">납기</th>
                         </tr>
                     </thead>
                     <tbody id="orders-tbody">

@@ -17,23 +17,27 @@ const API_BASE = 'http://localhost:4000';
 
 // 주문 상태 한글 라벨 — 영문 코드를 한글로 변환 (상태 배지, 필터 등에서 사용)
 const STATUS_LABELS = {
-    design_requested: '시안 요청',
+    consult_started: '상담개시',
+    design_requested: '시안요청',
     draft_done: '초안 완료',
     revision: '수정 중',
-    design_confirmed: '디자인 확정',
-    payment_pending: '결제 대기',
-    payment_done: '결제 완료',
-    grading: '그레이딩',
-    line_work: '라인 작업',
-    in_production: '생산 중',
-    production_done: '생산 완료',
+    design_confirmed: '디자인확정',
+    order_received: '주문서접수',
+    payment_completed: '결제완료',
+    work_instruction_pending: '작업지시서 전송전',
+    work_instruction_sent: '작업지시서 전송후',
+    work_instruction_received: '작업지시서 접수',
+    in_production: '생산중',
+    production_done: '생산완료',
+    factory_released: '공장출고',
+    warehouse_received: '창고입고',
     released: '출고',
-    shipped: '배송 중',
-    delivered: '배송 완료',
+    shipped: '배송중',
+    delivered: '배송완료',
     hold: '보류',
     cancelled: '취소',
-    pending: '대기',
-    processing: '처리중'
+    pending: '상담개시',
+    processing: '생산중'
 };
 
 // 종목 한글 라벨 — 영문 코드를 한글로 변환 (테이블/CSV/차트에서 사용)
@@ -67,6 +71,64 @@ function getAdminToken() {
     return localStorage.getItem('stiz_admin_token');
 }
 
+function getAdminPayload() {
+    const token = getAdminToken();
+    if (!token) return null;
+
+    try {
+        return JSON.parse(atob(token.split('.')[1]));
+    } catch (error) {
+        return null;
+    }
+}
+
+function getAdminScopes() {
+    const payload = getAdminPayload();
+    if (!payload || payload.role !== 'admin') return [];
+    if (Array.isArray(payload.scopes) && payload.scopes.length > 0) return payload.scopes;
+    return ['all'];
+}
+
+function hasAdminScope(scope) {
+    const scopes = getAdminScopes();
+    return scopes.includes('all') || scopes.includes(scope);
+}
+
+function getDefaultAdminPage() {
+    const payload = getAdminPayload();
+    if (!payload || payload.role !== 'admin') return 'admin-home.html';
+    if (payload.defaultPage) return payload.defaultPage;
+
+    const scopes = getAdminScopes();
+    if (scopes.includes('design')) return 'admin-design.html';
+    if (scopes.includes('cs')) return 'admin-cs.html';
+    if (scopes.includes('production')) return 'admin-production.html';
+    return 'admin-home.html';
+}
+
+function redirectToDefaultAdminPage() {
+    window.location.href = getDefaultAdminPage();
+}
+
+function applyAdminScopeVisibility() {
+    const scopes = getAdminScopes();
+    const items = document.querySelectorAll('[data-admin-scope]');
+
+    items.forEach(item => {
+        const required = (item.getAttribute('data-admin-scope') || '')
+            .split(',')
+            .map(value => value.trim())
+            .filter(Boolean);
+
+        if (required.length === 0) return;
+
+        const allowed = required.some(scope => scopes.includes('all') || scopes.includes(scope));
+        if (!allowed) {
+            item.classList.add('hidden');
+        }
+    });
+}
+
 /**
  * 관리자 인증 확인
  * JWT 토큰이 없거나 role이 admin이 아니면 로그인 페이지로 보낸다.
@@ -84,7 +146,10 @@ function checkAdminAuth() {
 
     // JWT는 header.payload.signature 구조이고, payload에 사용자 정보가 담겨있다
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = getAdminPayload();
+        if (!payload) {
+            throw new Error('invalid_token');
+        }
         if (payload.role !== 'admin') {
             alert('관리자 권한이 없습니다.');
             window.location.href = 'index.html';
@@ -100,6 +165,7 @@ function checkAdminAuth() {
         // 헤더에 관리자 이름 표시
         const nameEl = document.getElementById('admin-name');
         if (nameEl) nameEl.textContent = payload.name || '관리자';
+        applyAdminScopeVisibility();
     } catch (e) {
         // 토큰 파싱 실패 시 로그인 페이지로
         alert('인증 정보가 올바르지 않습니다. 다시 로그인해주세요.');

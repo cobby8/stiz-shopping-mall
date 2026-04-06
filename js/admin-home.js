@@ -5,62 +5,46 @@
  * 구조:
  * 1. 인증 확인 → 관리자 아니면 로그인 페이지로 리다이렉트
  * 2. 핵심 수치(KPI) 로드 → 진행중 주문, 오늘 신규, 납기 임박, 미수금
- * 3. 최근 활동 로그 로드 → 최신 10건
- * 4. 납기 임박 주문 로드 → D-3 이내 상위 5건
+ * 3. 파트별 업무 현황 로드 → 디자인/CS/제작/출고 대기량
+ * 4. 확인 필요 주문 로드 → 48시간 이상 상태 변화 없는 진행중 주문
  */
 
 // API_BASE, STATUS_LABELS → admin-common.js에서 로드
 
-// 활동 로그 액션별 한글 라벨 + 아이콘 + 색상
-// 비유: 각 액션 종류마다 다른 색 스티커를 붙여서 한눈에 구분
-const ACTION_CONFIG = {
-    order_status_change: {
-        label: '상태 변경',
-        icon: 'swap_horiz',
-        bgColor: 'bg-blue-50',
-        iconColor: 'text-blue-600'
-    },
-    order_bulk_status: {
-        label: '일괄 상태 변경',
-        icon: 'checklist',
-        bgColor: 'bg-indigo-50',
-        iconColor: 'text-indigo-600'
-    },
-    order_edit: {
-        label: '주문 수정',
-        icon: 'edit',
-        bgColor: 'bg-yellow-50',
-        iconColor: 'text-yellow-600'
-    },
-    order_duplicate: {
-        label: '주문 복제',
-        icon: 'content_copy',
-        bgColor: 'bg-purple-50',
-        iconColor: 'text-purple-600'
-    },
-    payment_confirm: {
-        label: '입금 확인',
-        icon: 'paid',
-        bgColor: 'bg-green-50',
-        iconColor: 'text-green-600'
-    },
-    comment_add: {
-        label: '코멘트 추가',
-        icon: 'chat',
-        bgColor: 'bg-cyan-50',
-        iconColor: 'text-cyan-600'
-    },
-    backup_manual: {
-        label: '수동 백업',
-        icon: 'backup',
-        bgColor: 'bg-gray-100',
-        iconColor: 'text-gray-600'
-    }
-};
-
 // getToken/getAdminToken, getUserFromToken, checkAuth/checkAdminAuth,
 // handleLogout, apiFetch/adminFetch, formatMoney/formatCurrency,
 // formatNumber, timeAgo → admin-common.js에서 로드
+
+const WORK_GROUPS = [
+    {
+        key: 'design',
+        title: '디자인 파트',
+        icon: 'draw',
+        accentClass: 'text-sky-600',
+        statuses: ['design_requested', 'draft_done', 'revision', 'design_confirmed']
+    },
+    {
+        key: 'cs',
+        title: 'CS 파트',
+        icon: 'support_agent',
+        accentClass: 'text-emerald-600',
+        statuses: ['consult_started', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent']
+    },
+    {
+        key: 'production',
+        title: '제작 파트',
+        icon: 'construction',
+        accentClass: 'text-violet-600',
+        statuses: ['work_instruction_received', 'in_production', 'production_done', 'factory_released']
+    },
+    {
+        key: 'shipping',
+        title: '출고 파트',
+        icon: 'local_shipping',
+        accentClass: 'text-amber-600',
+        statuses: ['warehouse_received', 'released', 'shipped', 'delivered']
+    }
+];
 
 /**
  * 토큰에서 사용자 정보 추출 (JWT payload 디코딩)
@@ -157,158 +141,108 @@ async function loadKPIs() {
 }
 
 /**
- * 최근 활동 로그 로드
- * 비유: 회사 내부 게시판 — 누가 무슨 작업을 했는지 시간순 표시
+ * 파트별 업무 현황 로드
+ * 비유: 디자인/CS/제작/출고 파트의 업무 큐를 한 장의 보드로 보는 것
  */
-async function loadRecentActivity() {
+async function loadWorkSummary() {
     try {
-        const actRes = await adminFetch('/api/admin/activity-log?limit=10');
-        if (!actRes) throw new Error('활동 로그 로드 실패');
-        const data = await actRes.json();
-        if (!data.success) throw new Error('활동 로그 로드 실패');
+        const statsRes = await adminFetch('/api/admin/stats');
+        if (!statsRes) throw new Error('업무 현황 로드 실패');
+        const data = await statsRes.json();
+        if (!data.success) throw new Error('업무 현황 로드 실패');
 
-        const container = document.getElementById('activity-list');
+        const container = document.getElementById('work-summary');
+        const counts = data.stats?.detailedStatusCounts || {};
 
-        // 로그가 없으면 빈 상태 표시
-        if (!data.logs || data.logs.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-8 text-gray-400">
-                    <span class="material-symbols-outlined text-4xl mb-2">inbox</span>
-                    <p class="text-sm">아직 기록된 활동이 없습니다.</p>
-                </div>
-            `;
-            return;
-        }
+        const html = `
+            <div class="work-grid">
+                ${WORK_GROUPS.map(group => {
+                    const total = group.statuses.reduce((sum, status) => sum + (counts[status] || 0), 0);
+                    const rows = group.statuses.map(status => {
+                        const count = counts[status] || 0;
+                        return `
+                            <a href="admin.html?status=${encodeURIComponent(status)}" class="work-status-row">
+                                <span class="work-status-name">${STATUS_LABELS[status] || status}</span>
+                                <span class="work-status-count">${formatNumber(count)}건</span>
+                            </a>
+                        `;
+                    }).join('');
 
-        // 활동 로그 렌더링
-        let html = '';
-        data.logs.forEach(log => {
-            // 액션별 설정 가져오기 (없으면 기본값)
-            const config = ACTION_CONFIG[log.action] || {
-                label: log.action,
-                icon: 'info',
-                bgColor: 'bg-gray-100',
-                iconColor: 'text-gray-600'
-            };
-
-            // 상세 설명 생성 — 액션 종류에 따라 다르게 표시
-            const desc = buildActivityDescription(log);
-
-            html += `
-                <div class="activity-item">
-                    <div class="activity-icon ${config.bgColor}">
-                        <span class="material-symbols-outlined ${config.iconColor}" style="font-size:18px;">${config.icon}</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm text-gray-900 font-medium truncate">${desc}</p>
-                        <p class="text-xs text-gray-400 mt-0.5">${log.userName || '시스템'} · ${timeAgo(log.timestamp)}</p>
-                    </div>
-                </div>
-            `;
-        });
+                    return `
+                        <section class="work-card">
+                            <div class="work-card-head">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined ${group.accentClass}">${group.icon}</span>
+                                    <span class="work-card-label">${group.title}</span>
+                                </div>
+                                <span class="work-card-total">${formatNumber(total)}</span>
+                            </div>
+                            <div class="work-status-list">
+                                ${rows}
+                            </div>
+                        </section>
+                    `;
+                }).join('')}
+            </div>
+        `;
 
         container.innerHTML = html;
 
     } catch (err) {
-        console.error('[Dashboard] 활동 로그 로드 실패:', err);
-        document.getElementById('activity-list').innerHTML = `
+        console.error('[Dashboard] 업무 현황 로드 실패:', err);
+        document.getElementById('work-summary').innerHTML = `
             <div class="text-center py-8 text-gray-400">
                 <span class="material-symbols-outlined text-4xl mb-2">error_outline</span>
-                <p class="text-sm">활동 로그를 불러올 수 없습니다.</p>
+                <p class="text-sm">업무 현황을 불러올 수 없습니다.</p>
             </div>
         `;
     }
 }
 
 /**
- * 활동 로그 항목의 상세 설명 생성
- * 비유: "누가 무엇을 어떻게 했는지" 한 줄로 요약
+ * 확인 필요 주문 로드 (48시간 이상 상태 변화 없는 진행중 주문)
+ * 비유: 오래 멈춰 있는 주문을 따로 모아 확인하는 목록
  */
-function buildActivityDescription(log) {
-    const d = log.details || {};
-    switch (log.action) {
-        case 'order_status_change':
-            // "주문 ORD-xxx: 시안 요청 → 제작중"
-            return `${d.orderId || '주문'}: ${STATUS_LABELS[d.fromStatus] || d.fromStatus || '?'} → ${STATUS_LABELS[d.toStatus] || d.toStatus || '?'}`;
-        case 'order_bulk_status':
-            return `${d.count || 0}건 일괄 상태 변경 → ${STATUS_LABELS[d.toStatus] || d.toStatus || '?'}`;
-        case 'order_edit':
-            return `${d.orderId || '주문'} 정보 수정`;
-        case 'order_duplicate':
-            return `${d.originalOrderId || '주문'} → ${d.newOrderId || '새 주문'} 복제`;
-        case 'payment_confirm':
-            return `${d.orderId || '주문'} 입금 확인 (${formatCurrency(d.amount)})`;
-        case 'comment_add':
-            return `${d.orderId || '주문'}에 코멘트 추가`;
-        case 'backup_manual':
-            return '수동 백업 실행';
-        default:
-            return log.action;
-    }
-}
-
-/**
- * 납기 임박 주문 로드 (D-3 이내, 최대 5건)
- * 비유: "오늘 당장 확인해야 할 급한 주문" 목록
- */
-async function loadUrgentOrders() {
+async function loadStaleOrders() {
     try {
-        // 납기순 정렬로 진행중 주문 가져오기
-        const urgRes = await adminFetch('/api/admin/orders?sortBy=deadline&excludeCompleted=true&limit=200');
-        if (!urgRes) throw new Error('주문 로드 실패');
-        const data = await urgRes.json();
+        const res = await adminFetch('/api/admin/orders/stale?hours=48&limit=5');
+        if (!res) throw new Error('확인 필요 주문 로드 실패');
+        const data = await res.json();
+        const container = document.getElementById('stale-orders');
 
-        const container = document.getElementById('urgent-orders');
+        if (!data?.success || !Array.isArray(data.orders)) throw new Error('확인 필요 주문 로드 실패');
 
-        if (!data || !data.orders) throw new Error('주문 로드 실패');
-
-        // D-3 이내인 주문만 필터링
-        const urgentOrders = data.orders.filter(order => {
-            const dday = calcDday(order.shipping?.desiredDate);
-            return dday !== null && dday <= 3;
-        }).slice(0, 5); // 상위 5건만
-
-        // 납기 임박 주문이 없으면 안심 메시지
-        if (urgentOrders.length === 0) {
+        if (data.orders.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-8 text-gray-400">
                     <span class="material-symbols-outlined text-4xl mb-2 text-green-400">check_circle</span>
-                    <p class="text-sm text-green-600 font-medium">납기 임박 주문이 없습니다!</p>
-                    <p class="text-xs text-gray-400 mt-1">모든 주문이 여유롭습니다.</p>
+                    <p class="text-sm text-green-600 font-medium">확인 필요 주문이 없습니다.</p>
+                    <p class="text-xs text-gray-400 mt-1">최근 48시간 내 상태 변화가 유지되고 있습니다.</p>
                 </div>
             `;
             return;
         }
 
-        // 납기 임박 주문 테이블 렌더링
         let html = '<div class="space-y-0">';
-        urgentOrders.forEach(order => {
-            const dday = calcDday(order.shipping?.desiredDate);
-            const ddayText = dday === 0 ? 'D-day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`;
-
-            // D-day에 따른 배지 색상 결정
-            let badgeClass = 'dday-safe';
-            if (dday <= 0) badgeClass = 'dday-danger';      // D-day 또는 초과
-            else if (dday <= 3) badgeClass = 'dday-warn';    // D-1 ~ D-3
-
-            // 고객명 (팀명 또는 개인명)
-            const customerName = order.customer?.teamName || order.customer?.name || '미상';
-
-            // 주문 상세 페이지로 이동하는 링크
+        data.orders.forEach(order => {
+            const staleText = order.staleHours >= 24
+                ? `${Math.floor(order.staleHours / 24)}일 ${order.staleHours % 24}시간`
+                : `${order.staleHours}시간`;
+            const customerName = order.teamName || order.customerName || '미상';
             const orderLink = `admin-order.html?id=${order.id}`;
 
             html += `
                 <a href="${orderLink}" class="urgent-row flex items-center justify-between py-3 px-2 rounded-lg cursor-pointer" style="border-bottom:1px solid #f3f4f6;">
                     <div class="flex items-center gap-3 min-w-0">
-                        <span class="dday-badge ${badgeClass}">${ddayText}</span>
+                        <span class="dday-badge dday-danger">${staleText}</span>
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-gray-900 truncate">${customerName}</p>
-                            <p class="text-xs text-gray-400 truncate">${order.orderId || order.id}</p>
+                            <p class="text-xs text-gray-400 truncate">${order.orderNumber || order.id}</p>
                         </div>
                     </div>
                     <div class="text-right flex-shrink-0">
-                        <p class="text-xs text-gray-500">${STATUS_LABELS[order.status] || order.status}</p>
-                        <p class="text-xs text-gray-400">${order.shipping?.desiredDate || '-'}</p>
+                        <p class="text-xs text-gray-500">${order.statusLabel || STATUS_LABELS[order.status] || order.status}</p>
+                        <p class="text-xs text-gray-400">${order.lastStatusChangeAt ? formatDateTime(order.lastStatusChangeAt) : '-'}</p>
                     </div>
                 </a>
             `;
@@ -318,11 +252,11 @@ async function loadUrgentOrders() {
         container.innerHTML = html;
 
     } catch (err) {
-        console.error('[Dashboard] 납기 임박 로드 실패:', err);
-        document.getElementById('urgent-orders').innerHTML = `
+        console.error('[Dashboard] 확인 필요 주문 로드 실패:', err);
+        document.getElementById('stale-orders').innerHTML = `
             <div class="text-center py-8 text-gray-400">
                 <span class="material-symbols-outlined text-4xl mb-2">error_outline</span>
-                <p class="text-sm">납기 임박 주문을 불러올 수 없습니다.</p>
+                <p class="text-sm">확인 필요 주문을 불러올 수 없습니다.</p>
             </div>
         `;
     }
@@ -432,10 +366,9 @@ document.addEventListener('DOMContentLoaded', () => {
         greetingEl.textContent = `안녕하세요, ${user.name}님! 오늘의 현황입니다.`;
     }
 
-    // 4. 데이터 병렬 로드 — 네 API를 동시에 호출하여 빠르게 화면 표시
-    // 비유: 네 명이 동시에 다른 서류를 가져오는 것 (순서대로 기다리지 않음)
+    // 4. 데이터 병렬 로드 — KPI, 업무 현황, 확인 필요 주문, 재주문 요약을 동시에 조회
     loadKPIs();
-    loadRecentActivity();
-    loadUrgentOrders();
+    loadWorkSummary();
+    loadStaleOrders();
     loadReorderCandidates(); // B-3: 재주문 시기 도래 고객 요약
 });

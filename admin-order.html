@@ -209,6 +209,9 @@
             <nav class="hidden md:flex items-center space-x-8">
                 <a href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
                 <a href="admin.html" class="text-white font-medium border-b-2 border-brand-red pb-1">주문 관리</a>
+                <a href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
+                <a href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
+                <a href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
                 <a href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
                 <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
                 <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
@@ -256,7 +259,7 @@
             <!-- 상단: 뒤로가기 + 주문번호 + 액션 버튼 -->
             <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
                 <div class="flex items-center space-x-4">
-                    <a href="admin.html"
+                    <a href="admin.html" id="order-list-link"
                         class="flex items-center text-gray-500 hover:text-gray-800 transition-colors text-sm">
                         <span class="material-symbols-outlined text-base mr-1">arrow_back</span>
                         목록으로
@@ -321,20 +324,34 @@
                         <p class="text-sm text-gray-500 mb-1">최종 수정</p>
                         <p id="current-updated" class="text-base font-semibold">-</p>
                     </div>
-                    <!-- 시안요청일: 값이 있을 때만 JS에서 hidden 제거 -->
-                    <div id="date-design-request" class="hidden">
-                        <div class="hidden md:block w-px h-8 bg-gray-200"></div>
-                        <div>
-                            <p class="text-sm text-gray-500 mb-1">시안요청</p>
-                            <p id="current-design-request-date" class="text-base font-semibold">-</p>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-gray-100">
+                    <p class="text-sm text-gray-500 mb-3">진행 타임라인</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                        <div class="rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                            <p class="text-xs text-gray-500 mb-1">상담개시</p>
+                            <p id="timeline-consult-started" class="text-sm font-semibold text-gray-800">-</p>
                         </div>
-                    </div>
-                    <!-- 접수일(매출기준일): 값이 있을 때만 JS에서 hidden 제거 -->
-                    <div id="date-order-receipt" class="hidden">
-                        <div class="hidden md:block w-px h-8 bg-gray-200"></div>
-                        <div>
-                            <p class="text-sm text-gray-500 mb-1">접수일</p>
-                            <p id="current-order-receipt-date" class="text-base font-semibold">-</p>
+                        <div id="date-design-request" class="hidden rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                            <p class="text-xs text-gray-500 mb-1">시안요청</p>
+                            <p id="current-design-request-date" class="text-sm font-semibold text-gray-800">-</p>
+                        </div>
+                        <div id="date-order-receipt" class="hidden rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                            <p class="text-xs text-gray-500 mb-1">주문서접수</p>
+                            <p id="current-order-receipt-date" class="text-sm font-semibold text-gray-800">-</p>
+                        </div>
+                        <div id="date-payment-completed" class="hidden rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                            <p class="text-xs text-gray-500 mb-1">결제완료</p>
+                            <p id="current-payment-completed-date" class="text-sm font-semibold text-gray-800">-</p>
+                        </div>
+                        <div id="date-workinstruction-sent" class="hidden rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                            <p class="text-xs text-gray-500 mb-1">지시서전송</p>
+                            <p id="current-workinstruction-sent-date" class="text-sm font-semibold text-gray-800">-</p>
+                        </div>
+                        <div id="date-workinstruction-received" class="hidden rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                            <p class="text-xs text-gray-500 mb-1">지시서접수</p>
+                            <p id="current-workinstruction-received-date" class="text-sm font-semibold text-gray-800">-</p>
                         </div>
                     </div>
                 </div>
@@ -365,12 +382,12 @@
             <!-- 탭 네비게이션 -->
             <!-- 탭 — PC 가독성: text-sm → text-base -->
             <div class="flex space-x-6 border-b border-gray-200 mb-6 overflow-x-auto">
-                <button class="tab-btn active pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('customer')">고객 정보</button>
-                <button class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('design')">디자인</button>
-                <button class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('production')">생산</button>
-                <button class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('shipping')">물류</button>
-                <button class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('payment')">금융</button>
-                <button class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('history')">이력</button>
+                <button data-tab="customer" class="tab-btn active pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('customer')">고객 정보</button>
+                <button data-tab="design" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('design')">디자인</button>
+                <button data-tab="production" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('production')">생산</button>
+                <button data-tab="shipping" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('shipping')">물류</button>
+                <button data-tab="payment" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('payment')">금융</button>
+                <button data-tab="history" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('history')">이력</button>
             </div>
 
             <!-- 탭 콘텐츠 영역 -->
@@ -507,6 +524,39 @@
                             <div>
                                 <p class="field-label">그레이딩 완료</p>
                                 <p class="field-value" data-field="production.gradingDone">-</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-5 border-t border-gray-100">
+                            <h4 class="font-semibold text-base mb-3 flex items-center">
+                                <span class="material-symbols-outlined mr-1.5 text-gray-400 text-lg">assignment</span>
+                                작업지시서 관리
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                    <p class="field-label">작업지시서 상태</p>
+                                    <p class="field-value" data-field="workInstruction.status">-</p>
+                                </div>
+                                <div>
+                                    <p class="field-label">전송일시</p>
+                                    <p class="field-value" data-field="workInstruction.sentAt">-</p>
+                                </div>
+                                <div>
+                                    <p class="field-label">접수일시</p>
+                                    <p class="field-value" data-field="workInstruction.receivedAt">-</p>
+                                </div>
+                                <div>
+                                    <p class="field-label">전송 담당자</p>
+                                    <p class="field-value" data-field="workInstruction.sentBy">-</p>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <p class="field-label">작업지시서 링크</p>
+                                    <p class="field-value" data-field="workInstruction.url">-</p>
+                                </div>
+                                <div class="md:col-span-3">
+                                    <p class="field-label">작업지시서 메모</p>
+                                    <p class="field-value" data-field="workInstruction.note">-</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -649,7 +699,7 @@
                 <div class="lg:col-span-1 space-y-6">
 
                     <!-- 빠른 상태 변경 — PC: p-4, 제목 text-base -->
-                    <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <div id="quick-status-card" class="bg-white rounded-xl p-4 border border-gray-100">
                         <h4 class="font-bold text-base mb-3">빠른 상태 변경</h4>
                         <div id="quick-status-buttons" class="space-y-2">
                             <!-- JS에서 다음 가능한 상태 버튼 렌더링 -->
@@ -657,7 +707,7 @@
                     </div>
 
                     <!-- 고객 연락 — PC: p-4, 제목 text-base, 내용 text-base -->
-                    <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <div id="contact-card" class="bg-white rounded-xl p-4 border border-gray-100">
                         <h4 class="font-bold text-base mb-3">고객 연락</h4>
                         <div id="contact-info" class="space-y-2 text-base">
                             <!-- JS에서 렌더링 -->
@@ -671,7 +721,7 @@
 
                     <!-- 코멘트 섹션: 담당자끼리 주문에 대해 메모를 남기는 타임라인 -->
                     <!-- 비유: 주문 폴더에 포스트잇을 계속 붙여나가는 것 -->
-                    <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <div id="comments-card" class="bg-white rounded-xl p-4 border border-gray-100">
                         <h4 class="font-bold text-base mb-3 flex items-center">
                             <span class="material-symbols-outlined text-base mr-1 text-gray-400">chat</span>
                             코멘트
