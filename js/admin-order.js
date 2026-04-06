@@ -123,6 +123,26 @@ const ORDER_DETAIL_PRESETS = {
         showPaymentConfirm: false,
         showDesignPreview: false,
         showOrderSheetPreview: false
+    },
+    // 출고 파트 프리셋 (4파트 재구성으로 신규 추가)
+    // 배송/물류 정보에 집중하는 뷰
+    shipping: {
+        requiredScope: 'shipping',
+        defaultTab: 'shipping',
+        tabs: ['customer', 'shipping', 'history'],
+        fields: [
+            'customer.name', 'customer.teamName', 'customer.phone', 'memo',
+            'shipping.address', 'shipping.desiredDate', 'shipping.releaseDate',
+            'shipping.shippedDate', 'shipping.carrier', 'shipping.trackingNumber'
+        ],
+        showQuickStatus: true,
+        showContact: true,
+        showComments: true,
+        showTags: false,
+        showEdit: true,
+        showPaymentConfirm: false,
+        showDesignPreview: false,
+        showOrderSheetPreview: false
     }
 };
 
@@ -133,7 +153,8 @@ function getCurrentDetailView() {
 
     if (hasAdminScope('design') && !hasAdminScope('cs') && !hasAdminScope('production')) return 'design';
     if (hasAdminScope('cs') && !hasAdminScope('design') && !hasAdminScope('production')) return 'cs';
-    if (hasAdminScope('production') && !hasAdminScope('design') && !hasAdminScope('cs')) return 'production';
+    if (hasAdminScope('production') && !hasAdminScope('design') && !hasAdminScope('cs') && !hasAdminScope('shipping')) return 'production';
+    if (hasAdminScope('shipping') && !hasAdminScope('design') && !hasAdminScope('cs') && !hasAdminScope('production')) return 'shipping';
     return 'all';
 }
 

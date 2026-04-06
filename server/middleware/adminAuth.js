@@ -33,6 +33,7 @@ function getDefaultAdminPage(user) {
     if (scopes.includes('design')) return 'admin-design.html';
     if (scopes.includes('cs')) return 'admin-cs.html';
     if (scopes.includes('production')) return 'admin-production.html';
+    if (scopes.includes('shipping')) return 'admin-shipping.html';
     return 'admin-home.html';
 }
 

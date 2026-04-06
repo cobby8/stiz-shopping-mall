@@ -65,15 +65,20 @@ router.get('/orders', (req, res) => {
         const dateTo = req.query.dateTo || '';
         const amountMin = req.query.amountMin ? parseFloat(req.query.amountMin) : null;
         const amountMax = req.query.amountMax ? parseFloat(req.query.amountMax) : null;
-        const activeExcluded = ['delivered', 'cancelled'];
-        const statusTabs = ['consult_started', 'design_requested', 'draft_done', 'design_confirmed', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'factory_released', 'warehouse_received', 'released', 'hold'];
-
         // 파트별 뷰에서 전달하는 허용 상태 목록 (쉼표 구분)
         // 비유: "이 부서에서 볼 수 있는 게시물 종류"만 필터링
         const allowedStatusesParam = req.query.allowedStatuses || '';
         const allowedStatuses = allowedStatusesParam
             ? allowedStatusesParam.split(',').map(s => normalizeStatus(s.trim())).filter(Boolean)
             : null;
+        // 완료 상태 제외 목록 — 단, 파트가 명시적으로 요청한 상태는 제외하지 않음
+        // 비유: "끝난 주문"은 기본적으로 숨기지만, 출고 파트가 "배송완료"를 보겠다고 하면 보여줌
+        const baseExcluded = ['delivered', 'cancelled'];
+        const activeExcluded = allowedStatuses
+            ? baseExcluded.filter(s => !allowedStatuses.includes(s))
+            : baseExcluded;
+        // statusTabs에 shipped 추가 (출고 파트 탭에서 배송중 건수 표시용)
+        const statusTabs = ['consult_started', 'design_requested', 'draft_done', 'design_confirmed', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'factory_released', 'warehouse_received', 'released', 'shipped', 'hold'];
 
         const allOrders = db.getAll('orders').map(normalizeOrderStatus);
 

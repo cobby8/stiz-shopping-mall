@@ -92,7 +92,8 @@ const PAGE_PRESETS = {
         title: '디자인 파트',
         subtitle: '디자인팀이 확인해야 할 주문만 모아서 봅니다.',
         requiredScope: 'design',
-        allowedStatuses: ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed'],
+        // consult_started는 CS 파트 전용으로 이관 (4파트 재구성)
+        allowedStatuses: ['design_requested', 'draft_done', 'revision', 'design_confirmed'],
         visibleColumns: ['orderNumber', 'receiptDate', 'teamName', 'customerName', 'sport', 'status', 'manager', 'deadline'],
         visibleFilters: ['status', 'manager', 'sport', 'search', 'dateFrom', 'dateTo'],
         showStats: false,
@@ -120,13 +121,30 @@ const PAGE_PRESETS = {
         title: '제작 파트',
         subtitle: '작업지시서 접수 이후 생산과 출고 준비 주문만 봅니다.',
         requiredScope: 'production',
-        allowedStatuses: ['work_instruction_received', 'in_production', 'production_done', 'factory_released', 'warehouse_received', 'released'],
+        // warehouse_received, released는 출고 파트로 이관 (4파트 재구성)
+        allowedStatuses: ['work_instruction_received', 'in_production', 'production_done', 'factory_released'],
         visibleColumns: ['orderNumber', 'receiptDate', 'teamName', 'sport', 'status', 'manager', 'workInstructionSentDate', 'deadline'],
         visibleFilters: ['status', 'manager', 'sport', 'search', 'dateFrom', 'dateTo'],
         showStats: false,
         showRevenueSummary: false,
         showMainTabs: false,
         showStatusTabs: true,  // 파트별 상태 탭 표시 (allowedStatuses 기준으로 필터됨)
+        showBulkActions: false,
+        allowBulkStatusChange: false
+    },
+    // 출고 파트 (4파트 재구성으로 신규 추가)
+    // 창고 입고부터 배송완료까지 물류 흐름 전담
+    shipping: {
+        title: '출고 파트',
+        subtitle: '창고 입고부터 배송완료까지 물류 흐름을 관리합니다.',
+        requiredScope: 'shipping',
+        allowedStatuses: ['warehouse_received', 'released', 'shipped', 'delivered'],
+        visibleColumns: ['orderNumber', 'teamName', 'customerName', 'sport', 'status', 'manager', 'deadline'],
+        visibleFilters: ['status', 'manager', 'search'],
+        showStats: false,
+        showRevenueSummary: false,
+        showMainTabs: false,
+        showStatusTabs: true,
         showBulkActions: false,
         allowBulkStatusChange: false
     }
