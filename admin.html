@@ -142,6 +142,10 @@
         .status-tab-bar .status-sub-tab.active .tab-count {
             color: #2563eb;                    /* 파란색 — 브랜드 강조 */
         }
+        /* hidden 클래스 오버라이드 — 특이성 (0,3,0)으로 display:flex (0,2,0)보다 우선 */
+        .status-tab-bar .status-sub-tab.hidden {
+            display: none;
+        }
     </style>
 </head>
 
