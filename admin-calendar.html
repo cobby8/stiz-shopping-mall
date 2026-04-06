@@ -83,14 +83,17 @@
                 <span class="text-xl font-bold tracking-tight">STIZ Admin</span>
             </div>
 
-            <!-- 네비게이션: 5탭 구조 — 일정표가 활성 상태 -->
+            <!-- 네비게이션: admin.html과 동일 구조 — 일정표가 활성 상태 -->
             <nav class="hidden md:flex items-center space-x-8">
-                <a href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
-                <a href="admin.html" class="text-gray-400 hover:text-white transition-colors">주문 관리</a>
-                <a href="admin-calendar.html" class="text-white font-medium border-b-2 border-brand-red pb-1">일정표</a>
-                <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
-                <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
-                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+                <a id="nav-home" href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
+                <a id="nav-all" href="admin.html" class="text-gray-400 hover:text-white transition-colors">전체 주문</a>
+                <a id="nav-design" href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
+                <a id="nav-cs" href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
+                <a id="nav-production" href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
+                <a id="nav-calendar" href="admin-calendar.html" class="text-white font-medium border-b-2 border-brand-red pb-1">일정표</a>
+                <a id="nav-analytics" href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a id="nav-customers" href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a id="nav-store" href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
             </nav>
 
             <!-- 관리자 이름 + 로그아웃 -->

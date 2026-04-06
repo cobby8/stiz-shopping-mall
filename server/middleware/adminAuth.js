@@ -13,12 +13,20 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../routes/auth.js';
 import db from '../db.js';
 
+// 관리자 권한 범위(scope) 결정 함수 — auth.js에서도 import해서 사용
+// 비유: 직원 출입증에 적힌 "접근 가능 구역" 목록을 반환
 function getAdminScopes(user) {
+    // admin이 아닌 사용자에게는 빈 배열 반환 (방어적 처리)
+    if (user.role !== 'admin') return [];
     if (Array.isArray(user.scopes) && user.scopes.length > 0) return user.scopes;
     return ['all'];
 }
 
+// 관리자 기본 랜딩 페이지 결정 함수
+// 비유: 출입증 등급에 따라 "어느 층으로 갈지" 결정
 function getDefaultAdminPage(user) {
+    // admin이 아닌 사용자에게는 빈 문자열 반환 (방어적 처리)
+    if (user.role !== 'admin') return '';
     if (user.defaultPage) return user.defaultPage;
     const scopes = getAdminScopes(user);
     if (scopes.includes('all')) return 'admin-home.html';
@@ -142,4 +150,5 @@ export function requireAdminScope(scope) {
     };
 }
 
-export default { adminAuth, requireAuth, requireAdminScope };
+export { getAdminScopes, getDefaultAdminPage };
+export default { adminAuth, requireAuth, requireAdminScope, getAdminScopes, getDefaultAdminPage };

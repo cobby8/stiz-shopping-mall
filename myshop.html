@@ -187,21 +187,34 @@
 
         /**
          * 상태 매핑 함수 (서버의 getCustomerStatus와 동일한 로직)
-         * 서버의 12단계 상태를 고객용 4단계로 변환한다.
-         * 비유: 공장 내부 공정(12단계)을 고객 안내판(4단계)으로 변환
+         * 서버의 19단계 상태를 고객용 4단계로 변환한다.
+         * 비유: 공장 내부 공정(19단계)을 고객 안내판(4단계)으로 변환
+         *
+         * [2026-04-06] 새 상태 체계 반영 — 서버 orders.js의 getCustomerStatus와 일관성 유지
          */
         function getCustomerStep(status) {
-            // 시안 관련 상태 -> 1단계
-            const design = ['design_requested', 'draft_done', 'revision', 'design_confirmed', 'pending'];
-            // 제작 관련 상태 -> 2단계
-            const production = ['payment_pending', 'payment_done', 'grading', 'line_work', 'in_production', 'production_done', 'processing'];
-            // 배송 관련 상태 -> 3단계
-            const shipping = ['released', 'shipped'];
+            // 레거시 상태코드를 새 코드로 변환 (서버의 LEGACY_STATUS_MAP과 동일)
+            const legacyMap = {
+                payment_pending: 'order_received',
+                payment_done: 'payment_completed',
+                grading: 'work_instruction_received',
+                line_work: 'work_instruction_received',
+                pending: 'consult_started',
+                processing: 'in_production'
+            };
+            const normalized = legacyMap[status] || status;
 
-            if (design.includes(status)) return { step: 1, label: '시안 진행중' };
-            if (production.includes(status)) return { step: 2, label: '제작 진행중' };
-            if (shipping.includes(status)) return { step: 3, label: '배송 준비중' };
-            if (status === 'delivered') return { step: 4, label: '배송완료' };
+            // 1단계: 상담/시안 관련 상태
+            const design = ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed'];
+            // 2단계: 결제/제작 관련 상태
+            const production = ['order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'production_done', 'factory_released'];
+            // 3단계: 출고/배송 관련 상태
+            const shipping = ['warehouse_received', 'released', 'shipped'];
+
+            if (design.includes(normalized)) return { step: 1, label: '상담/시안 진행중' };
+            if (production.includes(normalized)) return { step: 2, label: '제작 준비/생산중' };
+            if (shipping.includes(normalized)) return { step: 3, label: '출고/배송중' };
+            if (normalized === 'delivered') return { step: 4, label: '배송완료' };
             return { step: 0, label: '확인중' };
         }
 

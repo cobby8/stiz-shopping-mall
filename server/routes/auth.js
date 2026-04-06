@@ -2,6 +2,8 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../db.js';
+// adminAuth.js에서 scope/페이지 결정 함수를 import (중복 제거)
+import { getAdminScopes, getDefaultAdminPage } from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -10,24 +12,6 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'stiz-shop-secret-key-2026';
 // 토큰 유효기간: 7일 (7일 후 다시 로그인 필요)
 const JWT_EXPIRES_IN = '7d';
-
-function getAdminScopes(user) {
-    if (user.role !== 'admin') return [];
-    if (Array.isArray(user.scopes) && user.scopes.length > 0) return user.scopes;
-    return ['all'];
-}
-
-function getDefaultAdminPage(user) {
-    if (user.role !== 'admin') return '';
-    if (user.defaultPage) return user.defaultPage;
-
-    const scopes = getAdminScopes(user);
-    if (scopes.includes('all')) return 'admin-home.html';
-    if (scopes.includes('design')) return 'admin-design.html';
-    if (scopes.includes('cs')) return 'admin-cs.html';
-    if (scopes.includes('production')) return 'admin-production.html';
-    return 'admin-home.html';
-}
 
 // POST /api/auth/register - 회원가입
 router.post('/register', async (req, res) => {
