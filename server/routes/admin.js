@@ -68,6 +68,13 @@ router.get('/orders', (req, res) => {
         const activeExcluded = ['delivered', 'cancelled'];
         const statusTabs = ['consult_started', 'design_requested', 'draft_done', 'design_confirmed', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'factory_released', 'warehouse_received', 'released', 'hold'];
 
+        // 파트별 뷰에서 전달하는 허용 상태 목록 (쉼표 구분)
+        // 비유: "이 부서에서 볼 수 있는 게시물 종류"만 필터링
+        const allowedStatusesParam = req.query.allowedStatuses || '';
+        const allowedStatuses = allowedStatusesParam
+            ? allowedStatusesParam.split(',').map(s => normalizeStatus(s.trim())).filter(Boolean)
+            : null;
+
         const allOrders = db.getAll('orders').map(normalizeOrderStatus);
 
         const matchesCommonFilters = (order) => {
@@ -103,12 +110,22 @@ router.get('/orders', (req, res) => {
         const allFiltered = allOrders.filter(matchesCommonFilters);
         const activeFiltered = allFiltered.filter(order => !activeExcluded.includes(order.status));
 
+        // allowedStatuses가 있으면 해당 상태의 주문만 남김 (파트별 뷰 서버 필터링)
+        const partFiltered = allowedStatuses
+            ? activeFiltered.filter(order => allowedStatuses.includes(order.status))
+            : activeFiltered;
+
+        // statusCounts: allowedStatuses가 있으면 해당 상태만 카운트, 없으면 전체
         const statusCounts = {};
+        const countBase = allowedStatuses ? partFiltered : activeFiltered;
         statusTabs.forEach(status => {
-            statusCounts[status] = activeFiltered.filter(order => order.status === status).length;
+            statusCounts[status] = countBase.filter(order => order.status === status).length;
         });
 
-        let filteredOrders = excludeCompleted ? activeFiltered : [...allFiltered];
+        // 파트 뷰에서는 partFiltered 사용, 전체 뷰에서는 기존과 동일
+        let filteredOrders = excludeCompleted
+            ? (allowedStatuses ? partFiltered : activeFiltered)
+            : [...allFiltered];
         if (requestedStatus) {
             filteredOrders = filteredOrders.filter(order => order.status === requestedStatus);
         }
@@ -171,7 +188,7 @@ router.get('/orders', (req, res) => {
                 totalPages,
                 limit,
                 totalAll: allFiltered.length,
-                totalActive: activeFiltered.length,
+                totalActive: partFiltered.length,  // 파트 뷰면 파트 기준, 전체 뷰면 전체 기준
                 statusCounts
             }
         });

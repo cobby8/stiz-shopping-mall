@@ -112,7 +112,7 @@ const PAGE_PRESETS = {
         showStats: false,
         showRevenueSummary: false,
         showMainTabs: false,
-        showStatusTabs: false,
+        showStatusTabs: true,  // 파트별 상태 탭 표시 (allowedStatuses 기준으로 필터됨)
         showBulkActions: false,
         allowBulkStatusChange: false
     },
@@ -126,7 +126,7 @@ const PAGE_PRESETS = {
         showStats: false,
         showRevenueSummary: false,
         showMainTabs: false,
-        showStatusTabs: false,
+        showStatusTabs: true,  // 파트별 상태 탭 표시 (allowedStatuses 기준으로 필터됨)
         showBulkActions: false,
         allowBulkStatusChange: false
     }
@@ -517,6 +517,11 @@ async function loadOrders() {
         if (currentFilters.amountMax) params.set('amountMax', currentFilters.amountMax);
         // 정렬 기준 — 납기순(deadline) 등 커스텀 정렬 지원
         if (currentFilters.sortBy) params.set('sortBy', currentFilters.sortBy);
+        // 파트별 뷰: 서버에 허용 상태 목록을 보내서 해당 파트 주문만 받음
+        // 비유: "디자인 부서 게시판에 올라올 글 종류"를 서버에 알려주는 것
+        if (currentPagePreset.allowedStatuses) {
+            params.set('allowedStatuses', currentPagePreset.allowedStatuses.join(','));
+        }
         // 완료 주문 제외 여부 — "진행중" 탭이면 true, "전체" 탭이면 false
         params.set('excludeCompleted', currentFilters.excludeCompleted);
         params.set('page', currentFilters.page);
@@ -534,7 +539,9 @@ async function loadOrders() {
             return;
         }
 
-        const filteredOrders = applyPresetOrderFilter(data.orders);
+        // 서버에서 allowedStatuses 기준으로 이미 필터링된 결과가 오므로
+        // 클라이언트 측 applyPresetOrderFilter 호출은 불필요 (이중 필터링 제거)
+        const filteredOrders = data.orders;
 
         if (filteredOrders.length === 0) {
             showEmpty();
@@ -864,10 +871,18 @@ function updateTabCounts(pagination) {
 
     // 상태별 하위 탭 건수 업데이트 — "시안요청 (12)" 형태
     if (pagination.statusCounts) {
-        // "전체 진행중" 탭의 건수 = totalActive (2줄 구조: tab-label + tab-count)
+        // 파트 뷰일 때: "전체 진행중" 건수를 해당 파트의 allowedStatuses 합산으로 표시
+        // 전체 뷰일 때: 기존처럼 totalActive 사용
+        let activeCount = pagination.totalActive;
+        if (currentPagePreset.allowedStatuses) {
+            // 파트에 해당하는 상태 건수만 합산 (예: 디자인 파트면 디자인 관련 상태만)
+            activeCount = currentPagePreset.allowedStatuses.reduce((sum, status) => {
+                return sum + (pagination.statusCounts[status] || 0);
+            }, 0);
+        }
         const allActiveBtn = document.querySelector('.status-sub-tab[data-status-code=""]');
         if (allActiveBtn) {
-            allActiveBtn.innerHTML = `<span class="tab-label">전체 진행중</span><span class="tab-count">${pagination.totalActive}</span>`;
+            allActiveBtn.innerHTML = `<span class="tab-label">전체 진행중</span><span class="tab-count">${activeCount}</span>`;
         }
         // 각 상태별 건수 표시 (동일한 2줄 구조)
         STATUS_TABS.forEach(tab => {
