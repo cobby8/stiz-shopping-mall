@@ -17,14 +17,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, '..')));
 
+// 업로드 파일 정적 서빙 — /uploads/designs/xxx.png 같은 URL로 직접 접근 가능 (A-4)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 import authRoutes from './routes/auth.js';
 import orderRoutes from './routes/orders.js';
 import aiRoutes from './routes/ai.js';
 import adminRoutes from './routes/admin.js';
 import customerRoutes from './routes/customers.js';
+import catalogRoutes from './routes/catalog.js';      // 상품 카탈로그 API (A-2)
+import uploadRoutes from './routes/upload.js';          // 파일 업로드 API (A-4)
 import { adminAuth } from './middleware/adminAuth.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
+import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
 
 app.get('/', (req, res) => {
     res.json({
@@ -66,6 +72,75 @@ app.use('/api/admin', adminAuth, adminRoutes);
 
 // 고객 관리 라우트 - 관리자 전용 (adminAuth 적용)
 app.use('/api/admin/customers', adminAuth, customerRoutes);
+
+// 카탈로그 라우트 — 공개 API + 관리자 API 모두 포함 (A-2)
+// catalogRoutes 내부에서 adminAuth를 개별 적용 (공개 GET은 인증 불필요)
+app.use('/api', catalogRoutes);
+
+// 업로드 라우트 — 공개(reference) + 관리자(design/temp) 모두 포함 (A-4)
+// uploadRoutes 내부에서 /upload/reference는 인증 불필요, /admin/upload/*는 adminAuth 경유
+app.use('/api', uploadRoutes);
+
+// --- settings 테이블 초기 시딩 (A-1) ---
+// 비유: 식당 오픈 전에 기본 메뉴판을 세팅하는 것. 이미 메뉴판이 있으면 건드리지 않음
+// INSERT OR IGNORE: key가 이미 존재하면 무시하고 건너뜀
+const DEFAULT_PRODUCT_CATALOG = {
+    sports: [
+        { id: 'basketball', label: '농구', icon: 'sports_basketball', sortOrder: 1, active: true },
+        { id: 'soccer', label: '축구', icon: 'sports_soccer', sortOrder: 2, active: true },
+        { id: 'volleyball', label: '배구', icon: 'sports_volleyball', sortOrder: 3, active: true },
+        { id: 'baseball', label: '야구', icon: 'sports_baseball', sortOrder: 4, active: true },
+        { id: 'etc', label: '기타', icon: 'checkroom', sortOrder: 99, active: true },
+    ],
+    categories: [
+        { id: 'uniform', label: '유니폼', description: '경기용 상하의 세트', sortOrder: 1, active: true },
+        { id: 'shooting_shirt', label: '슈팅셔츠', description: '워밍업용 반팔', sortOrder: 2, active: true },
+        { id: 'long_shooting', label: '긴팔슈팅저지', description: '긴팔 워밍업', sortOrder: 3, active: true },
+        { id: 'hoodie', label: '후드집업', description: '팀 후드 집업', sortOrder: 4, active: true },
+        { id: 'tshirt', label: '반팔티', description: '팀 반팔 티셔츠', sortOrder: 5, active: true },
+        { id: 'etc', label: '기타', description: '기타 품목', sortOrder: 99, active: true },
+    ],
+    sportCategoryMap: null,
+    fabrics: [
+        { id: 'basic', label: '기본원단 (승화전사)', priceMultiplier: 1.0, description: '가장 많이 사용하는 표준 원단', sortOrder: 1, active: true },
+        { id: 'pro', label: '프로원단 (니트)', priceMultiplier: 1.4, description: '프로팀 수준의 고급 원단', sortOrder: 2, active: true },
+        { id: 'etc', label: '기타', priceMultiplier: 1.0, description: '별도 상담', sortOrder: 99, active: true },
+    ],
+    compositions: {
+        homeAway: [
+            { id: 'home', label: '홈만', multiplier: 1, sortOrder: 1, active: true },
+            { id: 'away', label: '어웨이만', multiplier: 1, sortOrder: 2, active: true },
+            { id: 'both', label: '홈+어웨이', multiplier: 2, sortOrder: 3, active: true },
+        ],
+        parts: [
+            { id: 'set', label: '상의+하의 세트', multiplier: 1.0, sortOrder: 1, active: true },
+            { id: 'top', label: '상의만', multiplier: 0.55, sortOrder: 2, active: true },
+            { id: 'bottom', label: '하의만', multiplier: 0.45, sortOrder: 3, active: true },
+        ],
+        type: [
+            { id: 'single', label: '단면', multiplier: 1.0, sortOrder: 1, active: true },
+            { id: 'double', label: '양면', multiplier: 1.6, sortOrder: 2, active: true },
+        ],
+    },
+    basePrices: {
+        uniform: 50000,
+        shooting_shirt: 35000,
+        long_shooting: 40000,
+        hoodie: 45000,
+        tshirt: 25000,
+        etc: 0,
+    },
+    sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'],
+};
+
+sqliteDb.prepare(`
+    INSERT OR IGNORE INTO settings (key, value, updatedAt, updatedBy)
+    VALUES ('product_catalog', @value, @updatedAt, @updatedBy)
+`).run({
+    value: JSON.stringify(DEFAULT_PRODUCT_CATALOG),
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'system',
+});
 
 // Start Server
 app.listen(port, () => {

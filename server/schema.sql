@@ -93,6 +93,15 @@ CREATE TABLE IF NOT EXISTS order_templates (
 CREATE INDEX IF NOT EXISTS idx_order_templates_category ON order_templates(category);
 CREATE INDEX IF NOT EXISTS idx_order_templates_name ON order_templates(name);
 
+-- settings 테이블: 시스템 설정을 키-값(JSON) 형태로 저장
+-- 비유: "시스템 환경설정 파일" — 상품 카탈로그, 배송비 규칙 등 각종 설정을 저장
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,       -- 설정 이름 (예: 'product_catalog')
+  value TEXT NOT NULL,        -- 설정 값 (JSON 문자열)
+  updatedAt TEXT,            -- 마지막 수정 시각
+  updatedBy TEXT             -- 마지막 수정자
+);
+
 -- users 테이블: 사용자 인증
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,

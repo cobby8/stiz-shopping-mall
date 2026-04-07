@@ -2,3 +2,7 @@ node_modules/
 .env
 .DS_Store
 .gemini/
+
+# 업로드 파일은 Git에 포함하지 않되, 폴더 구조(.gitkeep)는 유지
+server/uploads/**
+!server/uploads/**/.gitkeep

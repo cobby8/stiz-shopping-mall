@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 상품 카탈로그 설정</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* ===== 탭 메뉴 스타일 ===== */
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+        .tab-btn:hover { color: #111827; }
+        .tab-btn.active {
+            color: #111827;
+            border-bottom-color: #E63946;
+        }
+
+        /* ===== 항목 카드 ===== */
+        .item-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: box-shadow 0.15s;
+        }
+        .item-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .item-card.inactive {
+            opacity: 0.5;
+            background: #f9fafb;
+        }
+
+        /* ===== 토글 스위치 ===== */
+        .toggle-switch {
+            width: 40px;
+            height: 22px;
+            border-radius: 11px;
+            background: #d1d5db;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-switch.on { background: #22c55e; }
+        .toggle-switch::after {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+        .toggle-switch.on::after { transform: translateX(18px); }
+
+        /* ===== 모달 ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-box {
+            background: #fff;
+            border-radius: 16px;
+            padding: 28px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        /* ===== 토스트 알림 ===== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            z-index: 200;
+            animation: slideUp 0.3s ease-out;
+        }
+        .toast.success { background: #16a34a; }
+        .toast.error { background: #dc2626; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== 견적 시뮬레이션 박스 ===== */
+        .sim-box {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-gray-50 text-gray-900 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- 관리자 헤더 -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <nav class="hidden md:flex items-center space-x-8">
+                <a id="nav-home" href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
+                <a id="nav-all" href="admin.html" class="text-gray-400 hover:text-white transition-colors">전체 주문</a>
+                <a id="nav-design" href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
+                <a id="nav-cs" href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
+                <a id="nav-production" href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
+                <a id="nav-shipping" href="admin-shipping.html" data-admin-scope="all,shipping" class="text-gray-400 hover:text-white transition-colors">출고 파트</a>
+                <a id="nav-calendar" href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
+                <a id="nav-analytics" href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a id="nav-customers" href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a id="nav-catalog" href="admin-catalog.html" class="text-white font-medium border-b-2 border-brand-red pb-1">상품설정</a>
+                <a id="nav-store" href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <button onclick="handleLogout()"
+                    class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠 -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- 페이지 타이틀 + 저장 버튼 -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold">상품 카탈로그 설정</h1>
+                <p id="last-updated" class="text-sm text-gray-400 mt-1"></p>
+            </div>
+            <button id="btn-save" onclick="saveCatalog()"
+                class="bg-brand-red text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-lg">save</span>
+                저장
+            </button>
+        </div>
+
+        <!-- 탭 메뉴 -->
+        <div class="flex border-b border-gray-200 mb-6 overflow-x-auto">
+            <button class="tab-btn active" data-tab="sports" onclick="switchTab('sports')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">sports_basketball</span>종목
+            </button>
+            <button class="tab-btn" data-tab="categories" onclick="switchTab('categories')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">checkroom</span>품목
+            </button>
+            <button class="tab-btn" data-tab="fabrics" onclick="switchTab('fabrics')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">texture</span>원단
+            </button>
+            <button class="tab-btn" data-tab="compositions" onclick="switchTab('compositions')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">tune</span>구성옵션
+            </button>
+            <button class="tab-btn" data-tab="prices" onclick="switchTab('prices')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">payments</span>가격
+            </button>
+        </div>
+
+        <!-- 탭 콘텐츠 영역 -->
+        <div id="tab-content"></div>
+
+        <!-- 견적 시뮬레이션 (항상 하단에 표시) -->
+        <div class="sim-box mt-8">
+            <h3 class="font-bold text-sm mb-3 flex items-center gap-1">
+                <span class="material-symbols-outlined text-base">calculate</span>
+                견적 시뮬레이션
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <label class="flex flex-col gap-1">
+                    <span class="text-gray-500">품목</span>
+                    <select id="sim-category" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                </label>
+                <label class="flex flex-col gap-1">
+                    <span class="text-gray-500">원단</span>
+                    <select id="sim-fabric" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                </label>
+                <label class="flex flex-col gap-1">
+                    <span class="text-gray-500">구성</span>
+                    <select id="sim-parts" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                </label>
+                <label class="flex flex-col gap-1">
+                    <span class="text-gray-500">유형</span>
+                    <select id="sim-type" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                </label>
+                <label class="flex flex-col gap-1">
+                    <span class="text-gray-500">홈/어웨이</span>
+                    <select id="sim-homeaway" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                </label>
+                <label class="flex flex-col gap-1">
+                    <span class="text-gray-500">수량</span>
+                    <input id="sim-qty" type="number" value="15" min="1" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm">
+                </label>
+                <div class="col-span-2 flex items-end">
+                    <div class="bg-white border border-blue-200 rounded-lg px-4 py-2 w-full text-center">
+                        <span class="text-gray-500 text-xs">예상 견적</span>
+                        <div id="sim-result" class="text-xl font-bold text-blue-600">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 모달 컨테이너 (JS에서 동적 생성) -->
+    <div id="modal-container"></div>
+
+    <!-- 공통 모듈 + 카탈로그 JS -->
+    <script src="js/admin-common.js"></script>
+    <script src="js/admin-catalog.js"></script>
+
+</body>
+</html>
