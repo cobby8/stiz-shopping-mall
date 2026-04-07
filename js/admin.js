@@ -55,11 +55,14 @@ function getTagBadges(tags) {
 
 // 상태별 탭 정의 — 진행중 주문을 세부 상태별로 나눠보기 위한 탭 목록
 // 비유: "진행중" 서랍을 열면 그 안에 "시안요청", "제작중" 등 작은 칸막이가 있는 것
+// 상태별 탭 정의 — STATUS_FLOW 순서에 맞춤
+// 수정: revision(수정중), production_done(생산완료), shipped(배송중) 누락 추가
 const STATUS_TABS = [
     { code: '', label: '전체 진행중' },
     { code: 'consult_started', label: '상담개시' },
     { code: 'design_requested', label: '시안요청' },
     { code: 'draft_done', label: '초안완료' },
+    { code: 'revision', label: '수정중' },
     { code: 'design_confirmed', label: '디자인확정' },
     { code: 'order_received', label: '주문서접수' },
     { code: 'payment_completed', label: '결제완료' },
@@ -67,9 +70,11 @@ const STATUS_TABS = [
     { code: 'work_instruction_sent', label: '지시서 전송후' },
     { code: 'work_instruction_received', label: '지시서 접수' },
     { code: 'in_production', label: '제작중' },
+    { code: 'production_done', label: '생산완료' },
     { code: 'factory_released', label: '공장출고' },
     { code: 'warehouse_received', label: '창고입고' },
     { code: 'released', label: '출고' },
+    { code: 'shipped', label: '배송중' },
     { code: 'hold', label: '보류' }
 ];
 
@@ -283,11 +288,13 @@ function applyFilterVisibility() {
 }
 
 function applyNavActiveState() {
+    // 네비게이션 탭 매핑 — shipping(출고/배송) 파트 추가
     const navMap = {
         all: 'nav-all',
         design: 'nav-design',
         cs: 'nav-cs',
-        production: 'nav-production'
+        production: 'nav-production',
+        shipping: 'nav-shipping'
     };
 
     Object.values(navMap).forEach(id => {

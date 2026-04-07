@@ -77,8 +77,9 @@ router.get('/orders', (req, res) => {
         const activeExcluded = allowedStatuses
             ? baseExcluded.filter(s => !allowedStatuses.includes(s))
             : baseExcluded;
-        // statusTabs에 shipped 추가 (출고 파트 탭에서 배송중 건수 표시용)
-        const statusTabs = ['consult_started', 'design_requested', 'draft_done', 'design_confirmed', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'factory_released', 'warehouse_received', 'released', 'shipped', 'hold'];
+        // statusTabs: STATUS_FLOW 기준으로 탭에 표시할 상태 목록
+        // 보안/기능 수정: production_done(생산완료), revision(수정중) 누락 수정
+        const statusTabs = ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'production_done', 'factory_released', 'warehouse_received', 'released', 'shipped', 'hold'];
 
         const allOrders = db.getAll('orders').map(normalizeOrderStatus);
 

@@ -1,5 +1,7 @@
 import express from 'express';
 import db from '../db.js';
+// 관리자 인증 미들웨어 — 주문 목록/상세 조회를 관리자만 가능하게 제한
+import { adminAuth } from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -221,8 +223,9 @@ router.post('/', (req, res) => {
     }
 });
 
-// GET /api/orders - 주문 목록 조회
-router.get('/', (req, res) => {
+// GET /api/orders - 주문 목록 조회 (관리자 전용)
+// 보안: 인증 없이 전체 주문 목록이 노출되는 취약점 수정 — adminAuth 추가
+router.get('/', adminAuth, (req, res) => {
     const orders = db.getAll('orders');
     res.json({ success: true, orders });
 });
@@ -280,8 +283,9 @@ router.get('/track/:orderNumber', (req, res) => {
     }
 });
 
-// GET /api/orders/:orderNumber - 주문번호로 상세 조회
-router.get('/:orderNumber', (req, res) => {
+// GET /api/orders/:orderNumber - 주문번호로 상세 조회 (관리자 전용)
+// 보안: 주문번호만 알면 누구나 상세 정보를 볼 수 있던 취약점 수정
+router.get('/:orderNumber', adminAuth, (req, res) => {
     const orders = db.getAll('orders');
     const order = orders.find(o => o.orderNumber === req.params.orderNumber);
     if (!order) {

@@ -36,6 +36,22 @@ if (fs.existsSync(SCHEMA_PATH)) {
     db.exec(schema);
 }
 
+// --- 허용된 테이블 이름 목록 (화이트리스트) ---
+// 보안: SQL에 테이블명이 문자열 보간되므로, 허용 목록에 없는 이름은 차단
+// 비유: 건물에 "출입 허가 명단"을 붙여놓고, 명단에 없는 사람은 입장 불가
+const ALLOWED_TABLES = [
+    'orders', 'customers', 'order_history', 'activity_log',
+    'sales_goals', 'users', 'order_templates'
+];
+
+// 테이블명 검증 함수 — 화이트리스트에 없으면 즉시 에러
+function validateTableName(name) {
+    if (!ALLOWED_TABLES.includes(name)) {
+        throw new Error(`허용되지 않은 테이블명: ${name}`);
+    }
+    return name;
+}
+
 // --- 컬렉션 이름 → 테이블 이름 매핑 ---
 // JSON 파일명에는 하이픈(-)을 쓰지만, SQL 테이블명에는 언더스코어(_)를 써야 한다
 function tableName(collection) {
@@ -45,7 +61,9 @@ function tableName(collection) {
         'sales-goals': 'sales_goals',
         'order-templates': 'order_templates',
     };
-    return map[collection] || collection;
+    const tbl = map[collection] || collection;
+    // 매핑 결과가 허용 목록에 있는지 검증
+    return validateTableName(tbl);
 }
 
 // --- JSON blob 컬렉션 판별 ---

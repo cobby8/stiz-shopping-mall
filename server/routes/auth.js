@@ -10,6 +10,10 @@ const router = express.Router();
 // JWT 비밀키 - 환경변수에서 가져오거나 기본값 사용
 // 비유: 암호 도장 - 이 도장으로 찍은 토큰만 진짜로 인정
 const JWT_SECRET = process.env.JWT_SECRET || 'stiz-shop-secret-key-2026';
+// 보안 경고: 환경변수가 없으면 기본 키를 사용하므로, 운영 환경에서는 반드시 설정 필요
+if (!process.env.JWT_SECRET) {
+    console.warn('[Auth] JWT_SECRET 환경변수가 설정되지 않았습니다. 기본 키를 사용합니다.');
+}
 // 토큰 유효기간: 7일 (7일 후 다시 로그인 필요)
 const JWT_EXPIRES_IN = '7d';
 
