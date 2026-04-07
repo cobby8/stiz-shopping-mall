@@ -79,18 +79,26 @@ function calcDday(desiredDate) {
 // 대시보드 데이터 로드
 // ============================================================
 
+// stats API 결과 캐시 — loadKPIs와 loadWorkSummary가 같은 API를 호출하므로 한 번만 요청
+let _statsCache = null;
+async function getStatsData() {
+    if (_statsCache) return _statsCache;
+    const statsRes = await adminFetch('/api/admin/stats');
+    if (!statsRes) throw new Error('통계 로드 실패');
+    const data = await statsRes.json();
+    if (!data.success) throw new Error('통계 로드 실패');
+    _statsCache = data;
+    return data;
+}
+
 /**
  * 핵심 수치(KPI) 로드
  * 비유: 출근해서 보는 "오늘의 숫자판" — 한눈에 중요 지표 파악
  */
 async function loadKPIs() {
     try {
-        // 통계 API 호출 (현재 연도) — adminFetch는 Response 객체 반환, .json() 필요
-        const statsRes = await adminFetch('/api/admin/stats');
-        if (!statsRes) throw new Error('통계 로드 실패');
-        const statsData = await statsRes.json();
-        if (!statsData.success) throw new Error('통계 로드 실패');
-
+        // 통계 API 호출 — 캐시된 결과 사용 (중복 호출 방지)
+        const statsData = await getStatsData();
         const stats = statsData.stats;
 
         // 1. 진행중 주문 수 = 전체 - 배송완료 (delivered 제외)
@@ -146,11 +154,8 @@ async function loadKPIs() {
  */
 async function loadWorkSummary() {
     try {
-        const statsRes = await adminFetch('/api/admin/stats');
-        if (!statsRes) throw new Error('업무 현황 로드 실패');
-        const data = await statsRes.json();
-        if (!data.success) throw new Error('업무 현황 로드 실패');
-
+        // 통계 API — 캐시된 결과 사용 (loadKPIs와 동일 데이터)
+        const data = await getStatsData();
         const container = document.getElementById('work-summary');
         const counts = data.stats?.detailedStatusCounts || {};
 
@@ -228,8 +233,9 @@ async function loadStaleOrders() {
             const staleText = order.staleHours >= 24
                 ? `${Math.floor(order.staleHours / 24)}일 ${order.staleHours % 24}시간`
                 : `${order.staleHours}시간`;
-            const customerName = order.teamName || order.customerName || '미상';
-            const orderLink = `admin-order.html?id=${order.id}`;
+            // XSS 방지: 사용자 입력(팀명, 고객명 등)을 HTML에 삽입할 때 escapeHtml 적용
+            const customerName = escapeHtml(order.teamName || order.customerName || '미상');
+            const orderLink = `admin-order.html?id=${encodeURIComponent(order.id)}`;
 
             html += `
                 <a href="${orderLink}" class="urgent-row flex items-center justify-between py-3 px-2 rounded-lg cursor-pointer" style="border-bottom:1px solid #f3f4f6;">
@@ -237,11 +243,11 @@ async function loadStaleOrders() {
                         <span class="dday-badge dday-danger">${staleText}</span>
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-gray-900 truncate">${customerName}</p>
-                            <p class="text-xs text-gray-400 truncate">${order.orderNumber || order.id}</p>
+                            <p class="text-xs text-gray-400 truncate">${escapeHtml(order.orderNumber || order.id)}</p>
                         </div>
                     </div>
                     <div class="text-right flex-shrink-0">
-                        <p class="text-xs text-gray-500">${order.statusLabel || STATUS_LABELS[order.status] || order.status}</p>
+                        <p class="text-xs text-gray-500">${escapeHtml(order.statusLabel || STATUS_LABELS[order.status] || order.status)}</p>
                         <p class="text-xs text-gray-400">${order.lastStatusChangeAt ? formatDateTime(order.lastStatusChangeAt) : '-'}</p>
                     </div>
                 </a>

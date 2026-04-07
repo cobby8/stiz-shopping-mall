@@ -29,16 +29,20 @@ function getLastStatusChangeAt(order, historyByOrderId) {
 }
 
 function normalizeOrderStatus(order) {
+    // 기본값을 먼저 배치하고, 원본 데이터가 덮어쓰도록 순서 수정
+    // 이렇게 해야 원본에 값이 있으면 기본값 대신 원본이 우선됨
     return {
         ...order,
         status: normalizeStatus(order.status),
         workInstruction: {
-            status: order.workInstruction?.status || '',
-            sentAt: order.workInstruction?.sentAt || '',
-            receivedAt: order.workInstruction?.receivedAt || '',
-            sentBy: order.workInstruction?.sentBy || '',
-            url: order.workInstruction?.url || '',
-            note: order.workInstruction?.note || '',
+            // 기본값 (원본에 해당 키가 없을 때만 적용)
+            status: '',
+            sentAt: '',
+            receivedAt: '',
+            sentBy: '',
+            url: '',
+            note: '',
+            // 원본 데이터가 기본값을 덮어씀
             ...order.workInstruction
         }
     };
@@ -2138,8 +2142,11 @@ router.get('/calendar/events', (req, res) => {
             };
 
             // --- 이벤트 1: 납기일 (가장 중요한 포스트잇) ---
-            const deadlineDate = order.shipping?.desiredDate;
-            if (deadlineDate && deadlineDate >= start && deadlineDate <= end) {
+            // 날짜 비교 시 substring(0,10)으로 날짜 부분만 추출 (시간대 차이로 인한 누락 방지)
+            const deadlineDate = order.shipping?.desiredDate?.substring(0, 10);
+            const startDate = start.substring(0, 10);
+            const endDate = end.substring(0, 10);
+            if (deadlineDate && deadlineDate >= startDate && deadlineDate <= endDate) {
                 // D-day 계산 — 납기까지 남은 일수에 따라 색상 결정
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
@@ -2170,7 +2177,7 @@ router.get('/calendar/events', (req, res) => {
             const receiptDate = order.orderReceiptDate || order.createdAt;
             // createdAt은 ISO 형식일 수 있으므로 날짜 부분만 추출
             const receiptDateStr = receiptDate ? receiptDate.substring(0, 10) : null;
-            if (receiptDateStr && receiptDateStr >= start && receiptDateStr <= end) {
+            if (receiptDateStr && receiptDateStr >= startDate && receiptDateStr <= endDate) {
                 const receiptColor = (order.status === 'delivered' || order.status === 'cancelled')
                     ? '#9CA3AF' : '#3B82F6'; // 파랑 또는 회색
 
@@ -2184,8 +2191,8 @@ router.get('/calendar/events', (req, res) => {
             }
 
             // --- 이벤트 3: 출고일 (출고 예정/완료일) ---
-            const releaseDate = order.shipping?.releaseDate;
-            if (releaseDate && releaseDate >= start && releaseDate <= end) {
+            const releaseDate = order.shipping?.releaseDate?.substring(0, 10);
+            if (releaseDate && releaseDate >= startDate && releaseDate <= endDate) {
                 const releaseColor = (order.status === 'delivered' || order.status === 'cancelled')
                     ? '#9CA3AF' : '#8B5CF6'; // 보라 또는 회색
 

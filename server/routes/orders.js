@@ -88,6 +88,9 @@ export function getCustomerStatus(detailedStatus) {
     if (productionStatuses.includes(normalized)) return { step: 2, label: '제작 준비/생산중' };
     if (shippingStatuses.includes(normalized)) return { step: 3, label: '출고/배송중' };
     if (normalized === 'delivered') return { step: 4, label: '배송완료' };
+    // hold/cancelled 상태 별도 매핑 — 고객에게 명확한 안내 제공
+    if (normalized === 'hold') return { step: 0, label: '보류중' };
+    if (normalized === 'cancelled') return { step: 0, label: '취소됨' };
 
     return { step: 0, label: '확인중' };
 }
