@@ -350,4 +350,305 @@ router.get('/:orderNumber', adminAuth, (req, res) => {
     res.json({ success: true, order });
 });
 
+// ============================================================
+// Phase C: 고객용 API (시안 확정 / 수정 요청 / 주문서 / 입금 알림)
+// 비유: 주문 후 고객이 "식당 창구"에서 할 수 있는 후속 요청 4가지
+// 모든 API는 주문번호 + 연락처로 본인 확인한다 (비회원 지원)
+// ============================================================
+
+/**
+ * 주문 조회 + 본인 확인 헬퍼
+ * 비유: 은행 창구에서 "신분증 확인" 절차
+ * 주문번호로 주문을 찾고, 연락처가 일치하는지 검증한다.
+ * @param {string} orderNumber - 주문번호
+ * @param {string} phone - 고객 연락처
+ * @returns {{ order, data } | { error, status }} - 성공 시 order+data, 실패 시 error+status
+ */
+function findOrderByNumberAndPhone(orderNumber, phone) {
+    // findOne으로 주문번호 인덱스 컬럼 직접 조회 (성능 우수)
+    const order = db.findOne('orders', 'orderNumber', orderNumber);
+    if (!order) return { error: '주문을 찾을 수 없습니다', status: 404 };
+
+    // 하이픈 제거 후 비교 (010-1234-5678 → 01012345678)
+    const dbPhone = (order.customer?.phone || '').replace(/-/g, '');
+    const inputPhone = (phone || '').replace(/-/g, '');
+    if (!inputPhone || dbPhone !== inputPhone) {
+        return { error: '연락처가 일치하지 않습니다', status: 403 };
+    }
+    return { order };
+}
+
+/**
+ * POST /api/orders/:orderNumber/design-confirm
+ * 고객이 시안을 확정하는 API (Step 9b)
+ * design.status를 'confirmed'로, 주문 상태를 'design_confirmed'로 변경
+ */
+router.post('/:orderNumber/design-confirm', (req, res) => {
+    try {
+        const { orderNumber } = req.params;
+        const { phone } = req.body;
+
+        // 본인 확인
+        const result = findOrderByNumberAndPhone(orderNumber, phone);
+        if (result.error) {
+            return res.status(result.status).json({ success: false, error: result.error });
+        }
+        const { order } = result;
+
+        // 시안이 'draft_done' 상태일 때만 확정 가능
+        const designStatus = order.design?.status || '';
+        if (designStatus !== 'draft_done' && designStatus !== 'revision_done') {
+            return res.status(400).json({
+                success: false,
+                error: '현재 시안을 확정할 수 없는 상태입니다 (초안 완료 후 확정 가능)'
+            });
+        }
+
+        // design.status 업데이트 + 주문 상태 변경
+        const updatedDesign = {
+            ...(order.design || {}),
+            status: 'confirmed',
+            confirmedAt: new Date().toISOString()
+        };
+
+        db.updateById('orders', order.id, {
+            design: updatedDesign,
+            status: 'design_confirmed',
+            updatedAt: new Date().toISOString()
+        });
+
+        // 상태 변경 이력 기록
+        db.insert('order-history', {
+            orderId: order.id,
+            fromStatus: order.status,
+            toStatus: 'design_confirmed',
+            changedBy: order.customer?.name || '고객',
+            memo: '고객이 디자인을 확정했습니다',
+            createdAt: new Date().toISOString()
+        });
+
+        console.log(`[Order] Design confirmed: ${orderNumber}`);
+        res.json({ success: true, message: '디자인이 확정되었습니다' });
+    } catch (error) {
+        console.error('[Order] Design confirm error:', error);
+        res.status(500).json({ success: false, error: '디자인 확정 처리 실패' });
+    }
+});
+
+/**
+ * POST /api/orders/:orderNumber/revision
+ * 고객이 시안 수정을 요청하는 API (Step 9a)
+ * 수정 내용과 참고 파일을 함께 전송할 수 있다
+ */
+router.post('/:orderNumber/revision', (req, res) => {
+    try {
+        const { orderNumber } = req.params;
+        const { phone, message, attachments } = req.body;
+
+        // 본인 확인
+        const result = findOrderByNumberAndPhone(orderNumber, phone);
+        if (result.error) {
+            return res.status(result.status).json({ success: false, error: result.error });
+        }
+        const { order } = result;
+
+        // 수정 요청 내용이 비어있으면 거부
+        if (!message || !message.trim()) {
+            return res.status(400).json({ success: false, error: '수정 내용을 입력해주세요' });
+        }
+
+        // 무료 수정 횟수 체크 — 초과해도 요청은 가능하지만 유료 안내
+        const revisionCount = (order.design?.revisionCount || 0) + 1;
+        const maxFree = order.design?.maxFreeRevisions || 2;
+        const isExtraCharge = revisionCount > maxFree;
+
+        // 수정 이력에 새 항목 추가
+        const revisionHistory = [...(order.design?.revisionHistory || []), {
+            requestedAt: new Date().toISOString(),
+            message: message.trim(),
+            attachments: attachments || [],  // 참고 파일 URL 배열
+            completedAt: null,               // 디자이너가 완료하면 채워짐
+            isExtraCharge                    // 유료 수정 여부
+        }];
+
+        const updatedDesign = {
+            ...(order.design || {}),
+            status: 'revision',
+            revisionCount,
+            revisionHistory
+        };
+
+        db.updateById('orders', order.id, {
+            design: updatedDesign,
+            status: 'revision',
+            updatedAt: new Date().toISOString()
+        });
+
+        // 상태 변경 이력 기록
+        db.insert('order-history', {
+            orderId: order.id,
+            fromStatus: order.status,
+            toStatus: 'revision',
+            changedBy: order.customer?.name || '고객',
+            memo: `수정 요청 (${revisionCount}회차): ${message.trim().substring(0, 100)}`,
+            createdAt: new Date().toISOString()
+        });
+
+        console.log(`[Order] Revision requested: ${orderNumber} (${revisionCount}회차)`);
+        res.json({
+            success: true,
+            message: isExtraCharge
+                ? `수정 요청이 접수되었습니다 (무료 ${maxFree}회 초과, 추가 비용이 발생할 수 있습니다)`
+                : '수정 요청이 접수되었습니다',
+            revisionCount,
+            isExtraCharge
+        });
+    } catch (error) {
+        console.error('[Order] Revision error:', error);
+        res.status(500).json({ success: false, error: '수정 요청 처리 실패' });
+    }
+});
+
+/**
+ * PUT /api/orders/:orderNumber/order-sheet
+ * 주문서(배번/사이즈) 저장 및 수정 API (Step 10)
+ * isDraft=true면 임시 저장, false면 최종 제출
+ * 비유: 팀원 명단을 작성하고 "제출" 또는 "임시저장" 하는 것
+ */
+router.put('/:orderNumber/order-sheet', (req, res) => {
+    try {
+        const { orderNumber } = req.params;
+        const { phone, members, isDraft } = req.body;
+
+        // 본인 확인
+        const result = findOrderByNumberAndPhone(orderNumber, phone);
+        if (result.error) {
+            return res.status(result.status).json({ success: false, error: result.error });
+        }
+        const { order } = result;
+
+        // members 배열 검증
+        if (!Array.isArray(members) || members.length === 0) {
+            return res.status(400).json({ success: false, error: '팀원 정보를 1명 이상 입력해주세요' });
+        }
+
+        // 각 멤버의 필수 필드 확인 (최종 제출 시에만 엄격하게)
+        if (!isDraft) {
+            for (let i = 0; i < members.length; i++) {
+                const m = members[i];
+                if (!m.name || !m.topSize) {
+                    return res.status(400).json({
+                        success: false,
+                        error: `${i + 1}번째 팀원의 이름과 상의 사이즈는 필수입니다`
+                    });
+                }
+            }
+        }
+
+        const orderSheet = {
+            members: members.map(m => ({
+                number: (m.number || '').toString().trim(),
+                name: (m.name || '').trim(),
+                topSize: (m.topSize || '').trim(),
+                bottomSize: (m.bottomSize || '').trim()
+            })),
+            isDraft: isDraft !== false,  // 기본값은 임시저장
+            submittedAt: isDraft === false ? new Date().toISOString() : null,
+            updatedAt: new Date().toISOString()
+        };
+
+        // 주문서 제출(isDraft=false)이면 주문 상태도 변경
+        const updates = {
+            orderSheet,
+            updatedAt: new Date().toISOString()
+        };
+
+        if (isDraft === false) {
+            updates.status = 'order_received';
+        }
+
+        db.updateById('orders', order.id, updates);
+
+        // 최종 제출 시에만 이력 기록
+        if (isDraft === false) {
+            db.insert('order-history', {
+                orderId: order.id,
+                fromStatus: order.status,
+                toStatus: 'order_received',
+                changedBy: order.customer?.name || '고객',
+                memo: `주문서 제출 (${members.length}명)`,
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        console.log(`[Order] Order sheet ${isDraft === false ? 'submitted' : 'saved'}: ${orderNumber} (${members.length}명)`);
+        res.json({
+            success: true,
+            message: isDraft === false ? '주문서가 제출되었습니다' : '임시 저장되었습니다',
+            orderSheet
+        });
+    } catch (error) {
+        console.error('[Order] Order sheet error:', error);
+        res.status(500).json({ success: false, error: '주문서 저장 실패' });
+    }
+});
+
+/**
+ * POST /api/orders/:orderNumber/payment-notify
+ * 고객이 입금 완료를 알리는 API (Step 11)
+ * 실제 입금 확인은 관리자가 수동으로 하고, 이 API는 "입금했다"는 알림만 전달
+ * 비유: 은행에 돈을 보내고 "보냈습니다" 문자를 보내는 것
+ */
+router.post('/:orderNumber/payment-notify', (req, res) => {
+    try {
+        const { orderNumber } = req.params;
+        const { phone, depositorName, amount } = req.body;
+
+        // 본인 확인
+        const result = findOrderByNumberAndPhone(orderNumber, phone);
+        if (result.error) {
+            return res.status(result.status).json({ success: false, error: result.error });
+        }
+        const { order } = result;
+
+        // 입금자명 필수
+        if (!depositorName || !depositorName.trim()) {
+            return res.status(400).json({ success: false, error: '입금자명을 입력해주세요' });
+        }
+
+        // payment 정보 업데이트 (입금 확인 대기 상태)
+        const updatedPayment = {
+            ...(order.payment || {}),
+            depositorName: depositorName.trim(),
+            notifiedAmount: amount || null,    // 고객이 알린 입금액
+            notifiedAt: new Date().toISOString(),
+            status: 'pending_confirmation'     // 관리자 확인 대기
+        };
+
+        db.updateById('orders', order.id, {
+            payment: updatedPayment,
+            updatedAt: new Date().toISOString()
+        });
+
+        // 이력 기록
+        db.insert('order-history', {
+            orderId: order.id,
+            fromStatus: order.status,
+            toStatus: order.status,  // 상태는 변경하지 않음 (관리자 확인 후 변경)
+            changedBy: order.customer?.name || '고객',
+            memo: `입금 완료 알림 (입금자: ${depositorName.trim()})`,
+            createdAt: new Date().toISOString()
+        });
+
+        console.log(`[Order] Payment notified: ${orderNumber} (입금자: ${depositorName.trim()})`);
+        res.json({
+            success: true,
+            message: '입금 확인 요청이 접수되었습니다. 확인 후 안내드리겠습니다.'
+        });
+    } catch (error) {
+        console.error('[Order] Payment notify error:', error);
+        res.status(500).json({ success: false, error: '입금 알림 처리 실패' });
+    }
+});
+
 export default router;

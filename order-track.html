@@ -136,16 +136,26 @@
             <p class="text-gray-500 text-sm">주문번호를 입력하면 현재 진행 단계를 확인할 수 있습니다.</p>
         </div>
 
-        <!-- 검색 폼: 주문번호를 입력받아 API로 조회 -->
+        <!-- 검색 폼: 주문번호 + 연락처를 입력받아 API로 조회 -->
+        <!-- 연락처는 시안 확정/수정요청/주문서/결제 등 본인 확인에 필요 -->
         <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
-            <label for="order-number-input" class="block text-sm font-bold mb-2">주문번호</label>
-            <div class="flex gap-3">
-                <input type="text" id="order-number-input"
-                    placeholder="예: ORD-20260326-001"
-                    class="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                    autocomplete="off">
+            <div class="space-y-3">
+                <div>
+                    <label for="order-number-input" class="block text-sm font-bold mb-2">주문번호</label>
+                    <input type="text" id="order-number-input"
+                        placeholder="예: ORD-20260326-001"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                        autocomplete="off">
+                </div>
+                <div>
+                    <label for="phone-input" class="block text-sm font-bold mb-2">연락처 <span class="text-gray-400 font-normal">(시안 확인/주문서 작성 시 필요)</span></label>
+                    <input type="tel" id="phone-input"
+                        placeholder="예: 010-1234-5678"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                        autocomplete="off">
+                </div>
                 <button onclick="trackOrder()"
-                    class="bg-black text-white px-6 py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition flex-shrink-0">
+                    class="w-full sm:w-auto bg-black text-white px-6 py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
                     조회
                 </button>
             </div>
@@ -213,6 +223,213 @@
             <div id="desired-date-info" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
                 <span class="text-gray-400 text-xs">희망 납기일</span>
                 <p class="font-bold text-lg mt-1" id="result-desired-date"></p>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- Phase C: 시안 확인 / 주문서 / 결제 탭 영역     -->
+            <!-- 주문 상태에 따라 활성 탭이 자동 결정된다         -->
+            <!-- ============================================ -->
+            <div id="action-tabs" class="hidden">
+                <!-- 탭 헤더 -->
+                <div class="flex border-b border-gray-200">
+                    <button onclick="switchTab('design')" id="tab-design"
+                        class="flex-1 py-3 text-sm font-bold text-center border-b-2 border-black text-black transition">
+                        <span class="material-symbols-outlined text-base align-middle mr-1">palette</span>시안 확인
+                    </button>
+                    <button onclick="switchTab('ordersheet')" id="tab-ordersheet"
+                        class="flex-1 py-3 text-sm font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition">
+                        <span class="material-symbols-outlined text-base align-middle mr-1">assignment</span>주문서
+                    </button>
+                    <button onclick="switchTab('payment')" id="tab-payment"
+                        class="flex-1 py-3 text-sm font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition">
+                        <span class="material-symbols-outlined text-base align-middle mr-1">payments</span>결제
+                    </button>
+                </div>
+
+                <!-- ===== 탭 1: 시안 확인 ===== -->
+                <div id="panel-design" class="bg-white border border-gray-200 border-t-0 rounded-b-lg p-6">
+                    <!-- 시안이 없을 때 안내 -->
+                    <div id="design-empty" class="text-center py-8">
+                        <span class="material-symbols-outlined text-5xl text-gray-300 mb-3">brush</span>
+                        <p class="text-gray-500 text-sm">아직 시안이 등록되지 않았습니다.</p>
+                        <p class="text-gray-400 text-xs mt-1">디자이너가 시안을 업로드하면 여기서 확인할 수 있습니다.</p>
+                    </div>
+
+                    <!-- 시안 이미지 갤러리 (시안이 있을 때 표시) -->
+                    <div id="design-gallery" class="hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold">시안 미리보기</h4>
+                            <span id="design-revision-info" class="text-xs text-gray-400"></span>
+                        </div>
+                        <!-- 시안 이미지들이 들어갈 그리드 -->
+                        <div id="design-images" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"></div>
+
+                        <!-- 수정 이력 (있을 때만 표시) -->
+                        <div id="design-history" class="hidden mb-6">
+                            <h4 class="text-sm font-bold mb-3">수정 이력</h4>
+                            <div id="design-history-list" class="space-y-2 text-sm"></div>
+                        </div>
+
+                        <!-- 확정/수정 버튼 (draft_done 상태일 때만 활성) -->
+                        <div id="design-actions" class="hidden flex flex-col sm:flex-row gap-3">
+                            <button onclick="confirmDesign()"
+                                class="flex-1 bg-black text-white py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
+                                <span class="material-symbols-outlined text-base align-middle mr-1">check_circle</span>
+                                디자인 확정
+                            </button>
+                            <button onclick="showRevisionForm()"
+                                class="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg text-sm font-bold hover:bg-gray-50 transition">
+                                <span class="material-symbols-outlined text-base align-middle mr-1">edit_note</span>
+                                수정 요청
+                            </button>
+                        </div>
+
+                        <!-- 디자인 확정 완료 안내 -->
+                        <div id="design-confirmed-msg" class="hidden bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                            <span class="material-symbols-outlined text-green-600 text-2xl mb-1">verified</span>
+                            <p class="text-green-800 text-sm font-bold">디자인이 확정되었습니다</p>
+                        </div>
+
+                        <!-- 수정 요청 폼 (숨김, 버튼 클릭 시 표시) -->
+                        <div id="revision-form" class="hidden mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <h4 class="text-sm font-bold mb-3">수정 요청</h4>
+                            <textarea id="revision-message" rows="4"
+                                placeholder="수정할 내용을 구체적으로 적어주세요. 예: 등번호 위치를 조금 위로..."
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black resize-none"></textarea>
+                            <div class="flex gap-3 mt-3">
+                                <button onclick="submitRevision()"
+                                    class="flex-1 bg-black text-white py-2.5 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
+                                    수정 요청 보내기
+                                </button>
+                                <button onclick="hideRevisionForm()"
+                                    class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition">
+                                    취소
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 탭 2: 주문서 (배번/사이즈 입력) ===== -->
+                <div id="panel-ordersheet" class="hidden bg-white border border-gray-200 border-t-0 rounded-b-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-sm font-bold">팀원 정보 입력</h4>
+                        <span id="ordersheet-status" class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500"></span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-4">배번, 이름, 사이즈를 입력해주세요. 임시 저장 후 나중에 이어서 작성할 수 있습니다.</p>
+
+                    <!-- 주문서 제출 완료 안내 -->
+                    <div id="ordersheet-submitted-msg" class="hidden bg-green-50 border border-green-200 rounded-lg p-4 text-center mb-4">
+                        <span class="material-symbols-outlined text-green-600 text-2xl mb-1">task_alt</span>
+                        <p class="text-green-800 text-sm font-bold">주문서가 제출되었습니다</p>
+                    </div>
+
+                    <!-- 주문서 테이블 -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm" id="ordersheet-table">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-2 pr-2 text-gray-500 font-bold w-12">#</th>
+                                    <th class="text-left py-2 pr-2 text-gray-500 font-bold w-16">배번</th>
+                                    <th class="text-left py-2 pr-2 text-gray-500 font-bold">이름</th>
+                                    <th class="text-left py-2 pr-2 text-gray-500 font-bold w-24">상의</th>
+                                    <th class="text-left py-2 pr-2 text-gray-500 font-bold w-24">하의</th>
+                                    <th class="w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersheet-body">
+                                <!-- JS에서 동적 생성 -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 행 추가 버튼 -->
+                    <button onclick="addOrderSheetRow()" id="btn-add-row"
+                        class="mt-3 w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-400 hover:text-gray-600 hover:border-gray-400 transition">
+                        <span class="material-symbols-outlined text-base align-middle mr-1">add</span>팀원 추가
+                    </button>
+
+                    <!-- 저장/제출 버튼 -->
+                    <div id="ordersheet-actions" class="flex flex-col sm:flex-row gap-3 mt-4">
+                        <button onclick="saveOrderSheet(true)"
+                            class="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-50 transition">
+                            임시 저장
+                        </button>
+                        <button onclick="saveOrderSheet(false)"
+                            class="flex-1 bg-black text-white py-2.5 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
+                            주문서 제출
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ===== 탭 3: 결제 ===== -->
+                <div id="panel-payment" class="hidden bg-white border border-gray-200 border-t-0 rounded-b-lg p-6">
+                    <h4 class="text-sm font-bold mb-4">결제 안내</h4>
+
+                    <!-- 결제 금액 -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-4 text-center">
+                        <span class="text-xs text-gray-400">최종 금액</span>
+                        <p class="text-2xl font-bold mt-1" id="payment-amount">-</p>
+                        <p class="text-xs text-gray-400 mt-1">관리자 확정 금액 기준 (모의 견적과 다를 수 있습니다)</p>
+                    </div>
+
+                    <!-- 결제 상태 안내 -->
+                    <div id="payment-status-area" class="mb-4"></div>
+
+                    <!-- 입금 정보 -->
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <h5 class="text-sm font-bold text-yellow-800 mb-2">
+                            <span class="material-symbols-outlined text-base align-middle mr-1">account_balance</span>
+                            무통장 입금 안내
+                        </h5>
+                        <div class="text-sm space-y-1">
+                            <p><span class="text-gray-500">은행:</span> <span class="font-bold">우리은행</span></p>
+                            <p><span class="text-gray-500">계좌:</span> <span class="font-bold">1005-604-824546</span></p>
+                            <p><span class="text-gray-500">예금주:</span> <span class="font-bold">디엠어패럴(장준현)</span></p>
+                        </div>
+                        <button onclick="copyAccount()"
+                            class="mt-3 w-full py-2 bg-yellow-100 hover:bg-yellow-200 rounded text-xs font-bold text-yellow-800 transition">
+                            <span class="material-symbols-outlined text-sm align-middle mr-1">content_copy</span>
+                            계좌번호 복사
+                        </button>
+                    </div>
+
+                    <!-- 입금 완료 알림 폼 -->
+                    <div id="payment-notify-form">
+                        <h5 class="text-sm font-bold mb-3">입금 완료 알림</h5>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">입금자명 <span class="text-red-500">*</span></label>
+                                <input type="text" id="depositor-name"
+                                    placeholder="입금자명을 입력하세요"
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">입금 금액 <span class="text-gray-400">(선택)</span></label>
+                                <input type="number" id="deposit-amount"
+                                    placeholder="입금한 금액"
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                            </div>
+                            <button onclick="notifyPayment()"
+                                class="w-full bg-black text-white py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
+                                입금 완료 알림 보내기
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 입금 확인 완료 안내 -->
+                    <div id="payment-confirmed-msg" class="hidden bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                        <span class="material-symbols-outlined text-green-600 text-2xl mb-1">paid</span>
+                        <p class="text-green-800 text-sm font-bold">결제가 확인되었습니다</p>
+                    </div>
+
+                    <!-- 입금 알림 전송 완료 안내 -->
+                    <div id="payment-notified-msg" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4 text-center mt-4">
+                        <span class="material-symbols-outlined text-blue-600 text-2xl mb-1">mark_email_read</span>
+                        <p class="text-blue-800 text-sm font-bold">입금 확인 요청이 접수되었습니다</p>
+                        <p class="text-blue-600 text-xs mt-1">관리자 확인 후 안내드리겠습니다.</p>
+                    </div>
+                </div>
             </div>
 
         </div>
