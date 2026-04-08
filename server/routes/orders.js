@@ -138,13 +138,26 @@ function migrateOrder(order) {
             dealType: order.customer?.dealType || '개인',
             ...order.customer
         },
-        design: order.design || {
+        // A-5: design 기본값 확장 — 무료 수정 횟수, 시안 파일 목록, 수정 이력 추가
+        design: {
             status: 'requested',
             revisionCount: 0,
+            maxFreeRevisions: 2,      // 무료 수정 횟수 한도
             designer: '',
+            designFileUrl: '',
             orderSheetUrl: '',
-            designFileUrl: ''
+            draftFiles: [],            // 시안 파일 목록 (여러 장 가능)
+            revisionHistory: [],       // 수정 요청 이력
+            ...(order.design || {})    // 클라이언트가 보낸 값이 있으면 덮어쓰기
         },
+        // A-5: 주문서 데이터 (팀원별 배번/사이즈) — 주문 시점에는 보통 null
+        orderSheet: order.orderSheet || null,
+        // A-5: 참고 파일 목록 (로고, 참고 이미지 등)
+        referenceFiles: order.referenceFiles || [],
+        // A-5: 고객 시안 요청 메모 (관리자용 memo와 구분)
+        customerMemo: order.customerMemo || '',
+        // A-5: 견적 정보
+        estimate: order.estimate || null,
         production: order.production || {
             status: '',
             factory: '',
@@ -186,19 +199,23 @@ function migrateOrder(order) {
 
 
 // POST /api/orders - 주문 생성
+// A-5: 고객 주문 위자드에서 보내는 확장 필드(fabric, composition, referenceFiles, design 등) 수용
+// 기존 필드만 보내도 정상 동작 (하위 호환 유지)
 router.post('/', (req, res) => {
     try {
         const order = req.body;
 
         // 기본 유효성 검증
-        if (!order.customer || !order.customer.name || !order.customer.email) {
-            return res.status(400).json({ success: false, error: 'Customer info required' });
+        // - 비회원 주문 지원: email 또는 phone 중 하나만 있으면 통과
+        // - 주문 시점에는 배송지가 없을 수 있으므로 shipping.address 필수 해제
+        if (!order.customer || !order.customer.name) {
+            return res.status(400).json({ success: false, error: 'Customer name is required' });
+        }
+        if (!order.customer.email && !order.customer.phone) {
+            return res.status(400).json({ success: false, error: 'Email or phone is required' });
         }
         if (!order.items || order.items.length === 0) {
             return res.status(400).json({ success: false, error: 'Cart is empty' });
-        }
-        if (!order.shipping || !order.shipping.address) {
-            return res.status(400).json({ success: false, error: 'Shipping address required' });
         }
 
         // 주문번호 자동 생성 (클라이언트가 보내지 않으면 서버에서 생성)
@@ -209,7 +226,17 @@ router.post('/', (req, res) => {
         order.createdAt = new Date().toISOString();
         order.updatedAt = order.createdAt;
 
-        // 누락 필드 채우기
+        // A-5: 확장 필드 기본값 — 클라이언트가 보내지 않았을 때만 채운다
+        // referenceFiles: 고객이 업로드한 참고 파일(로고, 참고 이미지 등) 목록
+        order.referenceFiles = order.referenceFiles || [];
+        // customerMemo: 고객의 시안 요청 메모 (기존 memo는 관리자용)
+        order.customerMemo = order.customerMemo || '';
+        // estimate: 견적 정보 (클라이언트에서 계산하여 전송)
+        order.estimate = order.estimate || null;
+        // orderSheet: 팀원별 배번/사이즈 데이터 — 주문 시점에는 보통 없음
+        order.orderSheet = order.orderSheet || null;
+
+        // 누락 필드 채우기 (migrateOrder에서 design 등 나머지 기본값 처리)
         const fullOrder = migrateOrder(order);
         const saved = db.insert('orders', fullOrder);
 
@@ -260,15 +287,20 @@ router.get('/track/:orderNumber', (req, res) => {
                 memo: h.memo || ''
             }));
 
+        // A-6: 응답에 시안/주문서/결제/참고파일 정보 추가 (민감 정보 제외)
         res.json({
             success: true,
             order: {
                 orderNumber: order.orderNumber,
                 teamName: order.customer?.teamName || '',
                 customerName: order.customer?.name || '',
+                // A-6: items에 확장 필드(fabric, composition) 포함하여 반환
                 items: (order.items || []).map(item => ({
                     name: item.name,
                     sport: item.sport,
+                    category: item.category || '',
+                    fabric: item.fabric || '',
+                    composition: item.composition || null,
                     quantity: item.quantity
                 })),
                 status: normalizedStatus,
@@ -277,6 +309,27 @@ router.get('/track/:orderNumber', (req, res) => {
                 trackingNumber: order.shipping?.trackingNumber || '',
                 carrier: order.shipping?.carrier || '',
                 desiredDate: order.shipping?.desiredDate || '',
+                // A-6: 시안 정보 — 고객이 시안 확인/수정 요청할 때 필요
+                // designer, orderSheetUrl 등 관리자 전용 필드는 제외
+                design: {
+                    status: order.design?.status || 'requested',
+                    revisionCount: order.design?.revisionCount || 0,
+                    maxFreeRevisions: order.design?.maxFreeRevisions || 2,
+                    draftFiles: order.design?.draftFiles || [],
+                    revisionHistory: order.design?.revisionHistory || [],
+                },
+                // A-6: 참고 파일 목록 (고객이 업로드한 로고/참고 이미지)
+                referenceFiles: order.referenceFiles || [],
+                // A-6: 주문서 데이터 (팀원별 배번/사이즈)
+                orderSheet: order.orderSheet || null,
+                // A-6: 결제 정보 — 총액과 결제 여부만 (계좌번호 등 민감 정보 제외)
+                payment: {
+                    totalAmount: order.payment?.totalAmount || order.total || 0,
+                    status: order.payment?.paidDate ? 'paid' : 'unpaid',
+                },
+                // A-6: 고객 메모 + 견적
+                customerMemo: order.customerMemo || '',
+                estimate: order.estimate || null,
                 history                              // 상태 변경 타임라인
             }
         });

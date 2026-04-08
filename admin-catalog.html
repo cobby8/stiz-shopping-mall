@@ -137,6 +137,80 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* ===== CSV 가져오기 모달 (넓은 모달) ===== */
+        .modal-box.wide {
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        /* 스텝 인디케이터 */
+        .step-indicator {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .step-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            background: #e5e7eb;
+            color: #9ca3af;
+        }
+        .step-dot.active { background: #E63946; color: #fff; }
+        .step-dot.done { background: #22c55e; color: #fff; }
+        .step-line { flex: 1; height: 2px; background: #e5e7eb; }
+        .step-line.active { background: #E63946; }
+        /* 드래그 영역 */
+        .drop-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #E63946;
+            background: #fef2f2;
+        }
+        /* CSV 미리보기 테이블 */
+        .csv-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .csv-table th {
+            background: #f3f4f6;
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        .csv-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .csv-table tr:hover td { background: #f9fafb; }
+        /* 매핑 행 */
+        .mapping-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .mapping-arrow {
+            color: #9ca3af;
+            font-size: 20px;
+        }
+
         /* ===== 견적 시뮬레이션 박스 ===== */
         .sim-box {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
@@ -218,6 +292,15 @@
             </button>
             <button class="tab-btn" data-tab="prices" onclick="switchTab('prices')">
                 <span class="material-symbols-outlined text-base align-middle mr-1">payments</span>가격
+            </button>
+        </div>
+
+        <!-- CSV 가져오기 버튼 -->
+        <div class="mb-6">
+            <button onclick="openCsvImportModal()"
+                class="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-brand-red border border-gray-300 hover:border-brand-red rounded-lg px-4 py-2.5 transition-colors">
+                <span class="material-symbols-outlined text-lg">upload_file</span>
+                CSV에서 가져오기
             </button>
         </div>
 
