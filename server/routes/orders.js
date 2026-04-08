@@ -2,6 +2,8 @@ import express from 'express';
 import db from '../db.js';
 // 관리자 인증 미들웨어 — 주문 목록/상세 조회를 관리자만 가능하게 제한
 import { adminAuth } from '../middleware/adminAuth.js';
+// 카카오 알림톡 서비스 — 주문 생성/디자인 확정 시 고객에게 자동 알림
+import { sendNotification } from '../services/notification.js';
 
 const router = express.Router();
 
@@ -242,6 +244,9 @@ router.post('/', (req, res) => {
 
         console.log(`[Order] New order: ${saved.orderNumber} (${saved.items?.length || 0} items, ₩${saved.total || 0})`);
 
+        // 카카오 알림톡: 주문 접수 확인 알림 (비동기, 실패해도 주문 정상)
+        sendNotification('order_created', saved);
+
         res.json({
             success: true,
             orderNumber: saved.orderNumber,
@@ -428,6 +433,11 @@ router.post('/:orderNumber/design-confirm', (req, res) => {
         });
 
         console.log(`[Order] Design confirmed: ${orderNumber}`);
+
+        // 카카오 알림톡: 디자인 확정 알림 (비동기, 실패해도 정상 응답)
+        // order 객체에 최신 design 상태를 반영하여 전달
+        sendNotification('design_confirmed', { ...order, design: updatedDesign });
+
         res.json({ success: true, message: '디자인이 확정되었습니다' });
     } catch (error) {
         console.error('[Order] Design confirm error:', error);

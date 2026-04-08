@@ -182,7 +182,8 @@ function calcDday(desiredDate, orderStatus) {
     deadline.setHours(0, 0, 0, 0);                  // 납기일도 0시로 통일
 
     const diffMs = deadline - today;                 // 밀리초 차이
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)); // 일 단위 변환
+    // I-7: Math.round → Math.ceil 통일 (0.1일이라도 남으면 1일로 올림, D-day가 갑자기 넘어가지 않도록)
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
     // D-day 텍스트 생성 (D-3, D-day, D+2 형태)
     let text, cssClass;
@@ -414,6 +415,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // 차트/실적/랭킹 초기 로드 제거: admin-analytics.html로 이동됨
     loadOrders();
+
+    // 필터 프리셋 드롭다운 초기 렌더링 (localStorage에 저장된 프리셋이 있으면 표시)
+    renderPresetDropdown();
+
+    // 프리셋 패널 바깥 클릭 시 자동 닫힘
+    document.addEventListener('click', (e) => {
+        const wrapper = document.getElementById('preset-wrapper');
+        const panel = document.getElementById('preset-panel');
+        if (wrapper && panel && !wrapper.contains(e.target)) {
+            panel.classList.add('hidden');
+        }
+    });
 });
 
 // 인증/API 함수는 admin-common.js에서 로드 (checkAdminAuth, getAdminToken, adminFetch)
@@ -1187,7 +1200,8 @@ async function exportToCSV() {
 
         // --- 2단계: CSV 문자열 생성 ---
         // 한글 헤더 (엑셀에서 열었을 때 바로 이해 가능)
-        const headers = ['주문번호', '주문일', '고객명', '팀명', '거래유형', '상태', '종목', '담당자', '금액', '결제상태'];
+        // 납기 컬럼 추가: 희망납기일을 CSV에서 확인할 수 있도록
+        const headers = ['주문번호', '주문일', '고객명', '팀명', '거래유형', '상태', '종목', '담당자', '납기', '금액', '결제상태'];
 
         // 각 주문을 CSV 행으로 변환
         const rows = data.orders.map(order => {
@@ -1206,13 +1220,15 @@ async function exportToCSV() {
             const sport = SPORT_LABELS[order.items?.[0]?.sport] || order.items?.[0]?.sport || '';
             // 담당자
             const manager = order.manager || '';
+            // 납기 (희망납기일, YYYY-MM-DD 형식)
+            const desiredDate = order.shipping?.desiredDate ? order.shipping.desiredDate.substring(0, 10) : '';
             // 금액 (숫자만, 쉼표 없이 — 엑셀에서 숫자로 인식하도록)
             const amount = order.payment?.totalAmount || order.total || 0;
             // 결제상태: 결제일이 있으면 "결제완료", 없으면 "미결제"
             const paymentStatus = order.payment?.paidDate ? '결제완료' : (amount > 0 ? '미결제' : '-');
 
             // CSV에서 쉼표/줄바꿈이 포함된 값은 큰따옴표로 감싸야 함
-            return [orderNumber, createdAt, customerName, teamName, dealType, status, sport, manager, amount, paymentStatus]
+            return [orderNumber, createdAt, customerName, teamName, dealType, status, sport, manager, desiredDate, amount, paymentStatus]
                 .map(val => csvEscape(val))
                 .join(',');
         });
@@ -1666,4 +1682,146 @@ async function deleteTemplate(templateId, templateName) {
         console.error('[Admin] 템플릿 삭제 실패:', error);
         alert('삭제 중 오류가 발생했습니다.');
     }
+}
+
+// ============================================================
+// 필터 프리셋 기능
+// - 자주 쓰는 필터 조합을 저장/불러오기/삭제할 수 있음
+// - localStorage에 JSON 배열로 저장 (서버 불필요)
+// ============================================================
+
+/** localStorage 키: 필터 프리셋 목록 */
+const FILTER_PRESET_STORAGE_KEY = 'stiz_admin_filter_presets';
+
+/**
+ * 저장된 프리셋 목록을 localStorage에서 가져옴
+ * @returns {Array<{name: string, filters: object}>}
+ */
+function getFilterPresets() {
+    try {
+        return JSON.parse(localStorage.getItem(FILTER_PRESET_STORAGE_KEY)) || [];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * 현재 필터 조건을 프리셋으로 저장
+ * 비유: "즐겨찾기 저장" — 현재 설정된 필터 값들을 이름 붙여 보관
+ */
+function saveFilterPreset() {
+    const nameInput = document.getElementById('preset-name-input');
+    const name = (nameInput?.value || '').trim();
+    if (!name) {
+        alert('프리셋 이름을 입력해주세요.');
+        return;
+    }
+
+    // 현재 필터 상태를 스냅샷 (page는 제외 — 항상 1페이지부터 시작하도록)
+    const snapshot = { ...currentFilters, page: 1 };
+
+    const presets = getFilterPresets();
+
+    // 같은 이름이 있으면 덮어쓸지 확인
+    const existIdx = presets.findIndex(p => p.name === name);
+    if (existIdx !== -1) {
+        if (!confirm(`"${name}" 프리셋이 이미 존재합니다. 덮어쓰시겠습니까?`)) return;
+        presets[existIdx].filters = snapshot;
+    } else {
+        presets.push({ name, filters: snapshot });
+    }
+
+    localStorage.setItem(FILTER_PRESET_STORAGE_KEY, JSON.stringify(presets));
+    nameInput.value = '';
+    renderPresetDropdown(); // 드롭다운 갱신
+    alert(`프리셋 "${name}" 저장 완료`);
+}
+
+/**
+ * 저장된 프리셋을 불러와 필터에 적용
+ * 비유: "즐겨찾기 클릭" — 저장해둔 필터 세팅을 한 번에 복원
+ * @param {string} name - 불러올 프리셋 이름
+ */
+function loadFilterPreset(name) {
+    const presets = getFilterPresets();
+    const preset = presets.find(p => p.name === name);
+    if (!preset) {
+        alert('프리셋을 찾을 수 없습니다.');
+        return;
+    }
+
+    const f = preset.filters;
+
+    // currentFilters에 저장된 값을 복원
+    Object.assign(currentFilters, f);
+    currentFilters.page = 1;
+
+    // UI 입력 필드에도 값을 반영 (화면에 보이도록)
+    const fieldMap = {
+        'filter-status': 'status',
+        'filter-manager': 'manager',
+        'filter-sport': 'sport',
+        'filter-dealType': 'dealType',
+        'filter-tag': 'tag',
+        'filter-dateFrom': 'dateFrom',
+        'filter-dateTo': 'dateTo',
+        'filter-amountMin': 'amountMin',
+        'filter-amountMax': 'amountMax'
+    };
+
+    // 각 필터 UI 요소에 저장된 값을 세팅
+    for (const [elId, key] of Object.entries(fieldMap)) {
+        const el = document.getElementById(elId);
+        if (el) el.value = f[key] || '';
+    }
+
+    // 검색어도 복원
+    const searchEl = document.getElementById('filter-search');
+    if (searchEl) searchEl.value = f.search || '';
+
+    // 데이터 새로 불러오기
+    loadOrders();
+}
+
+/**
+ * 프리셋 삭제
+ * @param {string} name - 삭제할 프리셋 이름
+ */
+function deleteFilterPreset(name) {
+    if (!confirm(`프리셋 "${name}"을(를) 삭제하시겠습니까?`)) return;
+
+    const presets = getFilterPresets().filter(p => p.name !== name);
+    localStorage.setItem(FILTER_PRESET_STORAGE_KEY, JSON.stringify(presets));
+    renderPresetDropdown(); // 드롭다운 갱신
+}
+
+/**
+ * 프리셋 드롭다운 UI를 렌더링
+ * 비유: 즐겨찾기 목록을 화면에 그려줌 — 저장된 게 없으면 안내 메시지만 표시
+ */
+function renderPresetDropdown() {
+    const container = document.getElementById('preset-dropdown-list');
+    if (!container) return;
+
+    const presets = getFilterPresets();
+
+    if (presets.length === 0) {
+        container.innerHTML = '<div class="text-xs text-gray-400 px-3 py-2">저장된 프리셋이 없습니다</div>';
+        return;
+    }
+
+    // 각 프리셋: 이름 클릭 → 불러오기, X 버튼 → 삭제
+    container.innerHTML = presets.map(p => `
+        <div class="flex items-center justify-between px-3 py-2 hover:bg-gray-50 group">
+            <button onclick="loadFilterPreset('${p.name.replace(/'/g, "\\'")}')"
+                class="text-sm text-gray-700 hover:text-gray-900 truncate flex-1 text-left">
+                ${p.name}
+            </button>
+            <button onclick="event.stopPropagation(); deleteFilterPreset('${p.name.replace(/'/g, "\\'")}')"
+                class="text-gray-300 hover:text-red-500 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="삭제">
+                <span class="material-symbols-outlined text-base">close</span>
+            </button>
+        </div>
+    `).join('');
 }

@@ -113,10 +113,20 @@ export function requireAuth(req, res, next) {
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, JWT_SECRET);
 
+        // W-7: JWT만 검증하면 삭제된 계정의 토큰으로도 접근 가능
+        // DB에서 실제 사용자 존재 여부를 확인하여 보안 강화
+        const user = db.findById('users', decoded.id);
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                error: '존재하지 않는 사용자입니다. 다시 로그인하세요.'
+            });
+        }
+
         req.user = {
-            id: decoded.id,
-            email: decoded.email,
-            role: decoded.role,
+            id: user.id,
+            email: user.email,
+            role: user.role,
             scopes: decoded.scopes || [],
             defaultPage: decoded.defaultPage || ''
         };

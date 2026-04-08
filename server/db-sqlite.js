@@ -36,6 +36,13 @@ if (fs.existsSync(SCHEMA_PATH)) {
     db.exec(schema);
 }
 
+// --- ID 생성 헬퍼 ---
+// Date.now()만 쓰면 같은 밀리초에 2건이 들어올 때 ID 충돌 가능
+// 타임스탬프 + 랜덤 3자리를 조합하여 충돌 방지
+function generateId() {
+    return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
 // --- 허용된 테이블 이름 목록 (화이트리스트) ---
 // 보안: SQL에 테이블명이 문자열 보간되므로, 허용 목록에 없는 이름은 차단
 // 비유: 건물에 "출입 허가 명단"을 붙여놓고, 명단에 없는 사람은 입장 불가
@@ -275,8 +282,8 @@ export function saveAll(collection, data) {
 export function insert(collection, record) {
     const tbl = tableName(collection);
 
-    // 기존 db.js와 동일한 ID 생성 방식 유지
-    record.id = record.id || Date.now();
+    // generateId()로 충돌 방지 ID 생성 (W-5: Date.now() 단독 사용 → 랜덤 접미사 추가)
+    record.id = record.id || generateId();
 
     if (isJsonBlobCollection(collection)) {
         if (collection === 'orders') {

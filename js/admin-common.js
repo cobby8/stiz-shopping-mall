@@ -35,9 +35,8 @@ const STATUS_LABELS = {
     shipped: '배송중',
     delivered: '배송완료',
     hold: '보류',
-    cancelled: '취소',
-    pending: '상담개시',
-    processing: '생산중'
+    cancelled: '취소'
+    // I-1: pending/processing 레거시 라벨 제거 — consult_started/in_production으로 대체 완료
 };
 
 // 종목 한글 라벨 — 영문 코드를 한글로 변환 (테이블/CSV/차트에서 사용)

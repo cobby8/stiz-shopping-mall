@@ -11,8 +11,27 @@ import db from '../db.js';
 import { STATUS_FLOW, STATUS_LABELS, getCustomerStatus, normalizeStatus } from './orders.js';
 import { runBackup } from '../backup.js';  // 수동 백업 API용
 import { logActivity, getActivityLogs } from '../activityLog.js';  // 관리자 활동 로그 (D-2)
+// 카카오 알림톡 서비스 — 상태 변경 시 고객 자동 알림
+import { sendNotification } from '../services/notification.js';
+import { STATUS_TO_NOTIFICATION_TYPE } from '../services/notification-templates.js';
 
 const router = express.Router();
+
+// I-2: 종목 영문→한글 매핑을 파일 상단 1곳에서 정의 (기존 2곳 중복 제거)
+const SPORT_LABELS = {
+    basketball: '농구',
+    soccer: '축구',
+    volleyball: '배구',
+    baseball: '야구',
+    badminton: '배드민턴',
+    futsal: '풋살',
+    handball: '핸드볼',
+    tennis: '테니스',
+    tabletennis: '탁구',
+    hockey: '하키',
+    etc: '기타',
+    unknown: '미분류'
+};
 
 // 매출 기준일 반환 (주문서접수일 우선, 없으면 상담개시일 폴백)
 // 비유: "계약일"이 있으면 계약일 기준, 없으면 "상담일" 기준으로 매출 집계
@@ -414,6 +433,16 @@ router.patch('/orders/:id/status', (req, res) => {
             toStatus: STATUS_LABELS[normalizedStatus] || normalizedStatus,
             memo: memo || ''
         }, req.user);
+
+        // 카카오 알림톡: 상태 변경 시 고객 자동 알림 (비동기, 실패해도 응답 정상)
+        // 전용 템플릿이 있는 상태(결제완료/생산중/배송중/배송완료)는 해당 템플릿 사용
+        // 그 외 상태는 범용 status_changed 템플릿 사용
+        const notificationType = STATUS_TO_NOTIFICATION_TYPE[normalizedStatus] || 'status_changed';
+        sendNotification(notificationType, { ...existing, ...patch }, {
+            fromStatus,
+            toStatus: normalizedStatus,
+            statusLabel: STATUS_LABELS[normalizedStatus] || normalizedStatus
+        });
 
         res.json({
             success: true,
@@ -1088,21 +1117,7 @@ router.get('/stats/by-sport', (req, res) => {
             sportMap[sport].revenue += amount;
         });
 
-        // 종목 영문→한글 매핑 (프론트에서도 사용하지만 서버에서도 제공)
-        const SPORT_LABELS = {
-            basketball: '농구',
-            soccer: '축구',
-            volleyball: '배구',
-            baseball: '야구',
-            badminton: '배드민턴',
-            futsal: '풋살',
-            handball: '핸드볼',
-            tennis: '테니스',
-            tabletennis: '탁구',
-            hockey: '하키',
-            etc: '기타',
-            unknown: '미분류'
-        };
+        // I-2: SPORT_LABELS는 파일 상단에서 1회 정의 (중복 제거됨)
 
         // 배열로 변환 + 매출 내림차순 정렬
         const sports = Object.entries(sportMap)
@@ -1192,11 +1207,7 @@ router.get('/stats/margin', (req, res) => {
         });
 
         // --- 종목별(bySport) 집계 ---
-        const SPORT_LABELS = {
-            basketball: '농구', soccer: '축구', volleyball: '배구', baseball: '야구',
-            badminton: '배드민턴', futsal: '풋살', handball: '핸드볼', tennis: '테니스',
-            tabletennis: '탁구', hockey: '하키', etc: '기타', unknown: '미분류'
-        };
+        // I-2: SPORT_LABELS는 파일 상단에서 1회 정의 (중복 제거됨)
 
         const sportMap = {};
         orders.forEach(order => {
