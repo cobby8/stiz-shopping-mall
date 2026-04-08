@@ -60,14 +60,14 @@
 
         /* 진행 표시줄 단계 원형 */
         .step-circle {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 12px;
             transition: all 0.3s ease;
         }
         .step-circle.completed {
@@ -116,6 +116,13 @@
         input[type=number] {
             -moz-appearance: textfield;
         }
+
+        /* 비활성 카드 (선택 불가능한 조합) */
+        .card-option.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -137,7 +144,7 @@
     <div class="bg-white border-b border-gray-100">
         <div class="max-w-3xl mx-auto px-4 py-4">
             <div id="progress-bar" class="flex items-center justify-between">
-                <!-- JS에서 6단계 동적 렌더링 -->
+                <!-- JS에서 7단계 동적 렌더링 -->
             </div>
             <!-- 현재 단계 이름 -->
             <p id="step-label" class="text-center text-sm text-gray-500 mt-2"></p>
@@ -175,23 +182,47 @@
             <h2 class="text-xl font-bold text-gray-900 mb-1">품목을 선택하세요</h2>
             <p class="text-sm text-gray-500 mb-6">제작할 의류를 선택해주세요.</p>
             <div id="category-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <!-- JS에서 렌더링 -->
+                <!-- JS에서 렌더링: 유니폼이면 uniform 1개, 팀웨어면 팀웨어 품목 목록 -->
             </div>
         </div>
 
-        <!-- Step 3: 원단 선택 -->
+        <!-- Step 3: 등급 선택 (유니폼 전용, 팀웨어 시 스킵) -->
         <div id="step-3" class="step-content hidden">
-            <h2 class="text-xl font-bold text-gray-900 mb-1">원단을 선택하세요</h2>
-            <p class="text-sm text-gray-500 mb-6">원단에 따라 가격이 달라질 수 있습니다.</p>
-            <div id="fabric-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <!-- JS에서 렌더링 -->
+            <h2 class="text-xl font-bold text-gray-900 mb-1">등급을 선택하세요</h2>
+            <p class="text-sm text-gray-500 mb-6">등급에 따라 원단과 가격이 달라집니다.</p>
+            <div id="grade-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- JS에서 렌더링: sportGradeMap 기반 -->
             </div>
         </div>
 
-        <!-- Step 4: 구성 선택 + 모의 견적 -->
+        <!-- Step 4: 패키지 구성 + 옵션 (유니폼 전용, 팀웨어 시 스킵) -->
         <div id="step-4" class="step-content hidden">
             <h2 class="text-xl font-bold text-gray-900 mb-1">구성을 선택하세요</h2>
-            <p class="text-sm text-gray-500 mb-6">주문 구성과 수량을 정해주세요.</p>
+            <p class="text-sm text-gray-500 mb-6">패키지 구성과 옵션을 정해주세요.</p>
+
+            <!-- 패키지 선택 -->
+            <div class="mb-5">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">패키지 구성</label>
+                <div id="package-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- JS에서 렌더링: gradePackageMap 기반 -->
+                </div>
+            </div>
+
+            <!-- 마감 옵션 (상의) -->
+            <div id="finish-top-section" class="mb-5">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">상의 마감</label>
+                <div id="finish-top-options" class="flex gap-2 flex-wrap">
+                    <!-- JS에서 렌더링 -->
+                </div>
+            </div>
+
+            <!-- 마감 옵션 (하의) -->
+            <div id="finish-bottom-section" class="mb-5">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">하의 마감</label>
+                <div id="finish-bottom-options" class="flex gap-2 flex-wrap">
+                    <!-- JS에서 렌더링 -->
+                </div>
+            </div>
 
             <!-- 홈/어웨이 -->
             <div class="mb-5">
@@ -201,21 +232,19 @@
                 </div>
             </div>
 
-            <!-- 세트 구성 -->
-            <div class="mb-5">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">세트 구성</label>
-                <div id="parts-options" class="flex gap-2 flex-wrap">
-                    <!-- JS에서 렌더링 -->
+            <!-- 할인 적용 -->
+            <div id="discount-section" class="mb-5">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">할인 적용</label>
+                <div id="discount-options" class="space-y-2">
+                    <!-- JS에서 렌더링: active인 할인만 표시 -->
                 </div>
             </div>
+        </div>
 
-            <!-- 주문 유형 -->
-            <div class="mb-5">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">주문 유형</label>
-                <div id="type-options" class="flex gap-2 flex-wrap">
-                    <!-- JS에서 렌더링 -->
-                </div>
-            </div>
+        <!-- Step 5: 견적 확인 + 수량 (유니폼/팀웨어 공통) -->
+        <div id="step-5" class="step-content hidden">
+            <h2 class="text-xl font-bold text-gray-900 mb-1">견적을 확인하세요</h2>
+            <p class="text-sm text-gray-500 mb-6">수량을 입력하고 예상 금액을 확인해주세요.</p>
 
             <!-- 수량 -->
             <div class="mb-6">
@@ -236,22 +265,30 @@
                 </div>
             </div>
 
+            <!-- 선택 요약 -->
+            <div id="estimate-summary" class="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+                <!-- JS에서 선택 항목 요약 렌더링 -->
+            </div>
+
             <!-- 모의 견적 표시 -->
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-symbols-outlined text-blue-600">calculate</span>
                     <span class="text-sm font-semibold text-blue-800">모의 견적</span>
                 </div>
-                <div class="flex items-baseline justify-between">
-                    <span class="text-sm text-blue-700">예상 금액</span>
+                <div id="estimate-detail" class="space-y-1 mb-2">
+                    <!-- JS에서 단가/배수/할인 상세 렌더링 -->
+                </div>
+                <div class="flex items-baseline justify-between border-t border-blue-200 pt-2">
+                    <span class="text-sm text-blue-700">예상 총액</span>
                     <span id="estimate-display" class="text-2xl font-bold text-blue-900">0원</span>
                 </div>
                 <p class="text-xs text-blue-500 mt-1">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
             </div>
         </div>
 
-        <!-- Step 5: 주문자 정보 + 파일 업로드 -->
-        <div id="step-5" class="step-content hidden">
+        <!-- Step 6: 주문자 정보 + 파일 업로드 -->
+        <div id="step-6" class="step-content hidden">
             <h2 class="text-xl font-bold text-gray-900 mb-1">주문자 정보</h2>
             <p class="text-sm text-gray-500 mb-6">연락받으실 정보를 입력해주세요.</p>
 
@@ -322,8 +359,8 @@
             </div>
         </div>
 
-        <!-- Step 6: 확인 + 제출 -->
-        <div id="step-6" class="step-content hidden">
+        <!-- Step 7: 확인 + 제출 -->
+        <div id="step-7" class="step-content hidden">
             <h2 class="text-xl font-bold text-gray-900 mb-1">주문 내용 확인</h2>
             <p class="text-sm text-gray-500 mb-6">아래 내용을 확인하고 주문을 제출해주세요.</p>
 

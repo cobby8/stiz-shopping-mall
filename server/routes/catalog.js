@@ -66,18 +66,33 @@ router.get('/catalog', (req, res) => {
         const catalog = JSON.parse(row.value);
 
         // 활성 항목만 필터링 — 관리자가 비활성화한 종목/품목은 고객에게 안 보임
+        // 배열 필드는 active: true만 남기고, 객체/딕셔너리 필드는 그대로 전달
+        const filterActive = (arr) => (arr || []).filter(i => i.active);
+
         const filtered = {
-            sports: (catalog.sports || []).filter(s => s.active),
-            categories: (catalog.categories || []).filter(c => c.active),
-            sportCategoryMap: catalog.sportCategoryMap || null,
-            fabrics: (catalog.fabrics || []).filter(f => f.active),
-            compositions: {
-                homeAway: (catalog.compositions?.homeAway || []).filter(h => h.active),
-                parts: (catalog.compositions?.parts || []).filter(p => p.active),
-                type: (catalog.compositions?.type || []).filter(t => t.active),
+            // 새 구조 필드 (Part 7 가격/구성 고도화)
+            sports: filterActive(catalog.sports),
+            grades: filterActive(catalog.grades),
+            categories: filterActive(catalog.categories),
+            packages: filterActive(catalog.packages),
+            priceTable: catalog.priceTable || {},
+            sportGradeMap: catalog.sportGradeMap || {},
+            gradePackageMap: catalog.gradePackageMap || {},
+            finishOptions: {
+                top: filterActive(catalog.finishOptions?.top),
+                bottom: filterActive(catalog.finishOptions?.bottom),
             },
+            discounts: filterActive(catalog.discounts),
+            discountPriceTable: catalog.discountPriceTable || {},
+            sizePresets: catalog.sizePresets || {},
+            categorySizeMap: catalog.categorySizeMap || {},
+            homeAway: filterActive(catalog.homeAway),
+            // 하위 호환용 (기존 코드가 참조할 수 있으므로 유지)
+            fabrics: filterActive(catalog.fabrics),
+            compositions: catalog.compositions || null,
             basePrices: catalog.basePrices || {},
             sizes: catalog.sizes || [],
+            sportCategoryMap: catalog.sportCategoryMap || null,
         };
 
         res.json({ success: true, data: filtered });
@@ -119,10 +134,11 @@ router.put('/admin/catalog', adminAuth, (req, res) => {
         const catalog = req.body;
 
         // 기본 유효성 검사 — 필수 섹션이 있는지 확인
-        if (!catalog || !catalog.sports || !catalog.categories || !catalog.fabrics) {
+        // fabrics는 grades로 대체되었으므로 필수에서 제외 (Part 7 고도화)
+        if (!catalog || !catalog.sports || !catalog.categories) {
             return res.status(400).json({
                 success: false,
-                error: '카탈로그 데이터가 올바르지 않습니다. sports, categories, fabrics는 필수입니다.',
+                error: '카탈로그 데이터가 올바르지 않습니다. sports, categories는 필수입니다.',
             });
         }
 

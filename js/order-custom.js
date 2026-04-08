@@ -1,51 +1,64 @@
 /**
- * STIZ 커스텀 주문 위자드 로직
+ * STIZ 커스텀 주문 위자드 로직 (v2 - 7단계, priceTable 참조 방식)
  *
  * 비유: 피자 주문 앱처럼 단계별로 옵션을 선택하면
  * 최종 주문이 만들어지는 시스템.
- * Step 1~6을 거치면서 state 객체에 선택값이 쌓이고,
- * 마지막에 서버로 전송된다.
+ *
+ * 유니폼 흐름: 종목 → 품목(uniform) → 등급 → 패키지+옵션 → 견적+수량 → 주문자 → 확인
+ * 팀웨어 흐름: 종목(teamwear) → 팀웨어 품목 → [3,4 스킵] → 견적+수량 → 주문자 → 확인
+ *
+ * 가격 계산: priceTable["{sport}_{grade}_{package}"] 직접 참조 (배수 곱하기 X)
  */
 
 // 서버 API 주소
 const API_BASE = 'http://localhost:4000';
 
-// 단계 정의 (진행 표시줄용)
+// ===== 7단계 정의 (진행 표시줄용) =====
 const STEPS = [
     { step: 1, label: '종목', icon: 'sports_soccer' },
     { step: 2, label: '품목', icon: 'checkroom' },
-    { step: 3, label: '원단', icon: 'texture' },
-    { step: 4, label: '구성', icon: 'tune' },
-    { step: 5, label: '정보', icon: 'person' },
-    { step: 6, label: '확인', icon: 'fact_check' },
+    { step: 3, label: '등급', icon: 'star' },        // 기존 "원단" → "등급"
+    { step: 4, label: '구성', icon: 'tune' },         // 패키지 + 마감 + 할인
+    { step: 5, label: '견적', icon: 'calculate' },    // 신규: 수량 + 견적 확인
+    { step: 6, label: '정보', icon: 'person' },
+    { step: 7, label: '확인', icon: 'fact_check' },
 ];
 
 // ===== 전역 상태 객체 =====
 // 위자드 전체에서 공유하는 "장바구니" 같은 역할
 const state = {
-    currentStep: 1,        // 현재 표시 중인 단계
-    catalog: null,         // GET /api/catalog 응답 캐시
-    selectedSport: null,   // 선택된 종목 ID
-    selectedCategory: null,// 선택된 품목 ID
-    selectedFabric: null,  // 선택된 원단 ID
-    composition: {         // 구성 옵션 기본값
-        homeAway: 'home',
-        parts: 'set',
-        type: 'single',
+    currentStep: 1,         // 현재 표시 중인 단계
+    catalog: null,          // GET /api/catalog 응답 캐시
+    selectedSport: null,    // 선택된 종목 ID
+    selectedCategory: null, // 선택된 품목 ID
+    selectedGrade: null,    // [신규] 선택된 등급 ID (basic/pro/authentic/reversible)
+    selectedPackage: null,  // [신규] 선택된 패키지 ID (set/top/bottom/top2_bottom1/...)
+    finish: {               // [신규] 마감 옵션
+        top: null,          // sambong | armhole
+        bottom: null,       // no_slit | slit
     },
-    quantity: 1,           // 주문 수량
-    estimate: 0,           // 모의 견적 금액
-    customer: {            // 주문자 정보
+    homeAway: 'home',       // 홈/어웨이 (기존 composition에서 분리)
+    selectedDiscount: null,  // [신규] 적용 할인 ID (null = 할인없음)
+    quantity: 1,            // 주문 수량
+    estimate: 0,            // 모의 견적 금액
+    unitPrice: 0,           // 단가
+    customer: {             // 주문자 정보
         name: '',
         phone: '',
         teamName: '',
         email: '',
         address: '',
     },
-    memo: '',              // 요청사항
-    referenceFiles: [],    // 업로드된 참고 파일 URL 목록
-    isSubmitting: false,   // 중복 제출 방지 플래그
+    memo: '',               // 요청사항
+    referenceFiles: [],     // 업로드된 참고 파일 URL 목록
+    isSubmitting: false,    // 중복 제출 방지 플래그
 };
+
+// ===== 팀웨어 여부 판별 =====
+// 팀웨어는 등급/패키지 선택 없이 품목 자체가 가격을 결정한다
+function isTeamwear() {
+    return state.selectedSport === 'teamwear';
+}
 
 // ===== 초기화 =====
 // 페이지 로드 시 카탈로그 데이터를 서버에서 가져온다
@@ -60,16 +73,6 @@ async function init() {
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('error-screen').classList.add('hidden');
 
-        // 구성 옵션 기본값을 카탈로그 첫 번째 항목으로 설정
-        if (state.catalog.compositions) {
-            const ha = state.catalog.compositions.homeAway;
-            const pt = state.catalog.compositions.parts;
-            const tp = state.catalog.compositions.type;
-            if (ha && ha.length > 0) state.composition.homeAway = ha[0].id;
-            if (pt && pt.length > 0) state.composition.parts = pt[0].id;
-            if (tp && tp.length > 0) state.composition.type = tp[0].id;
-        }
-
         renderProgressBar();
         goToStep(1);
     } catch (err) {
@@ -80,12 +83,16 @@ async function init() {
 }
 
 // ===== 진행 표시줄 렌더링 =====
-// 6개의 원형 + 연결선으로 현재 진행도를 보여준다
+// 7개의 원형 + 연결선으로 현재 진행도를 보여준다
+// 팀웨어일 때는 스킵되는 단계(3,4)를 시각적으로 표시
 function renderProgressBar() {
     const bar = document.getElementById('progress-bar');
     bar.innerHTML = '';
 
-    STEPS.forEach((s, i) => {
+    // 팀웨어일 때 표시할 실제 단계만 필터링
+    const visibleSteps = getVisibleSteps();
+
+    visibleSteps.forEach((s, i) => {
         // 단계 원형
         const circle = document.createElement('div');
         circle.className = 'step-circle flex-shrink-0';
@@ -97,16 +104,17 @@ function renderProgressBar() {
         } else if (s.step === state.currentStep) {
             // 현재 단계: 숫자 + 강조
             circle.classList.add('active');
-            circle.textContent = s.step;
+            // 표시 번호는 보이는 순서로 (1,2,3... 팀웨어면 1,2,3,4,5)
+            circle.textContent = i + 1;
         } else {
             // 미완료 단계: 회색 숫자
             circle.classList.add('inactive');
-            circle.textContent = s.step;
+            circle.textContent = i + 1;
         }
         bar.appendChild(circle);
 
         // 마지막 단계 뒤에는 연결선 불필요
-        if (i < STEPS.length - 1) {
+        if (i < visibleSteps.length - 1) {
             const line = document.createElement('div');
             line.className = 'step-line';
             line.classList.add(s.step < state.currentStep ? 'completed' : 'inactive');
@@ -117,8 +125,17 @@ function renderProgressBar() {
     // 현재 단계 라벨 표시
     const current = STEPS.find(s => s.step === state.currentStep);
     document.getElementById('step-label').textContent = current
-        ? `${current.step}단계: ${current.label}`
+        ? `${current.label}`
         : '';
+}
+
+// 팀웨어일 때 스킵되는 단계를 제외한 표시 목록
+function getVisibleSteps() {
+    if (isTeamwear()) {
+        // 팀웨어: 3(등급), 4(구성) 스킵
+        return STEPS.filter(s => s.step !== 3 && s.step !== 4);
+    }
+    return STEPS;
 }
 
 // ===== 단계 전환 =====
@@ -141,10 +158,11 @@ function goToStep(step) {
     switch (step) {
         case 1: renderSportSelection(); break;
         case 2: renderCategorySelection(); break;
-        case 3: renderFabricSelection(); break;
-        case 4: renderComposition(); break;
-        case 5: renderCustomerInfo(); break;
-        case 6: renderConfirmation(); break;
+        case 3: renderGradeSelection(); break;     // 등급 선택 (유니폼 전용)
+        case 4: renderPackageOptions(); break;      // 패키지 + 마감 + 할인
+        case 5: renderEstimate(); break;            // 견적 + 수량
+        case 6: renderCustomerInfo(); break;
+        case 7: renderConfirmation(); break;
     }
 
     // 이전/다음 버튼 상태 업데이트
@@ -154,22 +172,38 @@ function goToStep(step) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// 이전/다음 버튼 처리
+// ===== 다음 단계로 이동 (팀웨어 스킵 로직 포함) =====
 function goToNext() {
     if (!validateCurrentStep()) return;
 
-    if (state.currentStep === 6) {
-        // 6단계에서 "다음" = 주문 제출
+    if (state.currentStep === 7) {
+        // 7단계에서 "다음" = 주문 제출
         submitOrder();
-    } else {
-        goToStep(state.currentStep + 1);
+        return;
     }
+
+    let nextStep = state.currentStep + 1;
+
+    // 팀웨어일 때: Step 2 → Step 5 (등급/구성 스킵)
+    if (isTeamwear() && state.currentStep === 2) {
+        nextStep = 5;
+    }
+
+    goToStep(nextStep);
 }
 
+// ===== 이전 단계로 이동 (팀웨어 스킵 로직 포함) =====
 function goToPrev() {
-    if (state.currentStep > 1) {
-        goToStep(state.currentStep - 1);
+    if (state.currentStep <= 1) return;
+
+    let prevStep = state.currentStep - 1;
+
+    // 팀웨어일 때: Step 5 → Step 2 (등급/구성 스킵)
+    if (isTeamwear() && state.currentStep === 5) {
+        prevStep = 2;
     }
+
+    goToStep(prevStep);
 }
 
 // 네비 버튼 활성/비활성 + 텍스트 변경
@@ -179,7 +213,7 @@ function updateNavButtons() {
     const bottomNav = document.getElementById('bottom-nav');
 
     // 완료 화면에서는 네비 숨기기
-    if (state.currentStep > 6) {
+    if (state.currentStep > 7) {
         bottomNav.classList.add('hidden');
         return;
     }
@@ -188,8 +222,8 @@ function updateNavButtons() {
     // 1단계에서는 "이전" 비활성
     prevBtn.disabled = state.currentStep <= 1;
 
-    // 6단계에서는 "다음"을 "주문하기"로 변경
-    if (state.currentStep === 6) {
+    // 7단계에서는 "다음"을 "주문하기"로 변경
+    if (state.currentStep === 7) {
         nextBtn.innerHTML = `
             주문하기
             <span class="material-symbols-outlined text-lg">send</span>
@@ -203,7 +237,7 @@ function updateNavButtons() {
 }
 
 // ===== Step 1: 종목 선택 =====
-// 축구, 농구, 배구 등 카탈로그의 종목을 카드 그리드로 표시
+// 축구, 농구, 배구, 팀웨어 등 카탈로그의 종목을 카드 그리드로 표시
 function renderSportSelection() {
     const grid = document.getElementById('sport-grid');
     // 이미 렌더링된 경우 선택 상태만 갱신
@@ -228,7 +262,10 @@ function renderSportSelection() {
                 state.selectedSport = sport.id;
                 // 종목 변경 시 하위 선택 초기화
                 state.selectedCategory = null;
-                state.selectedFabric = null;
+                state.selectedGrade = null;
+                state.selectedPackage = null;
+                state.finish = { top: null, bottom: null };
+                state.selectedDiscount = null;
                 updateCardSelection(grid, sport.id);
             }
         });
@@ -237,101 +274,460 @@ function renderSportSelection() {
 }
 
 // ===== Step 2: 품목 선택 =====
-// 유니폼, 연습복, 패딩 등 카탈로그의 품목을 표시
+// 유니폼 종목이면 "유니폼" 카드 1개만, 팀웨어면 팀웨어 품목 목록 표시
 function renderCategorySelection() {
     const grid = document.getElementById('category-grid');
-    grid.innerHTML = ''; // 종목 변경 시 품목도 새로 그려야 하므로 항상 초기화
+    grid.innerHTML = ''; // 종목 변경 시 항상 새로 그림
 
     const categories = (state.catalog.categories || []).filter(c => c.active);
-    if (categories.length === 0) {
-        grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">등록된 품목이 없습니다.</p>';
-        return;
-    }
 
-    categories.forEach(cat => {
-        const card = createOptionCard({
-            id: cat.id,
-            label: cat.label,
-            description: cat.description || '',
-            icon: 'checkroom',
-            selected: state.selectedCategory === cat.id,
-            onClick: () => {
-                state.selectedCategory = cat.id;
-                updateCardSelection(grid, cat.id);
-            }
+    if (isTeamwear()) {
+        // 팀웨어: group이 'teamwear' 또는 'casual'인 품목만 표시
+        const teamwearCats = categories.filter(c => c.group === 'teamwear' || c.group === 'casual');
+        if (teamwearCats.length === 0) {
+            grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">등록된 팀웨어 품목이 없습니다.</p>';
+            return;
+        }
+
+        teamwearCats.forEach(cat => {
+            // 팀웨어는 품목별 고정가가 있으므로 가격 배지 표시
+            const priceKey = `teamwear__${cat.id}`;
+            const price = state.catalog.priceTable?.[priceKey];
+            const badge = price ? `${price.toLocaleString('ko-KR')}원` : '';
+
+            const card = createOptionCard({
+                id: cat.id,
+                label: cat.label,
+                description: cat.description || '',
+                badge: badge,
+                icon: 'checkroom',
+                selected: state.selectedCategory === cat.id,
+                onClick: () => {
+                    state.selectedCategory = cat.id;
+                    updateCardSelection(grid, cat.id);
+                }
+            });
+            grid.appendChild(card);
         });
-        grid.appendChild(card);
-    });
+    } else {
+        // 유니폼 종목: "유니폼" 카드 1개만 표시
+        const uniformCat = categories.find(c => c.group === 'uniform') || categories.find(c => c.id === 'uniform');
+        if (uniformCat) {
+            const card = createOptionCard({
+                id: uniformCat.id,
+                label: uniformCat.label,
+                description: '커스텀 유니폼 제작',
+                icon: 'checkroom',
+                selected: state.selectedCategory === uniformCat.id,
+                onClick: () => {
+                    state.selectedCategory = uniformCat.id;
+                    updateCardSelection(grid, uniformCat.id);
+                }
+            });
+            grid.appendChild(card);
+            // 유니폼은 1개뿐이므로 자동 선택
+            if (!state.selectedCategory) {
+                state.selectedCategory = uniformCat.id;
+                card.classList.add('selected');
+            }
+        } else {
+            grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">등록된 품목이 없습니다.</p>';
+        }
+    }
 }
 
-// ===== Step 3: 원단 선택 =====
-// 원단별 설명과 가격 배율 표시
-function renderFabricSelection() {
-    const grid = document.getElementById('fabric-grid');
+// ===== Step 3: 등급 선택 (유니폼 전용) =====
+// sportGradeMap에서 해당 종목의 가능한 등급만 카드로 표시
+function renderGradeSelection() {
+    const grid = document.getElementById('grade-grid');
     grid.innerHTML = '';
 
-    const fabrics = (state.catalog.fabrics || []).filter(f => f.active);
-    if (fabrics.length === 0) {
-        grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">등록된 원단이 없습니다.</p>';
+    const grades = state.catalog.grades || [];
+    const sportGradeMap = state.catalog.sportGradeMap || {};
+    // 해당 종목에서 선택 가능한 등급 ID 목록
+    const allowedGrades = sportGradeMap[state.selectedSport] || [];
+
+    if (allowedGrades.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">이 종목에 등록된 등급이 없습니다.</p>';
         return;
     }
 
-    fabrics.forEach(fabric => {
-        // 가격 배율 표시 (1.0이면 "기본", 그 외는 +XX%)
-        const priceTag = fabric.priceMultiplier === 1
-            ? '기본가'
-            : `+${Math.round((fabric.priceMultiplier - 1) * 100)}%`;
+    allowedGrades.forEach(gradeId => {
+        const grade = grades.find(g => g.id === gradeId);
+        if (!grade || !grade.active) return;
+
+        // 등급별 대표 가격 표시 (세트 가격 우선)
+        const setKey = `${state.selectedSport}_${gradeId}_set`;
+        const topKey = `${state.selectedSport}_${gradeId}_top`;
+        const price = state.catalog.priceTable?.[setKey] || state.catalog.priceTable?.[topKey];
+        const badge = price ? `${price.toLocaleString('ko-KR')}원~` : '';
 
         const card = createOptionCard({
-            id: fabric.id,
-            label: fabric.label,
-            description: fabric.description || '',
-            badge: priceTag,
-            icon: 'texture',
-            selected: state.selectedFabric === fabric.id,
+            id: grade.id,
+            label: grade.label,
+            // 원단 이름을 설명으로 표시
+            description: grade.fabric ? `원단: ${grade.fabric}` : '',
+            badge: badge,
+            icon: 'star',
+            selected: state.selectedGrade === grade.id,
             onClick: () => {
-                state.selectedFabric = fabric.id;
-                updateCardSelection(grid, fabric.id);
+                state.selectedGrade = grade.id;
+                // 등급 변경 시 패키지 초기화
+                state.selectedPackage = null;
+                updateCardSelection(grid, grade.id);
             }
         });
         grid.appendChild(card);
     });
 }
 
-// ===== Step 4: 구성 선택 + 견적 =====
-function renderComposition() {
-    // 홈/어웨이 옵션
+// ===== Step 4: 패키지 구성 + 마감 + 할인 (유니폼 전용) =====
+function renderPackageOptions() {
+    // --- 패키지 선택 ---
+    renderPackageGrid();
+
+    // --- 마감 옵션 렌더링 ---
+    renderFinishOptions();
+
+    // --- 홈/어웨이 ---
+    renderHomeAwayOptions();
+
+    // --- 할인 적용 ---
+    renderDiscountOptions();
+}
+
+// 패키지 그리드: gradePackageMap 기반으로 선택 가능한 패키지만 표시
+function renderPackageGrid() {
+    const grid = document.getElementById('package-grid');
+    grid.innerHTML = '';
+
+    const packages = state.catalog.packages || [];
+    const gradePackageMap = state.catalog.gradePackageMap || {};
+    // 현재 등급에서 선택 가능한 패키지 ID 목록
+    const allowedPackages = gradePackageMap[state.selectedGrade] || [];
+
+    if (allowedPackages.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-4">이 등급에 등록된 패키지가 없습니다.</p>';
+        return;
+    }
+
+    allowedPackages.forEach(pkgId => {
+        const pkg = packages.find(p => p.id === pkgId);
+        if (!pkg || !pkg.active) return;
+
+        // 이 패키지의 가격 조회
+        const priceKey = `${state.selectedSport}_${state.selectedGrade}_${pkgId}`;
+        const price = state.catalog.priceTable?.[priceKey];
+        const badge = price ? `${price.toLocaleString('ko-KR')}원` : '별도상담';
+
+        const card = createOptionCard({
+            id: pkg.id,
+            label: pkg.label,
+            description: '',
+            badge: badge,
+            icon: 'inventory_2',
+            selected: state.selectedPackage === pkg.id,
+            onClick: () => {
+                state.selectedPackage = pkg.id;
+                updateCardSelection(grid, pkg.id);
+                // 패키지 변경 시 마감 옵션 표시 갱신
+                renderFinishOptions();
+            }
+        });
+        grid.appendChild(card);
+    });
+}
+
+// 마감 옵션: 패키지에 상의/하의가 포함되어 있으면 해당 마감 옵션 표시
+function renderFinishOptions() {
+    const finishOpts = state.catalog.finishOptions || {};
+    const packages = state.catalog.packages || [];
+    const pkg = packages.find(p => p.id === state.selectedPackage);
+
+    const topSection = document.getElementById('finish-top-section');
+    const bottomSection = document.getElementById('finish-bottom-section');
+
+    // 패키지에 상의가 포함되어 있으면 상의 마감 표시
+    const hasTop = pkg && pkg.topCount > 0;
+    const hasBottom = pkg && pkg.bottomCount > 0;
+
+    if (hasTop && finishOpts.top && finishOpts.top.length > 0) {
+        topSection.classList.remove('hidden');
+        // 기본값 설정
+        if (!state.finish.top) state.finish.top = finishOpts.top[0].id;
+        renderToggleOptions(
+            'finish-top-options',
+            finishOpts.top.filter(o => o.active),
+            state.finish.top,
+            (id) => { state.finish.top = id; }
+        );
+    } else {
+        topSection.classList.add('hidden');
+        state.finish.top = null;
+    }
+
+    if (hasBottom && finishOpts.bottom && finishOpts.bottom.length > 0) {
+        bottomSection.classList.remove('hidden');
+        if (!state.finish.bottom) state.finish.bottom = finishOpts.bottom[0].id;
+        renderToggleOptions(
+            'finish-bottom-options',
+            finishOpts.bottom.filter(o => o.active),
+            state.finish.bottom,
+            (id) => { state.finish.bottom = id; }
+        );
+    } else {
+        bottomSection.classList.add('hidden');
+        state.finish.bottom = null;
+    }
+}
+
+// 홈/어웨이 옵션 렌더링
+function renderHomeAwayOptions() {
+    const homeAwayList = state.catalog.homeAway || [];
+    if (homeAwayList.length === 0) return;
+
+    // 기본값 설정
+    if (!state.homeAway) state.homeAway = homeAwayList[0].id;
+
     renderToggleOptions(
         'homeaway-options',
-        state.catalog.compositions?.homeAway || [],
-        state.composition.homeAway,
-        (id) => { state.composition.homeAway = id; updateEstimateDisplay(); }
+        homeAwayList.filter(o => o.active),
+        state.homeAway,
+        (id) => { state.homeAway = id; }
     );
+}
 
-    // 세트 구성 옵션
-    renderToggleOptions(
-        'parts-options',
-        state.catalog.compositions?.parts || [],
-        state.composition.parts,
-        (id) => { state.composition.parts = id; updateEstimateDisplay(); }
-    );
+// 할인 옵션 렌더링: active인 할인만 체크박스로 표시
+function renderDiscountOptions() {
+    const container = document.getElementById('discount-options');
+    const section = document.getElementById('discount-section');
+    const discounts = (state.catalog.discounts || []).filter(d => d.active);
 
-    // 주문 유형 옵션
-    renderToggleOptions(
-        'type-options',
-        state.catalog.compositions?.type || [],
-        state.composition.type,
-        (id) => { state.composition.type = id; updateEstimateDisplay(); }
-    );
+    if (discounts.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+    section.classList.remove('hidden');
+    container.innerHTML = '';
 
+    discounts.forEach(disc => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-all';
+
+        const checked = state.selectedDiscount === disc.id;
+        label.innerHTML = `
+            <input type="checkbox" name="discount" value="${escapeHtml(disc.id)}"
+                ${checked ? 'checked' : ''}
+                class="w-4 h-4 text-blue-600 rounded border-gray-300" />
+            <div class="flex-1">
+                <span class="text-sm font-semibold text-gray-900">${escapeHtml(disc.label)}</span>
+                ${disc.description ? `<p class="text-xs text-gray-500">${escapeHtml(disc.description)}</p>` : ''}
+            </div>
+        `;
+
+        // 체크박스 변경 이벤트: 단일 선택 (하나만 적용)
+        const checkbox = label.querySelector('input');
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                state.selectedDiscount = disc.id;
+                // 다른 체크박스 해제
+                container.querySelectorAll('input[name="discount"]').forEach(cb => {
+                    if (cb !== checkbox) cb.checked = false;
+                });
+            } else {
+                state.selectedDiscount = null;
+            }
+        });
+
+        container.appendChild(label);
+    });
+}
+
+// ===== Step 5: 견적 확인 + 수량 =====
+function renderEstimate() {
     // 수량 입력 동기화
     document.getElementById('quantity-input').value = state.quantity;
+
+    // 선택 요약 표시
+    renderEstimateSummary();
 
     // 견적 계산 및 표시
     updateEstimateDisplay();
 }
 
-// 토글 버튼 그룹 렌더링 (홈/어웨이, 세트, 유형 공통)
+// 선택 요약 박스 렌더링
+function renderEstimateSummary() {
+    const container = document.getElementById('estimate-summary');
+
+    const sportLabel = findLabel(state.catalog.sports, state.selectedSport);
+
+    let rows = '';
+    rows += summaryRow('종목', sportLabel);
+
+    if (isTeamwear()) {
+        // 팀웨어: 품목만 표시
+        const catLabel = findLabel(state.catalog.categories, state.selectedCategory);
+        rows += summaryRow('품목', catLabel);
+    } else {
+        // 유니폼: 등급 + 패키지 + 마감 + 홈어웨이
+        const gradeObj = (state.catalog.grades || []).find(g => g.id === state.selectedGrade);
+        const gradeLabel = gradeObj ? `${gradeObj.label} (${gradeObj.fabric})` : state.selectedGrade;
+        rows += summaryRow('등급', gradeLabel);
+
+        const pkgLabel = findLabel(state.catalog.packages, state.selectedPackage);
+        rows += summaryRow('패키지', pkgLabel);
+
+        // 마감 옵션
+        if (state.finish.top) {
+            const topLabel = findLabel(state.catalog.finishOptions?.top, state.finish.top);
+            rows += summaryRow('상의 마감', topLabel);
+        }
+        if (state.finish.bottom) {
+            const bottomLabel = findLabel(state.catalog.finishOptions?.bottom, state.finish.bottom);
+            rows += summaryRow('하의 마감', bottomLabel);
+        }
+
+        // 홈/어웨이
+        const haLabel = findLabel(state.catalog.homeAway, state.homeAway);
+        rows += summaryRow('홈/어웨이', haLabel);
+
+        // 할인
+        if (state.selectedDiscount) {
+            const discLabel = findLabel(state.catalog.discounts, state.selectedDiscount);
+            rows += summaryRow('할인', discLabel);
+        }
+    }
+
+    container.innerHTML = `
+        <h3 class="text-sm font-semibold text-gray-500 mb-3 flex items-center gap-1">
+            <span class="material-symbols-outlined text-lg">shopping_bag</span>
+            선택 내역
+        </h3>
+        <div class="space-y-2 text-sm">${rows}</div>
+    `;
+}
+
+// 요약 행 HTML 생성 (XSS 방지)
+function summaryRow(label, value) {
+    return `
+        <div class="flex justify-between">
+            <span class="text-gray-500">${escapeHtml(label)}</span>
+            <span class="font-semibold text-gray-900">${escapeHtml(value || '-')}</span>
+        </div>
+    `;
+}
+
+// 라벨 찾기 유틸리티
+function findLabel(arr, id) {
+    if (!arr || !id) return id || '';
+    const item = arr.find(x => x.id === id);
+    return item ? item.label : id;
+}
+
+// ===== 견적 계산 (핵심: priceTable 직접 참조) =====
+// 기존: basePrices[품목] x 배수들 x 수량
+// 변경: priceTable["{sport}_{grade}_{package}"] x 홈어웨이배수 x 수량
+function calculateEstimate() {
+    if (!state.catalog) return 0;
+
+    let unitPrice = 0;
+
+    if (isTeamwear()) {
+        // 팀웨어: "teamwear__{category}" 키로 직접 참조
+        const key = `teamwear__${state.selectedCategory}`;
+        unitPrice = state.catalog.priceTable?.[key] || 0;
+    } else {
+        // 유니폼: "{sport}_{grade}_{package}" 키로 참조
+        const key = `${state.selectedSport}_${state.selectedGrade}_${state.selectedPackage}`;
+        unitPrice = state.catalog.priceTable?.[key] || 0;
+
+        // 할인 적용
+        if (state.selectedDiscount && unitPrice > 0) {
+            const disc = (state.catalog.discounts || []).find(d => d.id === state.selectedDiscount);
+            if (disc) {
+                if (disc.type === 'fixed_price') {
+                    // 학교스포츠클럽: 별도 가격표에서 조회
+                    const discKey = `${state.selectedSport}_${state.selectedGrade}_${state.selectedPackage}`;
+                    const discPrice = state.catalog.discountPriceTable?.[discKey];
+                    if (discPrice != null) unitPrice = discPrice;
+                } else if (disc.type === 'percent' && disc.value) {
+                    // 비율 할인
+                    unitPrice = Math.round(unitPrice * (1 - disc.value / 100));
+                }
+            }
+        }
+    }
+
+    // 홈/어웨이 배수 (팀웨어도 적용)
+    const homeAwayObj = (state.catalog.homeAway || []).find(h => h.id === state.homeAway);
+    const homeAwayMul = homeAwayObj?.multiplier || 1;
+
+    // 최종 계산
+    state.unitPrice = unitPrice;
+    state.estimate = unitPrice * homeAwayMul * state.quantity;
+    return state.estimate;
+}
+
+function updateEstimateDisplay() {
+    const amount = calculateEstimate();
+    const display = document.getElementById('estimate-display');
+    const detail = document.getElementById('estimate-detail');
+
+    if (display) {
+        display.textContent = amount.toLocaleString('ko-KR') + '원';
+    }
+
+    // 견적 상세 표시
+    if (detail) {
+        const homeAwayObj = (state.catalog.homeAway || []).find(h => h.id === state.homeAway);
+        const homeAwayMul = homeAwayObj?.multiplier || 1;
+
+        if (state.unitPrice > 0) {
+            let detailHtml = `
+                <div class="flex justify-between text-sm">
+                    <span class="text-blue-600">단가</span>
+                    <span class="text-blue-800">${state.unitPrice.toLocaleString('ko-KR')}원</span>
+                </div>
+            `;
+            if (!isTeamwear() && homeAwayMul > 1) {
+                detailHtml += `
+                    <div class="flex justify-between text-sm">
+                        <span class="text-blue-600">홈+어웨이</span>
+                        <span class="text-blue-800">x ${homeAwayMul}</span>
+                    </div>
+                `;
+            }
+            if (state.selectedDiscount) {
+                const disc = (state.catalog.discounts || []).find(d => d.id === state.selectedDiscount);
+                if (disc) {
+                    detailHtml += `
+                        <div class="flex justify-between text-sm">
+                            <span class="text-green-600">할인</span>
+                            <span class="text-green-700">${escapeHtml(disc.label)}</span>
+                        </div>
+                    `;
+                }
+            }
+            detailHtml += `
+                <div class="flex justify-between text-sm">
+                    <span class="text-blue-600">수량</span>
+                    <span class="text-blue-800">${state.quantity}벌</span>
+                </div>
+            `;
+            detail.innerHTML = detailHtml;
+        } else {
+            // 가격표에 없는 조합
+            detail.innerHTML = `
+                <div class="text-sm text-amber-600 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-lg">info</span>
+                    별도 상담이 필요한 조합입니다. 주문 접수 후 연락드리겠습니다.
+                </div>
+            `;
+        }
+    }
+}
+
+// 토글 버튼 그룹 렌더링 (홈/어웨이, 마감 공통)
 function renderToggleOptions(containerId, options, selectedId, onSelect) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -370,36 +766,7 @@ function onQuantityChange(val) {
     updateEstimateDisplay();
 }
 
-// ===== 견적 계산 =====
-// 기본가 x 원단배율 x 구성배율들 x 수량 = 모의 견적
-function calculateEstimate() {
-    if (!state.catalog || !state.selectedCategory) return 0;
-
-    // 기본가: 품목별 기본 가격
-    const base = state.catalog.basePrices?.[state.selectedCategory] || 0;
-
-    // 원단 가격 배율 (기본 1.0)
-    const fabricMul = state.catalog.fabrics?.find(f => f.id === state.selectedFabric)?.priceMultiplier || 1;
-
-    // 구성 배율들
-    const homeAwayMul = state.catalog.compositions?.homeAway?.find(h => h.id === state.composition.homeAway)?.multiplier || 1;
-    const partsMul = state.catalog.compositions?.parts?.find(p => p.id === state.composition.parts)?.multiplier || 1;
-    const typeMul = state.catalog.compositions?.type?.find(t => t.id === state.composition.type)?.multiplier || 1;
-
-    // 최종 계산: 모든 배율을 곱한 뒤 수량 곱하기
-    state.estimate = Math.round(base * fabricMul * homeAwayMul * partsMul * typeMul * state.quantity);
-    return state.estimate;
-}
-
-function updateEstimateDisplay() {
-    const amount = calculateEstimate();
-    const display = document.getElementById('estimate-display');
-    if (display) {
-        display.textContent = amount.toLocaleString('ko-KR') + '원';
-    }
-}
-
-// ===== Step 5: 주문자 정보 =====
+// ===== Step 6: 주문자 정보 =====
 // 기존 입력값이 있으면 복원 (뒤로갔다 올 때)
 function renderCustomerInfo() {
     document.getElementById('input-name').value = state.customer.name;
@@ -410,7 +777,7 @@ function renderCustomerInfo() {
     document.getElementById('input-memo').value = state.memo;
 }
 
-// Step 5를 떠날 때 입력값을 state에 저장
+// Step 6를 떠날 때 입력값을 state에 저장
 function collectCustomerInfo() {
     state.customer.name = document.getElementById('input-name').value.trim();
     state.customer.phone = document.getElementById('input-phone').value.trim();
@@ -420,22 +787,62 @@ function collectCustomerInfo() {
     state.memo = document.getElementById('input-memo').value.trim();
 }
 
-// ===== Step 6: 주문 확인 =====
+// ===== Step 7: 주문 확인 =====
 // 지금까지 선택한 모든 내용을 요약하여 보여준다
 function renderConfirmation() {
-    // Step 5 입력값 수집
+    // Step 6 입력값 수집
     collectCustomerInfo();
 
     const container = document.getElementById('confirmation-summary');
-    const sportLabel = state.catalog.sports?.find(s => s.id === state.selectedSport)?.label || state.selectedSport;
-    const categoryLabel = state.catalog.categories?.find(c => c.id === state.selectedCategory)?.label || state.selectedCategory;
-    const fabricLabel = state.catalog.fabrics?.find(f => f.id === state.selectedFabric)?.label || state.selectedFabric;
-    const homeAwayLabel = state.catalog.compositions?.homeAway?.find(h => h.id === state.composition.homeAway)?.label || state.composition.homeAway;
-    const partsLabel = state.catalog.compositions?.parts?.find(p => p.id === state.composition.parts)?.label || state.composition.parts;
-    const typeLabel = state.catalog.compositions?.type?.find(t => t.id === state.composition.type)?.label || state.composition.type;
+    const sportLabel = findLabel(state.catalog.sports, state.selectedSport);
+    const categoryLabel = findLabel(state.catalog.categories, state.selectedCategory);
 
     // 견적 계산 (최신값)
     calculateEstimate();
+
+    // 홈/어웨이
+    const haLabel = findLabel(state.catalog.homeAway, state.homeAway);
+    const homeAwayObj = (state.catalog.homeAway || []).find(h => h.id === state.homeAway);
+    const homeAwayMul = homeAwayObj?.multiplier || 1;
+
+    // --- 상품 정보 블록 ---
+    let productRows = '';
+    productRows += summaryRow('종목', sportLabel);
+
+    if (isTeamwear()) {
+        productRows += summaryRow('품목', categoryLabel);
+    } else {
+        const gradeObj = (state.catalog.grades || []).find(g => g.id === state.selectedGrade);
+        const gradeLabel = gradeObj ? `${gradeObj.label} (${gradeObj.fabric})` : '';
+        productRows += summaryRow('등급', gradeLabel);
+
+        const pkgLabel = findLabel(state.catalog.packages, state.selectedPackage);
+        productRows += summaryRow('패키지', pkgLabel);
+
+        if (state.finish.top) {
+            productRows += summaryRow('상의 마감', findLabel(state.catalog.finishOptions?.top, state.finish.top));
+        }
+        if (state.finish.bottom) {
+            productRows += summaryRow('하의 마감', findLabel(state.catalog.finishOptions?.bottom, state.finish.bottom));
+        }
+
+        productRows += summaryRow('홈/어웨이', haLabel);
+
+        if (state.selectedDiscount) {
+            productRows += summaryRow('할인', findLabel(state.catalog.discounts, state.selectedDiscount));
+        }
+    }
+
+    productRows += summaryRow('수량', `${state.quantity}벌`);
+
+    // --- 주문자 정보 블록 ---
+    let customerRows = '';
+    customerRows += summaryRow('이름', state.customer.name);
+    customerRows += summaryRow('연락처', state.customer.phone);
+    if (state.customer.teamName) customerRows += summaryRow('팀명', state.customer.teamName);
+    if (state.customer.email) customerRows += summaryRow('이메일', state.customer.email);
+    if (state.customer.address) customerRows += summaryRow('배송 주소', state.customer.address);
+    if (state.memo) customerRows += summaryRow('요청사항', state.memo);
 
     container.innerHTML = `
         <!-- 상품 정보 -->
@@ -444,28 +851,7 @@ function renderConfirmation() {
                 <span class="material-symbols-outlined text-lg">shopping_bag</span>
                 상품 정보
             </h3>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-gray-500">종목</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(sportLabel)}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-500">품목</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(categoryLabel)}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-500">원단</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(fabricLabel)}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-500">구성</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(homeAwayLabel)} / ${escapeHtml(partsLabel)} / ${escapeHtml(typeLabel)}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-500">수량</span>
-                    <span class="font-semibold text-gray-900">${state.quantity}벌</span>
-                </div>
-            </div>
+            <div class="space-y-2 text-sm">${productRows}</div>
         </div>
 
         <!-- 주문자 정보 -->
@@ -474,40 +860,11 @@ function renderConfirmation() {
                 <span class="material-symbols-outlined text-lg">person</span>
                 주문자 정보
             </h3>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-gray-500">이름</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(state.customer.name)}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-500">연락처</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(state.customer.phone)}</span>
-                </div>
-                ${state.customer.teamName ? `
-                <div class="flex justify-between">
-                    <span class="text-gray-500">팀명</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(state.customer.teamName)}</span>
-                </div>` : ''}
-                ${state.customer.email ? `
-                <div class="flex justify-between">
-                    <span class="text-gray-500">이메일</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(state.customer.email)}</span>
-                </div>` : ''}
-                ${state.customer.address ? `
-                <div class="flex justify-between">
-                    <span class="text-gray-500">배송 주소</span>
-                    <span class="font-semibold text-gray-900">${escapeHtml(state.customer.address)}</span>
-                </div>` : ''}
-                ${state.memo ? `
-                <div class="flex justify-between">
-                    <span class="text-gray-500">요청사항</span>
-                    <span class="font-semibold text-gray-900 text-right max-w-[60%]">${escapeHtml(state.memo)}</span>
-                </div>` : ''}
-            </div>
+            <div class="space-y-2 text-sm">${customerRows}</div>
         </div>
 
-        <!-- 참고 파일 -->
         ${state.referenceFiles.length > 0 ? `
+        <!-- 참고 파일 -->
         <div class="bg-white rounded-xl border border-gray-200 p-4">
             <h3 class="text-sm font-semibold text-gray-500 mb-3 flex items-center gap-1">
                 <span class="material-symbols-outlined text-lg">attach_file</span>
@@ -515,7 +872,7 @@ function renderConfirmation() {
             </h3>
             <div class="flex flex-wrap gap-2">
                 ${state.referenceFiles.map(url => `
-                    <a href="${API_BASE}${url}" target="_blank" class="text-xs text-blue-600 underline">${url.split('/').pop()}</a>
+                    <a href="${API_BASE}${url}" target="_blank" class="text-xs text-blue-600 underline">${escapeHtml(url.split('/').pop())}</a>
                 `).join('')}
             </div>
         </div>` : ''}
@@ -526,6 +883,13 @@ function renderConfirmation() {
                 <span class="text-sm font-semibold text-blue-800">모의 견적</span>
                 <span class="text-xl font-bold text-blue-900">${state.estimate.toLocaleString('ko-KR')}원</span>
             </div>
+            ${state.unitPrice > 0 ? `
+                <p class="text-xs text-blue-600 mt-1">
+                    ${state.unitPrice.toLocaleString('ko-KR')}원/벌
+                    ${homeAwayMul > 1 ? ` x ${homeAwayMul}(홈+어웨이)` : ''}
+                    x ${state.quantity}벌
+                </p>
+            ` : ''}
             <p class="text-xs text-blue-500 mt-1">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
         </div>
     `;
@@ -533,7 +897,7 @@ function renderConfirmation() {
 
 // ===== 완료 화면 =====
 function renderComplete(orderNumber) {
-    state.currentStep = 7; // 네비 숨기기용
+    state.currentStep = 8; // 네비 숨기기용
 
     // 모든 step 숨기기
     document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
@@ -590,19 +954,14 @@ async function handleFileSelect(files) {
     }
 
     for (const file of files) {
-        // 수량 초과 체크
         if (state.referenceFiles.length >= MAX_FILES) {
             alert('파일은 최대 5개까지 첨부할 수 있습니다.');
             break;
         }
-
-        // 크기 체크
         if (file.size > MAX_SIZE) {
             alert(`"${file.name}" 파일이 10MB를 초과합니다.`);
             continue;
         }
-
-        // 업로드 실행
         await uploadFile(file);
     }
 
@@ -652,7 +1011,6 @@ async function uploadFile(file) {
         `;
     } catch (err) {
         console.error('파일 업로드 오류:', err);
-        // 실패 표시
         tempEl.innerHTML = `
             <span class="material-symbols-outlined text-red-500 text-lg">error</span>
             <span class="text-red-600 flex-1 truncate">${escapeHtml(file.name)} - ${escapeHtml(err.message)}</span>
@@ -668,7 +1026,6 @@ async function uploadFile(file) {
 function removeFile(index, element) {
     state.referenceFiles.splice(index, 1);
     element.remove();
-    // 인덱스가 바뀌므로 파일 목록 전체 재렌더링
     rerenderFileList();
 }
 
@@ -709,8 +1066,50 @@ async function submitOrder() {
     try {
         // 카탈로그에서 라벨 조회
         const categoryObj = state.catalog.categories?.find(c => c.id === state.selectedCategory);
+        const gradeObj = (state.catalog.grades || []).find(g => g.id === state.selectedGrade);
+        const pkgObj = (state.catalog.packages || []).find(p => p.id === state.selectedPackage);
 
-        // POST /api/orders에 보낼 데이터 구성
+        // 홈/어웨이
+        const homeAwayObj = (state.catalog.homeAway || []).find(h => h.id === state.homeAway);
+        const homeAwayMul = homeAwayObj?.multiplier || 1;
+
+        // POST /api/orders에 보낼 데이터 구성 (v2 구조)
+        const itemData = {
+            name: categoryObj?.label || state.selectedCategory,
+            sport: state.selectedSport,
+            category: state.selectedCategory,
+            quantity: state.quantity,
+            unitPrice: state.unitPrice,
+            method: 'sublimation',
+            homeAway: state.homeAway,
+        };
+
+        // 유니폼 전용 필드
+        if (!isTeamwear()) {
+            itemData.grade = state.selectedGrade;
+            itemData.gradeLabel = gradeObj?.label || state.selectedGrade;
+            itemData.fabric = gradeObj?.fabric || '';
+            itemData.package = state.selectedPackage;
+            itemData.packageLabel = pkgObj?.label || state.selectedPackage;
+            itemData.finish = { ...state.finish };
+
+            if (state.selectedDiscount) {
+                const disc = (state.catalog.discounts || []).find(d => d.id === state.selectedDiscount);
+                if (disc) {
+                    itemData.discount = { id: disc.id, label: disc.label, type: disc.type, value: disc.value || null };
+                }
+            }
+
+            // 하위호환: 기존 코드가 읽을 수 있도록 composition도 포함
+            itemData.composition = {
+                homeAway: state.homeAway,
+                parts: state.selectedPackage,
+                type: 'single',
+            };
+        }
+
+        itemData.totalAmount = state.unitPrice * homeAwayMul * state.quantity;
+
         const body = {
             customer: {
                 name: state.customer.name,
@@ -718,16 +1117,7 @@ async function submitOrder() {
                 email: state.customer.email || undefined,
                 teamName: state.customer.teamName || undefined,
             },
-            items: [{
-                name: categoryObj?.label || state.selectedCategory,
-                sport: state.selectedSport,
-                quantity: state.quantity,
-                unitPrice: state.quantity > 0 ? Math.round(state.estimate / state.quantity) : 0,
-                category: state.selectedCategory,
-                method: 'sublimation',
-                fabric: state.selectedFabric,
-                composition: { ...state.composition },
-            }],
+            items: [itemData],
             shipping: {
                 address: state.customer.address || '',
                 desiredDate: '',
@@ -736,7 +1126,7 @@ async function submitOrder() {
             customerMemo: state.memo,
             estimate: {
                 totalAmount: state.estimate,
-                unitPrice: state.quantity > 0 ? Math.round(state.estimate / state.quantity) : 0,
+                unitPrice: state.unitPrice,
                 quantity: state.quantity,
             },
         };
@@ -750,7 +1140,6 @@ async function submitOrder() {
         const data = await res.json();
 
         if (data.success || data.orderNumber) {
-            // 성공: 완료 화면으로 전환
             renderComplete(data.orderNumber);
         } else {
             throw new Error(data.error || '주문 접수에 실패했습니다.');
@@ -759,7 +1148,6 @@ async function submitOrder() {
         console.error('주문 제출 오류:', err);
         alert('주문 접수 중 오류가 발생했습니다: ' + err.message);
 
-        // 버튼 복원
         nextBtn.innerHTML = originalHtml;
         nextBtn.disabled = false;
         state.isSubmitting = false;
@@ -785,21 +1173,30 @@ function validateCurrentStep() {
             return true;
 
         case 3:
-            if (!state.selectedFabric) {
-                alert('원단을 선택해주세요.');
+            // 등급 선택 (팀웨어는 이 단계를 거치지 않음)
+            if (!state.selectedGrade) {
+                alert('등급을 선택해주세요.');
                 return false;
             }
             return true;
 
         case 4:
+            // 패키지 선택
+            if (!state.selectedPackage) {
+                alert('패키지 구성을 선택해주세요.');
+                return false;
+            }
+            return true;
+
+        case 5:
             if (state.quantity < 1) {
                 alert('수량은 1 이상이어야 합니다.');
                 return false;
             }
             return true;
 
-        case 5:
-            // Step 5를 떠나기 전에 입력값 수집
+        case 6:
+            // 주문자 정보 검증
             collectCustomerInfo();
             if (!state.customer.name) {
                 alert('이름을 입력해주세요.');
@@ -820,7 +1217,7 @@ function validateCurrentStep() {
 
 // ===== 공통 유틸리티 =====
 
-// 옵션 카드 생성 (종목/품목/원단 공통)
+// 옵션 카드 생성 (종목/품목/등급/패키지 공통)
 function createOptionCard({ id, label, description, icon, badge, selected, onClick }) {
     const card = document.createElement('div');
     card.className = `card-option bg-white rounded-xl border-2 border-gray-200 p-4 ${selected ? 'selected' : ''}`;
@@ -839,7 +1236,7 @@ function createOptionCard({ id, label, description, icon, badge, selected, onCli
                 <p class="font-semibold text-gray-900 text-sm">${escapeHtml(label)}</p>
                 ${description ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${escapeHtml(description)}</p>` : ''}
             </div>
-            ${badge ? `<span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${escapeHtml(badge)}</span>` : ''}
+            ${badge ? `<span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">${escapeHtml(badge)}</span>` : ''}
         </div>
     `;
     return card;

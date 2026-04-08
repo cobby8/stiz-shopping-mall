@@ -218,6 +218,68 @@
             border-radius: 12px;
             padding: 20px;
         }
+
+        /* ===== 가격표 매트릭스 테이블 ===== */
+        .price-matrix {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .price-matrix th {
+            background: #f3f4f6;
+            padding: 10px 14px;
+            text-align: center;
+            font-weight: 600;
+            border: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+        .price-matrix td {
+            padding: 6px 10px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+        .price-matrix td.editable {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .price-matrix td.editable:hover {
+            background: #eff6ff;
+        }
+        .price-matrix td.na {
+            background: #f9fafb;
+            color: #d1d5db;
+        }
+        .price-matrix td input {
+            width: 80px;
+            text-align: right;
+            border: 1px solid #3b82f6;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        .price-matrix .row-label {
+            text-align: left;
+            font-weight: 500;
+            background: #fafafa;
+        }
+        /* 종목 필터 버튼 */
+        .filter-btn {
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .filter-btn:hover { border-color: #9ca3af; }
+        .filter-btn.active {
+            background: #111827;
+            color: #fff;
+            border-color: #111827;
+        }
     </style>
 </head>
 
@@ -276,7 +338,7 @@
             </button>
         </div>
 
-        <!-- 탭 메뉴 -->
+        <!-- 탭 메뉴 (7탭: 종목/품목/등급/패키지/가격표/마감+할인/사이즈) -->
         <div class="flex border-b border-gray-200 mb-6 overflow-x-auto">
             <button class="tab-btn active" data-tab="sports" onclick="switchTab('sports')">
                 <span class="material-symbols-outlined text-base align-middle mr-1">sports_basketball</span>종목
@@ -284,14 +346,20 @@
             <button class="tab-btn" data-tab="categories" onclick="switchTab('categories')">
                 <span class="material-symbols-outlined text-base align-middle mr-1">checkroom</span>품목
             </button>
-            <button class="tab-btn" data-tab="fabrics" onclick="switchTab('fabrics')">
-                <span class="material-symbols-outlined text-base align-middle mr-1">texture</span>원단
+            <button class="tab-btn" data-tab="grades" onclick="switchTab('grades')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">star</span>등급
             </button>
-            <button class="tab-btn" data-tab="compositions" onclick="switchTab('compositions')">
-                <span class="material-symbols-outlined text-base align-middle mr-1">tune</span>구성옵션
+            <button class="tab-btn" data-tab="packages" onclick="switchTab('packages')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">inventory_2</span>패키지
             </button>
-            <button class="tab-btn" data-tab="prices" onclick="switchTab('prices')">
-                <span class="material-symbols-outlined text-base align-middle mr-1">payments</span>가격
+            <button class="tab-btn" data-tab="priceTable" onclick="switchTab('priceTable')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">payments</span>가격표
+            </button>
+            <button class="tab-btn" data-tab="finishDiscount" onclick="switchTab('finishDiscount')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">tune</span>마감/할인
+            </button>
+            <button class="tab-btn" data-tab="sizes" onclick="switchTab('sizes')">
+                <span class="material-symbols-outlined text-base align-middle mr-1">straighten</span>사이즈
             </button>
         </div>
 
@@ -307,7 +375,7 @@
         <!-- 탭 콘텐츠 영역 -->
         <div id="tab-content"></div>
 
-        <!-- 견적 시뮬레이션 (항상 하단에 표시) -->
+        <!-- 견적 시뮬레이션 (새 가격표 참조 방식) -->
         <div class="sim-box mt-8">
             <h3 class="font-bold text-sm mb-3 flex items-center gap-1">
                 <span class="material-symbols-outlined text-base">calculate</span>
@@ -315,20 +383,20 @@
             </h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <label class="flex flex-col gap-1">
-                    <span class="text-gray-500">품목</span>
-                    <select id="sim-category" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                    <span class="text-gray-500">종목</span>
+                    <select id="sim-sport" onchange="onSimSportChange()" class="border rounded-lg px-3 py-2 text-sm"></select>
                 </label>
-                <label class="flex flex-col gap-1">
-                    <span class="text-gray-500">원단</span>
-                    <select id="sim-fabric" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                <label id="sim-grade-wrap" class="flex flex-col gap-1">
+                    <span class="text-gray-500">등급</span>
+                    <select id="sim-grade" onchange="onSimGradeChange()" class="border rounded-lg px-3 py-2 text-sm"></select>
                 </label>
-                <label class="flex flex-col gap-1">
-                    <span class="text-gray-500">구성</span>
-                    <select id="sim-parts" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                <label id="sim-package-wrap" class="flex flex-col gap-1">
+                    <span class="text-gray-500">패키지</span>
+                    <select id="sim-package" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
                 </label>
-                <label class="flex flex-col gap-1">
-                    <span class="text-gray-500">유형</span>
-                    <select id="sim-type" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
+                <label id="sim-teamwear-wrap" class="flex flex-col gap-1 hidden">
+                    <span class="text-gray-500">팀웨어 품목</span>
+                    <select id="sim-teamwear-cat" onchange="updateSimulation()" class="border rounded-lg px-3 py-2 text-sm"></select>
                 </label>
                 <label class="flex flex-col gap-1">
                     <span class="text-gray-500">홈/어웨이</span>
@@ -342,6 +410,7 @@
                     <div class="bg-white border border-blue-200 rounded-lg px-4 py-2 w-full text-center">
                         <span class="text-gray-500 text-xs">예상 견적</span>
                         <div id="sim-result" class="text-xl font-bold text-blue-600">-</div>
+                        <div id="sim-detail" class="text-xs text-gray-400 mt-1"></div>
                     </div>
                 </div>
             </div>
