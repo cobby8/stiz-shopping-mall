@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 상품 관리</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* ===== 상품 카드 스타일 ===== */
+        /* 비유: 상품 진열장의 각 칸 — 마우스 올리면 약간 떠오르는 효과 */
+        .product-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        /* ===== 상품 썸네일 자리 ===== */
+        .product-thumb {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            font-size: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+        .product-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ===== 상태 배지 ===== */
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-draft { background: #fef3c7; color: #92400e; }
+        .status-archived { background: #e5e7eb; color: #6b7280; }
+
+        /* ===== 타입 배지 ===== */
+        .type-ready { background: #dbeafe; color: #1e40af; }
+        .type-custom { background: #fce7f3; color: #be185d; }
+
+        /* ===== 필터 바 ===== */
+        .filter-chip {
+            padding: 6px 14px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #6b7280;
+        }
+        .filter-chip:hover { border-color: #111; color: #111; }
+        .filter-chip.active {
+            background: #111;
+            color: #fff;
+            border-color: #111;
+        }
+
+        /* ===== 모달 오버레이 ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-box {
+            background: #fff;
+            border-radius: 16px;
+            max-width: 640px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px;
+        }
+
+        /* ===== 테이블 행 호버 ===== */
+        .product-row { transition: background-color 0.15s; }
+        .product-row:hover { background-color: #f9fafb; }
+
+        /* ===== 로딩 스피너 ===== */
+        .spinner {
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #111;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== 토글 스위치 ===== */
+        .toggle-switch {
+            width: 40px; height: 22px;
+            background: #d1d5db;
+            border-radius: 11px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-switch.on { background: #10b981; }
+        .toggle-switch::after {
+            content: '';
+            width: 18px; height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px; left: 2px;
+            transition: transform 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .toggle-switch.on::after { transform: translateX(18px); }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans text-gray-900">
+
+    <!-- ========================================== -->
+    <!-- 헤더: 네비게이션 (상품관리가 활성) -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <!-- 네비게이션: 상품관리가 활성 상태 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a id="nav-home" href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
+                <a id="nav-all" href="admin.html" class="text-gray-400 hover:text-white transition-colors">전체 주문</a>
+                <a id="nav-design" href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
+                <a id="nav-cs" href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
+                <a id="nav-production" href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
+                <a id="nav-shipping" href="admin-shipping.html" data-admin-scope="all,shipping" class="text-gray-400 hover:text-white transition-colors">출고 파트</a>
+                <a id="nav-calendar" href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
+                <a id="nav-analytics" href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a id="nav-customers" href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a id="nav-catalog" href="admin-catalog.html" class="text-gray-400 hover:text-white transition-colors">상품설정</a>
+                <a id="nav-products" href="admin-products.html" class="text-white font-medium border-b-2 border-brand-red pb-1">상품관리</a>
+                <a id="nav-store" href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <!-- 사용자 정보 + 로그아웃 -->
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <button onclick="handleLogout()"
+                    class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠 -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- 페이지 헤더 -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">상품 관리</h1>
+                <p class="text-sm text-gray-500 mt-1">전체 상품을 등록, 수정, 관리합니다.</p>
+            </div>
+            <!-- 상품 등록 버튼 -->
+            <button id="btn-add-product" onclick="openCreateModal()"
+                class="bg-brand-black text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-lg">add</span>
+                상품 등록
+            </button>
+        </div>
+
+        <!-- ===== 통계 카드 4개 ===== -->
+        <!-- 비유: 상품 재고 현황판 — 한눈에 전체/판매중/숨김/보관 수 확인 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">전체 상품</p>
+                <p id="stat-total" class="text-2xl font-bold">-</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">판매중</p>
+                <p id="stat-active" class="text-2xl font-bold text-green-600">-</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">숨김(초안)</p>
+                <p id="stat-draft" class="text-2xl font-bold text-yellow-600">-</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-xs text-gray-500 mb-1">보관(삭제)</p>
+                <p id="stat-archived" class="text-2xl font-bold text-gray-400">-</p>
+            </div>
+        </div>
+
+        <!-- ===== 필터 + 검색 바 ===== -->
+        <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- 상태 필터 칩 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-400 mr-1">상태:</span>
+                    <button class="filter-chip active" data-filter="status" data-value="">전체</button>
+                    <button class="filter-chip" data-filter="status" data-value="active">판매중</button>
+                    <button class="filter-chip" data-filter="status" data-value="draft">숨김</button>
+                    <button class="filter-chip" data-filter="status" data-value="archived">보관</button>
+                </div>
+
+                <div class="w-px h-6 bg-gray-200"></div>
+
+                <!-- 타입 필터 칩 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-400 mr-1">타입:</span>
+                    <button class="filter-chip active" data-filter="type" data-value="">전체</button>
+                    <button class="filter-chip" data-filter="type" data-value="ready">기성품</button>
+                    <button class="filter-chip" data-filter="type" data-value="custom">커스텀</button>
+                </div>
+
+                <div class="w-px h-6 bg-gray-200"></div>
+
+                <!-- 카테고리 드롭다운 -->
+                <select id="filter-category" onchange="applyFilters()"
+                    class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-black">
+                    <option value="">전체 카테고리</option>
+                </select>
+
+                <!-- 검색 -->
+                <div class="flex-1 min-w-[200px]">
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                        <input id="filter-search" type="text" placeholder="상품명, SKU, 키워드 검색..."
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-black">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 상품 테이블 ===== -->
+        <!-- 비유: 재고 관리 대장 — 한눈에 모든 상품 정보 확인 -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <!-- 테이블 헤더 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 w-12">#</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 w-16">이미지</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500">상품명</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 w-24">타입</th>
+                            <th class="text-left px-4 py-3 font-medium text-gray-500 w-28">카테고리</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 w-28">판매가</th>
+                            <th class="text-right px-4 py-3 font-medium text-gray-500 w-28">원가</th>
+                            <th class="text-center px-4 py-3 font-medium text-gray-500 w-24">상태</th>
+                            <th class="text-center px-4 py-3 font-medium text-gray-500 w-32">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-table-body">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 로딩 / 빈 상태 -->
+            <div id="loading-area" class="flex items-center justify-center py-16">
+                <div class="spinner"></div>
+            </div>
+            <div id="empty-area" class="hidden text-center py-16">
+                <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">inventory_2</span>
+                <p class="text-gray-400">등록된 상품이 없습니다.</p>
+            </div>
+        </div>
+
+        <!-- ===== 페이지네이션 ===== -->
+        <div id="pagination-area" class="hidden flex items-center justify-between mt-4">
+            <p id="pagination-info" class="text-sm text-gray-500"></p>
+            <div id="pagination-buttons" class="flex items-center gap-1"></div>
+        </div>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 상품 등록/수정 모달 -->
+    <!-- ========================================== -->
+    <div id="modal-product" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="modal-title" class="text-lg font-bold">상품 등록</h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <form id="product-form" onsubmit="handleProductSubmit(event)">
+                <!-- 숨긴 필드: 수정 시 상품 ID 저장 -->
+                <input type="hidden" id="form-product-id" value="">
+
+                <!-- 기본 정보 -->
+                <div class="space-y-4">
+                    <!-- 타입 선택 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">상품 타입 *</label>
+                        <div class="flex gap-3">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="product-type" value="ready" checked class="accent-brand-red">
+                                <span class="text-sm">기성품 (브랜드)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="product-type" value="custom" class="accent-brand-red">
+                                <span class="text-sm">커스텀 (주문제작)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 카테고리 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">카테고리 *</label>
+                        <select id="form-category" required
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                            <option value="">카테고리 선택</option>
+                        </select>
+                    </div>
+
+                    <!-- 상품명 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">상품명 (한글) *</label>
+                            <input id="form-name" type="text" required placeholder="예: 페가수스 어센틱 홈"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">영문명</label>
+                            <input id="form-nameEn" type="text" placeholder="예: Pegasus Authentic Home"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                    </div>
+
+                    <!-- SKU + 설명 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">SKU (제품코드)</label>
+                            <input id="form-sku" type="text" placeholder="예: PGS25T1BAL001"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">원단</label>
+                            <input id="form-fabric" type="text" placeholder="예: 어센틱, 플랫백메쉬+"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">상품 설명</label>
+                        <textarea id="form-description" rows="2" placeholder="상품에 대한 간단한 설명"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black"></textarea>
+                    </div>
+
+                    <!-- 가격 영역 -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">판매가 *</label>
+                            <input id="form-price" type="number" min="0" placeholder="0"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">원가</label>
+                            <input id="form-costPrice" type="number" min="0" placeholder="0"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">클럽가</label>
+                            <input id="form-clubPrice" type="number" min="0" placeholder="0"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">도매가</label>
+                            <input id="form-wholesalePrice" type="number" min="0" placeholder="0"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                    </div>
+
+                    <!-- 사이즈 + 키워드 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">사이즈 (콤마 구분)</label>
+                            <input id="form-sizes" type="text" placeholder="예: S,M,L,XL,2XL"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">검색 키워드</label>
+                            <input id="form-keywords" type="text" placeholder="예: 농구,유니폼,나이키"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                    </div>
+
+                    <!-- 상태 + 정렬 순서 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">상태</label>
+                            <select id="form-status"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                                <option value="draft">숨김 (초안)</option>
+                                <option value="active">판매중</option>
+                                <option value="archived">보관</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">정렬 순서 (추천)</label>
+                            <input id="form-sortOrder" type="number" min="0" value="0" placeholder="0이면 미추천"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-black">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 저장 버튼 -->
+                <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-200">
+                    <button type="button" onclick="closeModal()"
+                        class="px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        취소
+                    </button>
+                    <button type="submit" id="btn-submit"
+                        class="px-5 py-2.5 text-sm font-medium text-white bg-brand-black rounded-lg hover:bg-gray-800">
+                        등록하기
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 스크립트 -->
+    <!-- ========================================== -->
+    <script src="js/admin-common.js"></script>
+    <script src="js/admin-products.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ SHOP - 스포츠웨어 & 팀복</title>
+    <meta name="description" content="STIZ 공식 온라인 쇼핑몰. 축구, 농구, 배구 유니폼부터 스포츠웨어까지 한곳에서 만나보세요.">
+    <meta property="og:title" content="STIZ SHOP - 스포츠웨어 & 팀복">
+    <meta property="og:description" content="STIZ 공식 온라인 쇼핑몰. 팀복, 스포츠웨어를 한곳에서.">
+    <meta property="og:type" content="website">
+    <link rel="canonical" href="https://stiz.co.kr/shop.html">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* 상품 카드 호버 효과 */
+        .product-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        }
+        /* 썸네일 이미지 확대 효과 */
+        .product-card img {
+            transition: transform 0.3s ease;
+        }
+        .product-card:hover img {
+            transform: scale(1.05);
+        }
+        /* 카테고리 필터 활성 상태 */
+        .category-btn.active {
+            background-color: #111111;
+            color: white;
+        }
+        /* 스켈레톤 로딩 애니메이션 */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white">
+
+    <!-- 헤더 (header_render.js가 자동 삽입) -->
+    <header></header>
+    <div class="h-20"></div>
+    <div class="h-20"></div>
+
+    <!-- ===== 페이지 상단: 타이틀 + 검색 ===== -->
+    <section class="max-w-7xl mx-auto px-4 pt-4 pb-6">
+        <!-- 브레드크럼 네비게이션 -->
+        <nav class="flex items-center gap-2 text-sm text-gray-400 mb-6">
+            <a href="index.html" class="hover:text-gray-600">HOME</a>
+            <span>/</span>
+            <span class="text-gray-900 font-medium">SHOP</span>
+        </nav>
+
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold tracking-tight">SHOP</h1>
+                <p class="text-gray-500 mt-1" id="totalCount">전체 상품</p>
+            </div>
+
+            <!-- 검색 바 -->
+            <div class="relative w-full md:w-80">
+                <input type="text" id="searchInput" placeholder="상품명 검색..."
+                    class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-brand-black text-sm">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 카테고리 필터 + 정렬 ===== -->
+    <section class="max-w-7xl mx-auto px-4 pb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <!-- 카테고리 필터 버튼들 -->
+            <div class="flex flex-wrap gap-2" id="categoryFilters">
+                <button class="category-btn active px-4 py-1.5 rounded-full text-sm border border-gray-200 transition-colors" data-category="">
+                    전체
+                </button>
+                <!-- JS에서 카테고리 버튼 동적 생성 -->
+            </div>
+
+            <!-- 타입 필터 + 정렬 -->
+            <div class="flex items-center gap-3">
+                <!-- 기성품/커스텀 필터 -->
+                <select id="typeFilter" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-black">
+                    <option value="">전체 타입</option>
+                    <option value="ready">기성품</option>
+                    <option value="custom">커스텀</option>
+                </select>
+
+                <!-- 정렬 -->
+                <select id="sortSelect" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-black">
+                    <option value="newest">최신순</option>
+                    <option value="price_asc">낮은 가격순</option>
+                    <option value="price_desc">높은 가격순</option>
+                    <option value="name">이름순</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 상품 그리드 ===== -->
+    <section class="max-w-7xl mx-auto px-4 pb-16">
+        <!-- 상품 카드 그리드: 모바일 2열, 태블릿 3열, 데스크톱 4열 -->
+        <div id="productGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <!-- JS에서 상품 카드 동적 생성 -->
+        </div>
+
+        <!-- 로딩 스피너 -->
+        <div id="loadingSpinner" class="hidden flex justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-2 border-brand-black border-t-transparent"></div>
+        </div>
+
+        <!-- 빈 결과 메시지 -->
+        <div id="emptyMessage" class="hidden text-center py-20">
+            <span class="material-symbols-outlined text-6xl text-gray-300">search_off</span>
+            <p class="text-gray-400 mt-4 text-lg">검색 결과가 없습니다</p>
+            <button onclick="resetFilters()" class="mt-4 text-sm text-brand-red hover:underline">필터 초기화</button>
+        </div>
+
+        <!-- 더보기 버튼 (무한 스크롤 대안) -->
+        <div id="loadMoreWrap" class="hidden text-center pt-8">
+            <button id="loadMoreBtn" onclick="loadMore()"
+                class="px-8 py-3 border border-brand-black text-sm font-medium rounded-lg hover:bg-brand-black hover:text-white transition-colors">
+                더보기
+            </button>
+        </div>
+    </section>
+
+    <!-- ===== 하단 스크립트 ===== -->
+    <script src="js/header_render.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/shop.js"></script>
+</body>
+
+</html>

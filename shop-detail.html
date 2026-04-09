@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ SHOP - 상품 상세</title>
+    <meta name="description" content="STIZ 공식 온라인 쇼핑몰 상품 상세 페이지">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* 이미지 갤러리: 선택된 썸네일 강조 */
+        .thumb-item.active {
+            border-color: #111111;
+        }
+        /* 사이즈 버튼: 선택 상태 */
+        .size-btn.selected {
+            background-color: #111111;
+            color: white;
+            border-color: #111111;
+        }
+        .size-btn.out-of-stock {
+            opacity: 0.3;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        /* 수량 입력 스피너 숨기기 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        /* 탭 활성 상태 */
+        .tab-btn.active {
+            color: #111111;
+            border-bottom-color: #111111;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white">
+
+    <!-- 헤더 -->
+    <header></header>
+    <div class="h-20"></div>
+    <div class="h-20"></div>
+
+    <!-- ===== 브레드크럼 ===== -->
+    <nav class="max-w-7xl mx-auto px-4 pt-4 pb-2">
+        <div class="flex items-center gap-2 text-sm text-gray-400" id="breadcrumb">
+            <a href="index.html" class="hover:text-gray-600">HOME</a>
+            <span>/</span>
+            <a href="shop.html" class="hover:text-gray-600">SHOP</a>
+            <span>/</span>
+            <span class="text-gray-900 font-medium" id="breadcrumbName">...</span>
+        </div>
+    </nav>
+
+    <!-- ===== 상품 상세: 상단 (이미지 + 정보) ===== -->
+    <section class="max-w-7xl mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+
+            <!-- 좌측: 이미지 갤러리 -->
+            <div>
+                <!-- 메인 이미지 -->
+                <div class="aspect-square rounded-xl overflow-hidden bg-gray-50 mb-3" id="mainImageWrap">
+                    <img id="mainImage" src="" alt="상품 이미지"
+                         class="w-full h-full object-cover">
+                </div>
+                <!-- 썸네일 목록 (가로 스크롤) -->
+                <div class="flex gap-2 overflow-x-auto pb-2" id="thumbList">
+                    <!-- JS에서 동적 생성 -->
+                </div>
+            </div>
+
+            <!-- 우측: 상품 정보 + 구매 옵션 -->
+            <div class="flex flex-col">
+                <!-- 카테고리 + 타입 배지 -->
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-sm text-gray-400" id="categoryName"></span>
+                    <span id="typeBadge" class="hidden text-xs px-2 py-0.5 rounded-full font-medium"></span>
+                </div>
+
+                <!-- 상품명 -->
+                <h1 class="text-2xl md:text-3xl font-bold leading-tight mb-1" id="productName"></h1>
+                <p class="text-sm text-gray-400 mb-4" id="productNameEn"></p>
+
+                <!-- 가격 -->
+                <div class="mb-6" id="priceArea">
+                    <!-- JS에서 가격 렌더링 -->
+                </div>
+
+                <!-- 구분선 -->
+                <hr class="mb-6">
+
+                <!-- 사이즈 선택 -->
+                <div class="mb-6" id="sizeSection">
+                    <p class="text-sm font-medium mb-3">사이즈 선택</p>
+                    <div class="flex flex-wrap gap-2" id="sizeButtons">
+                        <!-- JS에서 동적 생성 -->
+                    </div>
+                </div>
+
+                <!-- 수량 선택 -->
+                <div class="mb-6">
+                    <p class="text-sm font-medium mb-3">수량</p>
+                    <div class="flex items-center border border-gray-200 rounded-lg w-fit">
+                        <button onclick="changeQty(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-black">
+                            <span class="material-symbols-outlined text-xl">remove</span>
+                        </button>
+                        <input type="number" id="qtyInput" value="1" min="1" max="99"
+                               class="w-12 h-10 text-center text-sm font-medium border-x border-gray-200 focus:outline-none">
+                        <button onclick="changeQty(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-black">
+                            <span class="material-symbols-outlined text-xl">add</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 총 금액 -->
+                <div class="bg-gray-50 rounded-lg p-4 mb-6 flex items-center justify-between">
+                    <span class="text-sm text-gray-500">총 상품 금액</span>
+                    <span class="text-xl font-bold text-brand-black" id="totalPrice">0원</span>
+                </div>
+
+                <!-- 구매 버튼 영역 -->
+                <div class="flex gap-3">
+                    <button onclick="addToCartFromDetail()"
+                        class="flex-1 py-3.5 bg-brand-black text-white font-medium rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-xl">shopping_cart</span>
+                        장바구니 담기
+                    </button>
+                    <button onclick="shareProduct()"
+                        class="w-12 h-12 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 hover:text-brand-black hover:border-brand-black transition-colors"
+                        title="공유하기">
+                        <span class="material-symbols-outlined text-xl">share</span>
+                    </button>
+                </div>
+
+                <!-- 배송/교환 안내 요약 -->
+                <div class="mt-6 space-y-2 text-sm text-gray-500">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-base">local_shipping</span>
+                        <span>5만원 이상 무료배송 (미만 시 3,000원)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-base">swap_horiz</span>
+                        <span>교환/반품: 수령 후 7일 이내</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 상품 상세: 하단 탭 (설명/리뷰/교환) ===== -->
+    <section class="max-w-7xl mx-auto px-4 py-8 border-t border-gray-100">
+        <!-- 탭 버튼 -->
+        <div class="flex border-b border-gray-200 mb-8">
+            <button class="tab-btn active px-6 py-3 text-sm font-medium border-b-2 border-transparent transition-colors" data-tab="description">
+                상품 설명
+            </button>
+            <button class="tab-btn px-6 py-3 text-sm font-medium text-gray-400 border-b-2 border-transparent transition-colors" data-tab="info">
+                배송/교환 안내
+            </button>
+        </div>
+
+        <!-- 탭 내용: 상품 설명 -->
+        <div id="tab-description" class="tab-content">
+            <div class="prose max-w-none text-gray-700" id="descriptionContent">
+                <!-- JS에서 상품 설명 삽입 -->
+            </div>
+        </div>
+
+        <!-- 탭 내용: 배송/교환 안내 -->
+        <div id="tab-info" class="tab-content hidden">
+            <div class="max-w-2xl space-y-6 text-sm text-gray-600 leading-relaxed">
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-2">배송 안내</h3>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>기성품: 결제 확인 후 1~3일 이내 출고</li>
+                        <li>커스텀 제품: 시안 확정 후 약 2~3주 소요</li>
+                        <li>5만원 이상 구매 시 무료배송 (미만 시 3,000원)</li>
+                        <li>도서산간 지역 추가 배송비 발생 가능</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-2">교환/반품 안내</h3>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>상품 수령 후 7일 이내 교환/반품 가능</li>
+                        <li>커스텀 제품은 제작 특성상 교환/반품이 불가합니다</li>
+                        <li>단순 변심에 의한 반품 시 왕복 배송비 고객 부담</li>
+                        <li>불량/오배송의 경우 배송비 무료 교환</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 관련 상품 ===== -->
+    <section class="max-w-7xl mx-auto px-4 py-8 border-t border-gray-100" id="relatedSection">
+        <h2 class="text-xl font-bold mb-6">관련 상품</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="relatedGrid">
+            <!-- JS에서 동적 생성 -->
+        </div>
+    </section>
+
+    <!-- 하단 스크립트 -->
+    <script src="js/header_render.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/shop-detail.js"></script>
+</body>
+
+</html>
