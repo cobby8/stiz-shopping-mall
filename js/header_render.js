@@ -150,8 +150,8 @@ function renderHeader() {
                 </svg>
             </a>
 
-            <!-- Cart (Store Only Ideally, but kept global) -->
-            <a href="basket.html" class="hover:opacity-70 relative">
+            <!-- Cart (장바구니 아이콘 + 배지) -->
+            <a href="cart.html" class="hover:opacity-70 relative">
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>

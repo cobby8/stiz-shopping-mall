@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ SHOP - 주문/결제</title>
+    <meta name="description" content="STIZ 주문 및 결제 페이지">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* 입력 필드 포커스 스타일 통일 */
+        .form-input:focus {
+            outline: none;
+            border-color: #111111;
+            box-shadow: 0 0 0 1px #111111;
+        }
+        /* 주문 완료 화면 애니메이션 */
+        @keyframes checkmark {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-checkmark {
+            animation: checkmark 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-gray-50">
+
+    <!-- 헤더 (header_render.js가 자동 삽입) -->
+    <header></header>
+    <div class="h-20"></div>
+    <div class="h-20"></div>
+
+    <!-- ===== 주문 폼 (기본 화면) ===== -->
+    <div id="checkoutForm">
+
+        <!-- 브레드크럼 -->
+        <nav class="max-w-4xl mx-auto px-4 pt-4 pb-2">
+            <div class="flex items-center gap-2 text-sm text-gray-400">
+                <a href="index.html" class="hover:text-gray-600">HOME</a>
+                <span>/</span>
+                <a href="cart.html" class="hover:text-gray-600">장바구니</a>
+                <span>/</span>
+                <span class="text-gray-900 font-medium">주문/결제</span>
+            </div>
+        </nav>
+
+        <!-- 페이지 타이틀 -->
+        <section class="max-w-4xl mx-auto px-4 pt-4 pb-6">
+            <h1 class="text-3xl font-bold tracking-tight">주문/결제</h1>
+        </section>
+
+        <!-- ===== 주문 콘텐츠 ===== -->
+        <section class="max-w-4xl mx-auto px-4 pb-16">
+            <div class="flex flex-col lg:flex-row gap-8">
+
+                <!-- 좌측: 주문 정보 입력 -->
+                <div class="flex-1 space-y-6">
+
+                    <!-- 1. 주문자 정보 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-xl">person</span>
+                            주문자 정보
+                        </h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">이름 <span class="text-brand-red">*</span></label>
+                                <input type="text" id="customerName" placeholder="홍길동"
+                                    class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">연락처 <span class="text-brand-red">*</span></label>
+                                <input type="tel" id="customerPhone" placeholder="010-1234-5678"
+                                    class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">이메일</label>
+                                <input type="email" id="customerEmail" placeholder="email@example.com"
+                                    class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 배송지 정보 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-xl">local_shipping</span>
+                            배송지 정보
+                        </h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">받는 분</label>
+                                <input type="text" id="recipientName" placeholder="주문자와 동일하면 비워두세요"
+                                    class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">배송지 주소</label>
+                                <input type="text" id="shippingAddress" placeholder="도로명 주소"
+                                    class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">상세 주소</label>
+                                <input type="text" id="shippingDetail" placeholder="동/호수"
+                                    class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 주문 요청사항 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-xl">edit_note</span>
+                            요청사항
+                        </h2>
+                        <textarea id="orderMemo" rows="3" placeholder="배송 관련 요청사항이 있으면 입력해주세요 (선택)"
+                            class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm resize-none"></textarea>
+                    </div>
+
+                    <!-- 4. 결제 방법 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-xl">account_balance</span>
+                            결제 방법
+                        </h2>
+                        <!-- 현재는 무통장 입금만 지원 -->
+                        <div class="border-2 border-brand-black rounded-lg p-4 bg-gray-50">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-brand-black">account_balance</span>
+                                <div>
+                                    <p class="font-medium text-sm">무통장 입금</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">주문 후 아래 계좌로 입금해주세요</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 p-3 bg-white rounded-lg border border-gray-100">
+                                <p class="text-sm font-medium">우리은행 1005-604-824546</p>
+                                <p class="text-xs text-gray-500 mt-0.5">예금주: 디엠어패럴(장준현)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 우측: 주문 요약 사이드바 -->
+                <div class="w-full lg:w-80 lg:flex-shrink-0">
+                    <div class="bg-white rounded-xl p-6 shadow-sm sticky top-24">
+                        <h2 class="font-bold text-lg mb-4">주문 상품</h2>
+
+                        <!-- 주문 상품 목록 (축약) -->
+                        <div id="orderItems" class="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                            <!-- checkout.js에서 동적 생성 -->
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- 금액 요약 -->
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">상품 금액</span>
+                                <span class="font-medium" id="orderSubtotal">0원</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">배송비</span>
+                                <span class="font-medium" id="orderShipping">0원</span>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- 총 결제 금액 -->
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="font-bold text-base">총 결제 금액</span>
+                            <span class="text-xl font-bold text-brand-red" id="orderTotal">0원</span>
+                        </div>
+
+                        <!-- 결제 버튼 -->
+                        <button id="submitOrder" onclick="submitOrder()"
+                            class="w-full py-3.5 bg-brand-black text-white font-medium rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-xl">check_circle</span>
+                            주문하기
+                        </button>
+
+                        <!-- 안내 문구 -->
+                        <p class="text-xs text-gray-400 mt-3 text-center leading-relaxed">
+                            주문 버튼을 클릭하면 결제에 동의하는 것으로 간주합니다.
+                            입금 확인 후 주문이 확정됩니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ===== 주문 완료 화면 (숨김 상태) ===== -->
+    <div id="orderComplete" class="hidden">
+        <section class="max-w-xl mx-auto px-4 py-20 text-center">
+            <!-- 체크 아이콘 -->
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-checkmark">
+                <span class="material-symbols-outlined text-4xl text-green-600">check_circle</span>
+            </div>
+
+            <h1 class="text-2xl font-bold mb-2">주문이 완료되었습니다!</h1>
+            <p class="text-gray-500 mb-8">아래 계좌로 입금해주시면 주문이 확정됩니다.</p>
+
+            <!-- 주문 정보 카드 -->
+            <div class="bg-white rounded-xl p-6 shadow-sm text-left space-y-4">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">주문번호</span>
+                    <span class="font-bold" id="resultOrderNumber">-</span>
+                </div>
+                <hr>
+                <div>
+                    <p class="text-sm text-gray-500 mb-2">입금 계좌</p>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-lg">우리은행 1005-604-824546</p>
+                        <p class="text-sm text-gray-500 mt-1">예금주: 디엠어패럴(장준현)</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">결제 금액</span>
+                    <span class="font-bold text-brand-red text-lg" id="resultTotal">0원</span>
+                </div>
+            </div>
+
+            <!-- 주문 추적 안내 -->
+            <div class="bg-blue-50 rounded-xl p-4 mt-6 text-sm text-blue-700">
+                <span class="material-symbols-outlined text-base align-middle mr-1">info</span>
+                주문번호로 주문 진행 상황을 확인할 수 있습니다.
+            </div>
+
+            <!-- 버튼들 -->
+            <div class="flex gap-3 mt-8">
+                <button onclick="copyOrderNumber()"
+                    class="flex-1 py-3 border border-gray-200 rounded-lg text-sm font-medium hover:border-brand-black transition-colors flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-lg">content_copy</span>
+                    주문번호 복사
+                </button>
+                <a href="shop.html"
+                    class="flex-1 py-3 bg-brand-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-lg">storefront</span>
+                    쇼핑 계속하기
+                </a>
+            </div>
+        </section>
+    </div>
+
+    <!-- 하단 스크립트 -->
+    <script src="js/header_render.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/checkout.js"></script>
+</body>
+
+</html>

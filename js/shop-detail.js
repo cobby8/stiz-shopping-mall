@@ -55,10 +55,16 @@ async function loadProductDetail(id) {
     // 페이지 렌더링
     renderProductInfo();
     renderImageGallery();
-    renderSizeOptions();
     renderDescription();
     renderRelated();
-    updateTotalPrice();
+
+    // 커스텀 상품이면 커스텀 패널 활성화, 기성품이면 기존 패널
+    if (data.product.type === 'custom') {
+      initCustomPanel();           // 커스텀 옵션 패널 초기화
+    } else {
+      renderSizeOptions();
+      updateTotalPrice();
+    }
 
     // 페이지 타이틀 업데이트
     document.title = `${data.product.name} - STIZ SHOP`;
@@ -386,4 +392,447 @@ function shareProduct() {
     // clipboard API도 안 되면 프롬프트로 대체
     prompt('아래 링크를 복사하세요:', url);
   });
+}
+
+
+// ==========================================================
+// ===== 커스텀 상품 전용 로직 (B'-4) =====
+// 비유: 피자 토핑처럼 등급/패키지/마감을 고르면 견적이 나오고,
+//       주문자 정보를 입력하면 시안 요청이 접수되는 시스템
+// ==========================================================
+
+// 커스텀 전용 상태 — detailState와 별도로 관리
+const customState = {
+  catalog: null,         // GET /api/catalog 응답 캐시
+  selectedGrade: null,   // 선택된 등급 ID
+  selectedPackage: null, // 선택된 패키지 ID
+  finishTop: null,       // 상의 마감 옵션
+  finishBottom: null,    // 하의 마감 옵션
+  qty: 1,                // 주문 수량
+  unitPrice: 0,          // 단가
+  totalEstimate: 0,      // 견적 총액
+  isSubmitting: false,   // 중복 제출 방지
+};
+
+/**
+ * 커스텀 패널 초기화
+ * 1) 기성품 패널 숨기고 커스텀 패널 표시
+ * 2) 카탈로그 API에서 priceTable + 옵션 데이터 가져오기
+ * 3) customMeta에서 가능한 등급/패키지 필터링하여 버튼 렌더링
+ */
+async function initCustomPanel() {
+  // 기성품 패널 숨기기, 커스텀 패널 보이기
+  const readyPanel = document.getElementById('readyPanel');
+  const customPanel = document.getElementById('customPanel');
+  if (readyPanel) readyPanel.classList.add('hidden');
+  if (customPanel) customPanel.classList.remove('hidden');
+
+  try {
+    // 카탈로그 데이터 로드 (priceTable, grades, packages 등)
+    const res = await fetch(`${API_BASE}/catalog`);
+    const json = await res.json();
+    if (!json.success || !json.data) throw new Error('카탈로그 로드 실패');
+    customState.catalog = json.data;
+
+    // customMeta에서 이 상품이 지원하는 등급/패키지 목록 추출
+    const meta = detailState.product.customMeta || {};
+
+    // 등급 렌더링
+    renderCustomGrades(meta);
+    // 패키지는 등급 선택 후 렌더링
+    // 마감 옵션은 패키지 선택 후 렌더링
+    // 견적은 옵션 변경 시마다 자동 갱신
+
+    // 수량 입력 이벤트
+    const qtyInput = document.getElementById('customQtyInput');
+    if (qtyInput) {
+      qtyInput.addEventListener('change', () => {
+        let val = parseInt(qtyInput.value) || 1;
+        val = Math.max(1, Math.min(999, val));
+        qtyInput.value = val;
+        customState.qty = val;
+        updateCustomEstimate();
+      });
+    }
+  } catch (err) {
+    console.error('[custom] 카탈로그 로드 실패:', err);
+    // 카탈로그 없어도 기본 안내는 보여줌
+    const gradeSection = document.getElementById('customGradeSection');
+    if (gradeSection) {
+      gradeSection.innerHTML = '<p class="text-sm text-gray-400">옵션을 불러올 수 없습니다. 시안 요청 시 요청사항에 원하는 옵션을 적어주세요.</p>';
+    }
+  }
+}
+
+/**
+ * 등급 버튼 렌더링
+ * customMeta.grades 배열이 있으면 해당 등급만, 없으면 sportGradeMap에서 필터
+ */
+function renderCustomGrades(meta) {
+  const container = document.getElementById('customGradeButtons');
+  if (!container || !customState.catalog) return;
+
+  const allGrades = customState.catalog.grades || [];
+  const sportGradeMap = customState.catalog.sportGradeMap || {};
+
+  // customMeta.grades가 있으면 그것으로 필터, 없으면 sport 기반 필터
+  // customMeta.sport: 이 상품이 속한 종목 (예: 'soccer', 'baseball')
+  let allowedIds = meta.grades || [];
+  if (allowedIds.length === 0 && meta.sport) {
+    allowedIds = sportGradeMap[meta.sport] || [];
+  }
+
+  // 필터된 등급만 표시
+  const filtered = allowedIds.length > 0
+    ? allGrades.filter(g => allowedIds.includes(g.id))
+    : allGrades;
+
+  if (filtered.length === 0) {
+    document.getElementById('customGradeSection').classList.add('hidden');
+    return;
+  }
+
+  container.innerHTML = filtered.map(g => {
+    // 세트 가격으로 대표 가격 배지 표시
+    const sport = meta.sport || '';
+    const setKey = `${sport}_${g.id}_set`;
+    const topKey = `${sport}_${g.id}_top`;
+    const price = customState.catalog.priceTable?.[setKey] || customState.catalog.priceTable?.[topKey];
+    const badge = price ? `<span class="text-xs text-gray-400 ml-1">${price.toLocaleString()}원~</span>` : '';
+
+    return `
+      <button class="custom-opt-btn px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium transition-colors hover:border-brand-black"
+              data-grade="${g.id}" onclick="selectCustomGrade(this)">
+        ${g.label}${badge}
+      </button>
+    `;
+  }).join('');
+}
+
+/**
+ * 등급 선택 핸들러
+ * 등급이 바뀌면 패키지 목록을 새로 렌더링
+ */
+function selectCustomGrade(btn) {
+  // 등급 버튼 토글
+  document.querySelectorAll('#customGradeButtons .custom-opt-btn')
+    .forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  customState.selectedGrade = btn.dataset.grade;
+  // 패키지 초기화 후 렌더링
+  customState.selectedPackage = null;
+  customState.finishTop = null;
+  customState.finishBottom = null;
+
+  const meta = detailState.product.customMeta || {};
+  renderCustomPackages(meta);
+  clearCustomFinish();
+  updateCustomEstimate();
+}
+
+/**
+ * 패키지 버튼 렌더링
+ * customMeta.packages 배열이 있으면 해당 패키지만, 없으면 gradePackageMap 기반
+ */
+function renderCustomPackages(meta) {
+  const container = document.getElementById('customPackageButtons');
+  const section = document.getElementById('customPackageSection');
+  if (!container || !customState.catalog) return;
+
+  const allPackages = customState.catalog.packages || [];
+  const gradePackageMap = customState.catalog.gradePackageMap || {};
+
+  // customMeta.packages가 있으면 우선, 없으면 등급 기반 필터
+  let allowedIds = meta.packages || [];
+  if (allowedIds.length === 0 && customState.selectedGrade) {
+    allowedIds = gradePackageMap[customState.selectedGrade] || [];
+  }
+
+  const filtered = allowedIds.length > 0
+    ? allPackages.filter(p => allowedIds.includes(p.id))
+    : allPackages;
+
+  if (filtered.length === 0) {
+    section.classList.add('hidden');
+    return;
+  }
+  section.classList.remove('hidden');
+
+  const sport = meta.sport || '';
+  container.innerHTML = filtered.map(p => {
+    // 이 등급+패키지의 가격 조회
+    const priceKey = `${sport}_${customState.selectedGrade}_${p.id}`;
+    const price = customState.catalog.priceTable?.[priceKey];
+    const badge = price ? `<span class="text-xs text-gray-400 ml-1">${price.toLocaleString()}원</span>` : '';
+
+    return `
+      <button class="custom-opt-btn px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium transition-colors hover:border-brand-black"
+              data-package="${p.id}" onclick="selectCustomPackage(this)">
+        ${p.label}${badge}
+      </button>
+    `;
+  }).join('');
+}
+
+/**
+ * 패키지 선택 핸들러
+ * 패키지가 바뀌면 마감 옵션을 렌더링하고 견적을 갱신
+ */
+function selectCustomPackage(btn) {
+  document.querySelectorAll('#customPackageButtons .custom-opt-btn')
+    .forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  customState.selectedPackage = btn.dataset.package;
+  customState.finishTop = null;
+  customState.finishBottom = null;
+
+  renderCustomFinish();
+  updateCustomEstimate();
+}
+
+/**
+ * 마감 옵션 렌더링
+ * 패키지에 상의/하의가 포함되는지 판단하여 보여줌
+ */
+function renderCustomFinish() {
+  const catalog = customState.catalog;
+  if (!catalog) return;
+
+  const finishOpts = catalog.finishOptions || {};
+  const pkg = (catalog.packages || []).find(p => p.id === customState.selectedPackage);
+  // 패키지가 상의/하의를 포함하는지 판단
+  const hasTop = pkg ? (pkg.includesTop !== false) : true;
+  const hasBottom = pkg ? (pkg.includesBottom !== false) : true;
+
+  // 상의 마감
+  const topSection = document.getElementById('customFinishTopSection');
+  const topContainer = document.getElementById('customFinishTopButtons');
+  const topOpts = finishOpts.top || [];
+  if (hasTop && topOpts.length > 0) {
+    topSection.classList.remove('hidden');
+    topContainer.innerHTML = topOpts.map((opt, i) => `
+      <button class="custom-opt-btn px-3 py-1.5 border border-gray-200 rounded-lg text-sm transition-colors hover:border-brand-black ${i === 0 ? 'selected' : ''}"
+              data-finish="${opt.id}" onclick="selectCustomFinishTop(this)">
+        ${opt.label}
+      </button>
+    `).join('');
+    // 첫 번째 옵션 자동 선택
+    customState.finishTop = topOpts[0]?.id || null;
+  } else {
+    topSection.classList.add('hidden');
+  }
+
+  // 하의 마감
+  const bottomSection = document.getElementById('customFinishBottomSection');
+  const bottomContainer = document.getElementById('customFinishBottomButtons');
+  const bottomOpts = finishOpts.bottom || [];
+  if (hasBottom && bottomOpts.length > 0) {
+    bottomSection.classList.remove('hidden');
+    bottomContainer.innerHTML = bottomOpts.map((opt, i) => `
+      <button class="custom-opt-btn px-3 py-1.5 border border-gray-200 rounded-lg text-sm transition-colors hover:border-brand-black ${i === 0 ? 'selected' : ''}"
+              data-finish="${opt.id}" onclick="selectCustomFinishBottom(this)">
+        ${opt.label}
+      </button>
+    `).join('');
+    customState.finishBottom = bottomOpts[0]?.id || null;
+  } else {
+    bottomSection.classList.add('hidden');
+  }
+}
+
+/** 마감 옵션 영역 초기화 (등급 변경 시) */
+function clearCustomFinish() {
+  ['customFinishTopSection', 'customFinishBottomSection'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  document.getElementById('customPackageButtons').innerHTML = '';
+}
+
+function selectCustomFinishTop(btn) {
+  document.querySelectorAll('#customFinishTopButtons .custom-opt-btn')
+    .forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  customState.finishTop = btn.dataset.finish;
+}
+
+function selectCustomFinishBottom(btn) {
+  document.querySelectorAll('#customFinishBottomButtons .custom-opt-btn')
+    .forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  customState.finishBottom = btn.dataset.finish;
+}
+
+/**
+ * 커스텀 수량 조절
+ */
+function changeCustomQty(delta) {
+  const input = document.getElementById('customQtyInput');
+  let newQty = (parseInt(input.value) || 1) + delta;
+  newQty = Math.max(1, Math.min(999, newQty));
+  input.value = newQty;
+  customState.qty = newQty;
+  updateCustomEstimate();
+}
+
+/**
+ * 견적 갱신
+ * priceTable에서 "{sport}_{grade}_{package}" 키로 단가를 찾아 수량과 곱함
+ */
+function updateCustomEstimate() {
+  const catalog = customState.catalog;
+  const meta = detailState.product?.customMeta || {};
+  const sport = meta.sport || '';
+  let unitPrice = 0;
+
+  if (catalog && customState.selectedGrade && customState.selectedPackage) {
+    // priceTable 키 생성: "{sport}_{grade}_{package}"
+    const key = `${sport}_${customState.selectedGrade}_${customState.selectedPackage}`;
+    unitPrice = catalog.priceTable?.[key] || 0;
+  }
+
+  customState.unitPrice = unitPrice;
+  customState.totalEstimate = unitPrice * customState.qty;
+
+  // UI 업데이트
+  const totalEl = document.getElementById('customEstimateTotal');
+  const detailEl = document.getElementById('customEstimateDetail');
+
+  if (totalEl) {
+    totalEl.textContent = customState.totalEstimate > 0
+      ? `${customState.totalEstimate.toLocaleString()}원`
+      : '옵션을 선택하세요';
+  }
+
+  if (detailEl) {
+    if (unitPrice > 0) {
+      detailEl.innerHTML = `
+        <div class="flex justify-between">
+          <span>단가</span>
+          <span class="font-medium text-gray-700">${unitPrice.toLocaleString()}원</span>
+        </div>
+        <div class="flex justify-between">
+          <span>수량</span>
+          <span class="font-medium text-gray-700">${customState.qty}벌</span>
+        </div>
+      `;
+    } else {
+      detailEl.innerHTML = '';
+    }
+  }
+}
+
+/**
+ * 시안 요청 제출
+ * POST /api/orders에 커스텀 주문 데이터를 전송
+ * 기존 order-custom.js의 submitOrder()와 동일한 데이터 구조
+ */
+async function submitCustomOrder() {
+  if (customState.isSubmitting) return;
+
+  // 필수 입력 검증
+  const name = document.getElementById('customName')?.value?.trim();
+  const phone = document.getElementById('customPhone')?.value?.trim();
+
+  if (!name) {
+    alert('이름을 입력해주세요.');
+    document.getElementById('customOrdererDetails').open = true;
+    document.getElementById('customName')?.focus();
+    return;
+  }
+  if (!phone) {
+    alert('연락처를 입력해주세요.');
+    document.getElementById('customOrdererDetails').open = true;
+    document.getElementById('customPhone')?.focus();
+    return;
+  }
+
+  customState.isSubmitting = true;
+  const btn = document.getElementById('customSubmitBtn');
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = '<span class="material-symbols-outlined text-xl animate-spin">progress_activity</span> 처리 중...';
+  btn.disabled = true;
+
+  try {
+    const p = detailState.product;
+    const meta = p.customMeta || {};
+    const catalog = customState.catalog;
+
+    // 카탈로그에서 라벨 조회
+    const gradeObj = (catalog?.grades || []).find(g => g.id === customState.selectedGrade);
+    const pkgObj = (catalog?.packages || []).find(pk => pk.id === customState.selectedPackage);
+
+    // 주문 아이템 구성 (order-custom.js와 동일 구조)
+    const itemData = {
+      name: p.name,
+      sport: meta.sport || '',
+      category: 'uniform',
+      quantity: customState.qty,
+      unitPrice: customState.unitPrice,
+      method: 'sublimation',
+      homeAway: 'home',
+      // 커스텀 전용 필드
+      grade: customState.selectedGrade || '',
+      gradeLabel: gradeObj?.label || customState.selectedGrade || '',
+      fabric: gradeObj?.fabric || '',
+      package: customState.selectedPackage || '',
+      packageLabel: pkgObj?.label || customState.selectedPackage || '',
+      finish: {
+        top: customState.finishTop,
+        bottom: customState.finishBottom,
+      },
+      // 하위호환: composition 필드
+      composition: {
+        homeAway: 'home',
+        parts: customState.selectedPackage || 'set',
+        type: 'single',
+      },
+      totalAmount: customState.totalEstimate,
+      // 상품 ID 참조 (어떤 상품에서 주문했는지 추적)
+      productId: p.id,
+    };
+
+    const body = {
+      customer: {
+        name: name,
+        phone: phone,
+        teamName: document.getElementById('customTeam')?.value?.trim() || undefined,
+      },
+      items: [itemData],
+      shipping: { address: '', desiredDate: '' },
+      referenceFiles: [],
+      customerMemo: document.getElementById('customMemo')?.value?.trim() || '',
+      estimate: {
+        totalAmount: customState.totalEstimate,
+        unitPrice: customState.unitPrice,
+        quantity: customState.qty,
+      },
+    };
+
+    // POST /api/orders로 시안 요청 전송
+    const res = await fetch(`${API_BASE}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+
+    if (data.success || data.orderNumber) {
+      // 성공: 완료 안내
+      alert(`시안 요청이 접수되었습니다!\n주문번호: ${data.orderNumber}\n\n확인 후 디자인 시안을 제작하여 연락드리겠습니다.`);
+      // 주문 추적 페이지로 이동
+      location.href = `order-track.html?orderNumber=${data.orderNumber}`;
+    } else {
+      throw new Error(data.error || '주문 접수에 실패했습니다.');
+    }
+  } catch (err) {
+    console.error('[custom] 시안 요청 오류:', err);
+    alert('시안 요청 중 오류가 발생했습니다: ' + err.message);
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+    customState.isSubmitting = false;
+  }
 }
