@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE,
   password TEXT,
   role TEXT DEFAULT 'customer',
+  scopes TEXT DEFAULT '',          -- 관리자 권한 범위 (쉼표 구분: 'all', 'design', 'cs', 'production', 'shipping')
   joinedAt TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

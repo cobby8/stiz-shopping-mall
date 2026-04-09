@@ -116,9 +116,12 @@
                 <a id="nav-store" href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
             </nav>
 
-            <!-- 사용자 정보 + 로그아웃 -->
+            <!-- 사용자 정보 + 설정 + 로그아웃 -->
             <div class="flex items-center space-x-4">
                 <span id="admin-name" class="text-sm text-gray-300"></span>
+                <a href="admin-settings.html" class="text-gray-400 hover:text-white transition-colors" title="설정">
+                    <span class="material-symbols-outlined text-xl">settings</span>
+                </a>
                 <button onclick="handleLogout()"
                     class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
                     <span class="material-symbols-outlined text-base">logout</span>

@@ -18,7 +18,12 @@ import db from '../db.js';
 function getAdminScopes(user) {
     // admin이 아닌 사용자에게는 빈 배열 반환 (방어적 처리)
     if (user.role !== 'admin') return [];
+    // DB에서는 쉼표 구분 문자열로 저장됨 (예: 'design,cs')
+    // JWT 토큰에서는 배열로 저장됨 — 두 경우 모두 처리
     if (Array.isArray(user.scopes) && user.scopes.length > 0) return user.scopes;
+    if (typeof user.scopes === 'string' && user.scopes.trim()) {
+        return user.scopes.split(',').map(s => s.trim()).filter(Boolean);
+    }
     return ['all'];
 }
 

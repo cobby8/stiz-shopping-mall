@@ -99,9 +99,12 @@
                 <a id="nav-store" href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
             </nav>
 
-            <!-- 관리자 이름 + 로그아웃 -->
+            <!-- 관리자 이름 + 설정 + 로그아웃 -->
             <div class="flex items-center gap-3">
                 <span id="admin-name" class="text-sm text-gray-300">관리자</span>
+                <a href="admin-settings.html" class="text-gray-400 hover:text-white transition-colors" title="설정">
+                    <span class="material-symbols-outlined text-xl">settings</span>
+                </a>
                 <button onclick="localStorage.removeItem('stiz_admin_token'); location.href='admin-login.html'"
                     class="text-xs text-gray-400 hover:text-white">로그아웃</button>
             </div>

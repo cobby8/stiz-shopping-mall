@@ -36,6 +36,19 @@ if (fs.existsSync(SCHEMA_PATH)) {
     db.exec(schema);
 }
 
+// --- 마이그레이션: users 테이블에 scopes 컬럼 추가 ---
+// 기존 DB에 scopes 컬럼이 없을 수 있으므로 ALTER TABLE로 안전하게 추가
+try {
+    const cols = db.pragma('table_info(users)');
+    const hasScopes = cols.some(c => c.name === 'scopes');
+    if (!hasScopes) {
+        db.exec("ALTER TABLE users ADD COLUMN scopes TEXT DEFAULT ''");
+        console.log('[DB] users 테이블에 scopes 컬럼 추가 완료');
+    }
+} catch (e) {
+    // 이미 존재하면 무시
+}
+
 // --- ID 생성 헬퍼 ---
 // Date.now()만 쓰면 같은 밀리초에 2건이 들어올 때 ID 충돌 가능
 // 타임스탬프 + 랜덤 3자리를 조합하여 충돌 방지

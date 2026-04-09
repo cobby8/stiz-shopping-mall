@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 시스템 설정</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* 모달 오버레이 */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        /* 모달 등장 애니메이션 */
+        .modal-content {
+            animation: fadeInUp 0.2s ease-out;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 입력 필드 포커스 스타일 */
+        .form-input:focus {
+            border-color: #E63946;
+            box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.12);
+        }
+        /* 역할 배지 */
+        .role-badge-admin {
+            background: #fee2e2; color: #dc2626;
+        }
+        .role-badge-staff {
+            background: #dbeafe; color: #2563eb;
+        }
+        /* 스켈레톤 로딩 */
+        .skeleton {
+            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 6px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-gray-50 text-gray-900 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- 관리자 헤더 -->
+    <!-- ========================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <!-- 네비게이션 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a id="nav-home" href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
+                <a id="nav-all" href="admin.html" class="text-gray-400 hover:text-white transition-colors">전체 주문</a>
+                <a id="nav-design" href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
+                <a id="nav-cs" href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
+                <a id="nav-production" href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
+                <a id="nav-shipping" href="admin-shipping.html" data-admin-scope="all,shipping" class="text-gray-400 hover:text-white transition-colors">출고 파트</a>
+                <a id="nav-calendar" href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
+                <a id="nav-analytics" href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a id="nav-customers" href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a id="nav-catalog" href="admin-catalog.html" class="text-gray-400 hover:text-white transition-colors">상품설정</a>
+                <a id="nav-products" href="admin-products.html" class="text-gray-400 hover:text-white transition-colors">상품관리</a>
+                <a id="nav-store" href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <!-- 사용자 정보 + 설정 + 로그아웃 -->
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <a href="admin-settings.html" class="text-brand-red hover:text-red-400 transition-colors" title="설정">
+                    <span class="material-symbols-outlined text-xl">settings</span>
+                </a>
+                <button onclick="handleLogout()"
+                    class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 메인 콘텐츠 -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-8 max-w-5xl">
+
+        <!-- 페이지 타이틀 -->
+        <div class="mb-8">
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <span class="material-symbols-outlined text-gray-400">settings</span>
+                시스템 설정
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">관리자 계정과 시스템 설정을 관리합니다.</p>
+        </div>
+
+        <!-- ===== 관리자 계정 관리 섹션 ===== -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-500">group</span>
+                    관리자 계정 관리
+                </h2>
+                <button id="btn-add-user" onclick="openAddModal()"
+                    class="bg-brand-red hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-base">person_add</span>
+                    계정 추가
+                </button>
+            </div>
+
+            <!-- 계정 목록 테이블 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200 text-left">
+                            <th class="pb-3 font-semibold text-gray-500">이름</th>
+                            <th class="pb-3 font-semibold text-gray-500">이메일</th>
+                            <th class="pb-3 font-semibold text-gray-500">역할</th>
+                            <th class="pb-3 font-semibold text-gray-500">권한</th>
+                            <th class="pb-3 font-semibold text-gray-500">생성일</th>
+                            <th class="pb-3 font-semibold text-gray-500 text-center">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- 스켈레톤 로딩 -->
+                        <tr><td colspan="6" class="py-4"><div class="skeleton" style="height:40px;"></div></td></tr>
+                        <tr><td colspan="6" class="py-1"><div class="skeleton" style="height:40px;"></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 계정 추가/수정 모달 -->
+    <!-- ========================================== -->
+    <div id="modal-user" class="hidden fixed inset-0 z-[100] flex items-center justify-center modal-overlay">
+        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <h3 id="modal-title" class="text-lg font-bold text-gray-900 mb-5">계정 추가</h3>
+
+            <form id="user-form" class="space-y-4" onsubmit="handleUserSubmit(event)">
+                <!-- 숨겨진 ID (수정 시 사용) -->
+                <input type="hidden" id="form-user-id" value="">
+
+                <!-- 이름 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                    <input type="text" id="form-name" required placeholder="홍길동"
+                        class="form-input w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none transition-all" />
+                </div>
+
+                <!-- 이메일 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                    <input type="email" id="form-email" required placeholder="user@stiz.kr"
+                        class="form-input w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none transition-all" />
+                </div>
+
+                <!-- 비밀번호 (추가 시에만 표시) -->
+                <div id="password-section">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
+                    <div class="relative">
+                        <input type="password" id="form-password" placeholder="8자 이상"
+                            class="form-input w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm outline-none transition-all" />
+                        <button type="button" onclick="toggleFormPassword('form-password')"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <span class="material-symbols-outlined text-lg">visibility_off</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 역할 선택 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">역할</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="form-role" value="admin" checked class="accent-brand-red">
+                            <span class="text-sm">관리자</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 권한 범위 선택 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">권한 범위</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                            <input type="checkbox" id="scope-all" value="all" class="accent-brand-red" onchange="handleScopeAll(this)">
+                            <span class="text-sm">전체</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                            <input type="checkbox" class="scope-item accent-brand-red" value="design" onchange="handleScopeItem()">
+                            <span class="text-sm">디자인</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                            <input type="checkbox" class="scope-item accent-brand-red" value="cs" onchange="handleScopeItem()">
+                            <span class="text-sm">CS</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                            <input type="checkbox" class="scope-item accent-brand-red" value="production" onchange="handleScopeItem()">
+                            <span class="text-sm">제작</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                            <input type="checkbox" class="scope-item accent-brand-red" value="shipping" onchange="handleScopeItem()">
+                            <span class="text-sm">출고</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 버튼 -->
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModal('modal-user')"
+                        class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                        취소
+                    </button>
+                    <button type="submit" id="btn-submit-user"
+                        class="px-4 py-2.5 text-sm font-medium text-white bg-brand-red hover:bg-red-700 rounded-lg transition-colors">
+                        저장
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 비밀번호 변경 모달 -->
+    <!-- ========================================== -->
+    <div id="modal-password" class="hidden fixed inset-0 z-[100] flex items-center justify-center modal-overlay">
+        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-1">비밀번호 변경</h3>
+            <p id="pw-target-label" class="text-sm text-gray-500 mb-5">대상: -</p>
+
+            <form id="password-form" class="space-y-4" onsubmit="handlePasswordSubmit(event)">
+                <input type="hidden" id="pw-target-id" value="">
+
+                <!-- 현재 비밀번호 (자기 비번 변경 시에만 표시) -->
+                <div id="current-pw-section" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">현재 비밀번호</label>
+                    <input type="password" id="pw-current" placeholder="현재 비밀번호"
+                        class="form-input w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none transition-all" />
+                </div>
+
+                <!-- 새 비밀번호 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">새 비밀번호</label>
+                    <div class="relative">
+                        <input type="password" id="pw-new" required placeholder="8자 이상"
+                            class="form-input w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm outline-none transition-all" />
+                        <button type="button" onclick="toggleFormPassword('pw-new')"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <span class="material-symbols-outlined text-lg">visibility_off</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 비밀번호 확인 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호 확인</label>
+                    <input type="password" id="pw-confirm" required placeholder="새 비밀번호 재입력"
+                        class="form-input w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none transition-all" />
+                </div>
+
+                <!-- 버튼 -->
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModal('modal-password')"
+                        class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                        취소
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2.5 text-sm font-medium text-white bg-brand-red hover:bg-red-700 rounded-lg transition-colors">
+                        변경
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 공통 모듈 (인증/API/유틸) -->
+    <script src="js/admin-common.js"></script>
+    <!-- 설정 페이지 JS -->
+    <script src="js/admin-settings.js"></script>
+
+</body>
+</html>
