@@ -129,8 +129,11 @@
                             required
                             autocomplete="current-password"
                             placeholder="비밀번호를 입력하세요"
-                            class="input-field w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
+                            class="input-field w-full pl-10 pr-10 py-3 border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
                         />
+                        <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                            <span id="pw-toggle-icon" class="material-symbols-outlined text-xl">visibility_off</span>
+                        </button>
                     </div>
                 </div>
 
@@ -161,6 +164,19 @@
         // 상수 정의
         // ============================================================
         const API_BASE = 'http://localhost:4000';
+
+        // 비밀번호 보기/숨기기 토글
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('pw-toggle-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = 'visibility';
+            } else {
+                input.type = 'password';
+                icon.textContent = 'visibility_off';
+            }
+        }
 
         function getDefaultAdminPage(payload) {
             if (!payload) return 'admin-home.html';
