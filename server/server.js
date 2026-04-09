@@ -28,6 +28,7 @@ import adminRoutes from './routes/admin.js';
 import customerRoutes from './routes/customers.js';
 import catalogRoutes from './routes/catalog.js';      // 상품 카탈로그 API (A-2)
 import uploadRoutes from './routes/upload.js';          // 파일 업로드 API (A-4)
+import productRoutes from './routes/products.js';       // 상품 CRUD API (E-2)
 import { adminAuth } from './middleware/adminAuth.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
 import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
@@ -81,6 +82,10 @@ app.use('/api', catalogRoutes);
 // 업로드 라우트 — 공개(reference) + 관리자(design/temp) 모두 포함 (A-4)
 // uploadRoutes 내부에서 /upload/reference는 인증 불필요, /admin/upload/*는 adminAuth 경유
 app.use('/api', uploadRoutes);
+
+// 상품 라우트 — 공개(목록/상세/카테고리/추천) + 관리자(CRUD/이미지/카테고리관리) (E-2)
+// productRoutes 내부에서 /admin/* 엔드포인트에 adminAuth를 개별 적용
+app.use('/api', productRoutes);
 
 // --- settings 테이블 초기 시딩 (A-1) ---
 // 비유: 식당 오픈 전에 기본 메뉴판을 세팅하는 것. 이미 메뉴판이 있으면 건드리지 않음
