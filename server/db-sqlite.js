@@ -48,7 +48,9 @@ function generateId() {
 // 비유: 건물에 "출입 허가 명단"을 붙여놓고, 명단에 없는 사람은 입장 불가
 const ALLOWED_TABLES = [
     'orders', 'customers', 'order_history', 'activity_log',
-    'sales_goals', 'users', 'order_templates', 'settings'
+    'sales_goals', 'users', 'order_templates', 'settings',
+    // Phase E-1: 상품 시스템 테이블 4개 추가
+    'product_categories', 'products', 'product_options', 'product_images'
 ];
 
 // 테이블명 검증 함수 — 화이트리스트에 없으면 즉시 에러

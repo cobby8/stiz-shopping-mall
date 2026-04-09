@@ -112,3 +112,84 @@ CREATE TABLE IF NOT EXISTS users (
   joinedAt TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- =============================================
+-- 상품 시스템 테이블 (Phase E-1: 자체 상품 등록/관리)
+-- 비유: 쇼핑몰의 "상품 카탈로그 DB" — 카테고리 > 상품 > 옵션/이미지 계층 구조
+-- =============================================
+
+-- product_categories: 상품 분류 (대분류/중분류 계층)
+-- parentId가 NULL이면 대분류, 값이 있으면 해당 대분류의 중분류
+-- 비유: 서점의 "소설 > 추리소설" 같은 2단계 분류
+CREATE TABLE IF NOT EXISTS product_categories (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,           -- 카테고리 이름 (예: '농구의류', 'SHIRTS')
+  slug TEXT UNIQUE,             -- URL용 영문 식별자 (예: 'basketball-apparel')
+  parentId INTEGER DEFAULT NULL, -- 대분류의 id (NULL이면 대분류)
+  sortOrder INTEGER DEFAULT 0,  -- 정렬 순서
+  active INTEGER DEFAULT 1,     -- 활성/비활성 (1=활성, 0=비활성)
+  createdAt TEXT,
+  updatedAt TEXT,
+  FOREIGN KEY (parentId) REFERENCES product_categories(id)
+);
+CREATE INDEX IF NOT EXISTS idx_product_categories_parentId ON product_categories(parentId);
+CREATE INDEX IF NOT EXISTS idx_product_categories_slug ON product_categories(slug);
+
+-- products: 통합 상품 테이블 (기성품 ready + 커스텀 custom)
+-- type 필드로 구분: 'ready' = 완제품(BRAND), 'custom' = 주문제작(CUSTOM)
+-- 비유: 매장에서 "진열 상품(ready)"과 "주문 제작 상품(custom)"을 한 진열장에서 관리
+CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY,
+  type TEXT NOT NULL DEFAULT 'ready',  -- 'ready'(기성품) 또는 'custom'(주문제작)
+  categoryId INTEGER,                   -- product_categories.id 참조
+  name TEXT NOT NULL,                   -- 상품명 (예: '페가수스 어센틱 홈')
+  nameEn TEXT DEFAULT '',               -- 영문 상품명
+  sku TEXT DEFAULT '',                  -- 제품코드 (예: 'PGS25T1BAL001')
+  description TEXT DEFAULT '',          -- 상품 간략 설명
+  price INTEGER DEFAULT 0,             -- 판매가 (원 단위, 정수)
+  costPrice INTEGER DEFAULT 0,         -- 제조원가
+  clubPrice INTEGER DEFAULT 0,         -- 학교스포츠클럽 가격
+  wholesalePrice INTEGER DEFAULT 0,    -- 도매가
+  sizes TEXT DEFAULT '',               -- 사이즈 범위 (예: 'S~3XL', '5XS~5XL')
+  fabric TEXT DEFAULT '',              -- 원단 (예: '어센틱', '플랫백메쉬+')
+  keywords TEXT DEFAULT '',            -- 검색 키워드
+  customMeta TEXT DEFAULT '{}',        -- 커스텀 전용 메타 (JSON): 등급/패키지/마감 등
+  status TEXT DEFAULT 'active',        -- 상품 상태: active/draft/archived
+  sortOrder INTEGER DEFAULT 0,
+  createdAt TEXT,
+  updatedAt TEXT,
+  FOREIGN KEY (categoryId) REFERENCES product_categories(id)
+);
+CREATE INDEX IF NOT EXISTS idx_products_type ON products(type);
+CREATE INDEX IF NOT EXISTS idx_products_categoryId ON products(categoryId);
+CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
+CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
+
+-- product_options: 상품별 옵션 (사이즈, 색상 등)
+-- 비유: 옷 한 벌에 달려 있는 "사이즈 S/M/L" 선택지
+CREATE TABLE IF NOT EXISTS product_options (
+  id INTEGER PRIMARY KEY,
+  productId INTEGER NOT NULL,
+  optionType TEXT NOT NULL DEFAULT 'size',  -- 옵션 종류: 'size', 'color' 등
+  optionValue TEXT NOT NULL,                -- 옵션 값 (예: 'M', 'L', 'XL')
+  priceAdjust INTEGER DEFAULT 0,            -- 가격 조정 (추가금/할인)
+  stock INTEGER DEFAULT -1,                 -- 재고 (-1 = 무한/주문제작)
+  sortOrder INTEGER DEFAULT 0,
+  active INTEGER DEFAULT 1,
+  FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_product_options_productId ON product_options(productId);
+
+-- product_images: 상품 이미지
+-- 비유: 상품 상세페이지의 "사진 갤러리"
+CREATE TABLE IF NOT EXISTS product_images (
+  id INTEGER PRIMARY KEY,
+  productId INTEGER NOT NULL,
+  url TEXT NOT NULL,                      -- 이미지 URL 또는 파일 경로
+  alt TEXT DEFAULT '',                    -- 대체 텍스트 (접근성)
+  isPrimary INTEGER DEFAULT 0,           -- 대표 이미지 여부 (1=대표)
+  sortOrder INTEGER DEFAULT 0,
+  createdAt TEXT,
+  FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_product_images_productId ON product_images(productId);

@@ -31,6 +31,7 @@ import uploadRoutes from './routes/upload.js';          // 파일 업로드 API 
 import { adminAuth } from './middleware/adminAuth.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
 import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
+import fs from 'fs';  // CSV 파일 읽기용
 
 app.get('/', (req, res) => {
     res.json({
@@ -313,6 +314,261 @@ sqliteDb.prepare(`
     updatedAt: new Date().toISOString(),
     updatedBy: 'system',
 });
+
+// ============================================================
+// Phase E-1: 상품 시스템 초기 시딩
+// 비유: 새 매장 오픈 시 카테고리 팻말 달고, 상품을 진열하는 작업
+// 서버 시작할 때 한 번만 실행 (테이블이 비어있을 때만 삽입)
+// ============================================================
+
+// --- CSV 파싱 헬퍼 ---
+// 따옴표 안의 쉼표를 무시하고, 필드를 정확히 분리하는 함수
+// 비유: 택배 상자의 내용물 목록에서 "콤마가 포함된 품명"을 올바르게 분리
+function parseCSVLine(line) {
+    const fields = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            // 따옴표 시작/종료 토글
+            inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+            // 따옴표 밖의 쉼표 = 필드 구분자
+            fields.push(current.trim());
+            current = '';
+        } else {
+            current += ch;
+        }
+    }
+    fields.push(current.trim()); // 마지막 필드
+    return fields;
+}
+
+// --- 가격 문자열 → 숫자 변환 ---
+// "85,000" → 85000, 빈값/비숫자 → 0
+function parsePrice(str) {
+    if (!str) return 0;
+    const cleaned = str.replace(/,/g, '').replace(/"/g, '').trim();
+    const num = parseInt(cleaned, 10);
+    return isNaN(num) ? 0 : num;
+}
+
+// --- 1) 카테고리 시딩: 대분류 4개 + 중분류 14개 ---
+const catCount = sqliteDb.prepare('SELECT COUNT(*) as cnt FROM product_categories').get().cnt;
+if (catCount === 0) {
+    console.log('[E-1] 상품 카테고리 시딩 시작...');
+
+    // 대분류 4개 (parentId = NULL)
+    const majors = [
+        { id: 1, name: 'BRAND', slug: 'brand', sortOrder: 1 },
+        { id: 2, name: 'CUSTOM', slug: 'custom', sortOrder: 2 },
+        { id: 3, name: '팀웨어', slug: 'teamwear', sortOrder: 3 },
+        { id: 4, name: '캐주얼', slug: 'casual', sortOrder: 4 },
+    ];
+
+    // 중분류 14개 (parentId = 대분류 id)
+    const minors = [
+        // BRAND 하위
+        { id: 10, name: '농구의류', slug: 'brand-basketball', parentId: 1, sortOrder: 1 },
+        { id: 11, name: 'SHIRTS', slug: 'brand-shirts', parentId: 1, sortOrder: 2 },
+        { id: 12, name: 'BOTTOM', slug: 'brand-bottom', parentId: 1, sortOrder: 3 },
+        { id: 13, name: 'HOODIE', slug: 'brand-hoodie', parentId: 1, sortOrder: 4 },
+        { id: 14, name: 'MTM', slug: 'brand-mtm', parentId: 1, sortOrder: 5 },
+        // CUSTOM 하위
+        { id: 20, name: '농구', slug: 'custom-basketball', parentId: 2, sortOrder: 1 },
+        { id: 21, name: '축구', slug: 'custom-soccer', parentId: 2, sortOrder: 2 },
+        { id: 22, name: '배구', slug: 'custom-volleyball', parentId: 2, sortOrder: 3 },
+        // 팀웨어 하위
+        { id: 30, name: '슈팅저지', slug: 'teamwear-shooting', parentId: 3, sortOrder: 1 },
+        { id: 31, name: '전사티', slug: 'teamwear-sublim', parentId: 3, sortOrder: 2 },
+        { id: 32, name: '트랙탑 웜업', slug: 'teamwear-tracktop', parentId: 3, sortOrder: 3 },
+        { id: 33, name: '후드 웜업', slug: 'teamwear-hood', parentId: 3, sortOrder: 4 },
+        // 캐주얼 하위
+        { id: 40, name: '캐주얼 의류', slug: 'casual-apparel', parentId: 4, sortOrder: 1 },
+        { id: 41, name: '캐주얼 아우터', slug: 'casual-outer', parentId: 4, sortOrder: 2 },
+    ];
+
+    const now = new Date().toISOString();
+    const insertCat = sqliteDb.prepare(`
+        INSERT INTO product_categories (id, name, slug, parentId, sortOrder, active, createdAt, updatedAt)
+        VALUES (@id, @name, @slug, @parentId, @sortOrder, 1, @now, @now)
+    `);
+
+    const seedCategories = sqliteDb.transaction(() => {
+        for (const m of majors) {
+            insertCat.run({ ...m, parentId: null, now });
+        }
+        for (const m of minors) {
+            insertCat.run({ ...m, now });
+        }
+    });
+    seedCategories();
+    console.log(`[E-1] 카테고리 ${majors.length + minors.length}개 시딩 완료`);
+}
+
+// --- 2) 상품 시딩: CSV 파싱하여 products 테이블에 삽입 ---
+const prodCount = sqliteDb.prepare('SELECT COUNT(*) as cnt FROM products').get().cnt;
+if (prodCount === 0) {
+    const csvPath = path.join(__dirname, '..', 'dev', 'price-sheet.csv');
+    if (fs.existsSync(csvPath)) {
+        console.log('[E-1] 상품 CSV 파싱 시작...');
+        const csvContent = fs.readFileSync(csvPath, 'utf-8');
+        const lines = csvContent.split('\n').filter(l => l.trim());
+
+        // 첫 줄 = 헤더 (건너뛰기)
+        // CSV 컬럼 매핑 (0-based):
+        // 0:대분류, 1:중분류, 2:소분류, 3:제품명, 4:영문제품명, 5:제품코드
+        // 6:상품 간략설명, 8:제조원가, 9:학교스포츠클럽가격, 12:판매가
+        // 25:도매가, 26:사이즈, 29:원단, 32:키워드
+
+        // 중분류명 → categoryId 매핑 (CSV의 중분류 값에 맞춰)
+        // 대분류가 CUSTOM인 경우 중분류(종목)로 매핑
+        // 대분류가 BRAND인 경우 중분류로 매핑
+        const brandCatMap = {
+            '농구의류': 10, 'SHIRTS': 11, 'BOTTOM': 12, 'HOODIE': 13, 'MTM': 14,
+        };
+        const customCatMap = {
+            '농구': 20, '축구': 21, '배구': 22,
+        };
+        // CUSTOM+팀웨어 → 소분류로 세부 카테고리 매핑
+        const teamwearCatMap = {
+            '슈팅저지 (반집업)': 30, '슈팅저지 (풀집업)': 30, '슈팅셔츠 (프로)': 30,
+            '반팔 전사티': 31, '트랙탑 웜업': 32, '후드 웜업': 33,
+            '캐주얼 반팔티': 40, '캐주얼 후드집업': 41, '캐주얼 후드티': 41, '캐주얼 맨투맨': 40,
+        };
+
+        const now = new Date().toISOString();
+        const insertProd = sqliteDb.prepare(`
+            INSERT INTO products (id, type, categoryId, name, nameEn, sku, description,
+                price, costPrice, clubPrice, wholesalePrice,
+                sizes, fabric, keywords, customMeta, status, sortOrder, createdAt, updatedAt)
+            VALUES (@id, @type, @categoryId, @name, @nameEn, @sku, @description,
+                @price, @costPrice, @clubPrice, @wholesalePrice,
+                @sizes, @fabric, @keywords, @customMeta, 'active', @sortOrder, @now, @now)
+        `);
+
+        let insertedCount = 0;
+        const seedProducts = sqliteDb.transaction(() => {
+            for (let i = 1; i < lines.length; i++) {
+                // 헤더 행(첫 번째 줄)이 2줄에 걸쳐 있으므로, 2번째 줄도 헤더면 건너뛰기
+                const fields = parseCSVLine(lines[i]);
+                const majorCat = fields[0]; // 대분류: BRAND 또는 CUSTOM
+                if (!majorCat || (majorCat !== 'BRAND' && majorCat !== 'CUSTOM')) continue;
+
+                const minorCat = fields[1]; // 중분류
+                const subCat = fields[2];   // 소분류
+                const prodName = fields[3]; // 제품명
+                if (!prodName) continue;    // 제품명 없으면 건너뛰기
+
+                // type 결정: BRAND → ready, CUSTOM → custom
+                const type = majorCat === 'BRAND' ? 'ready' : 'custom';
+
+                // categoryId 결정
+                let categoryId = null;
+                if (majorCat === 'BRAND') {
+                    categoryId = brandCatMap[minorCat] || null;
+                } else {
+                    // CUSTOM: 중분류가 '팀웨어'면 소분류로 카테고리 결정
+                    if (minorCat === '팀웨어') {
+                        categoryId = teamwearCatMap[subCat] || 30; // 기본값: 슈팅저지
+                    } else {
+                        categoryId = customCatMap[minorCat] || null;
+                    }
+                }
+
+                const nameEn = fields[4] || '';
+                const sku = fields[5] || '';
+                const description = fields[6] || '';
+                const costPrice = parsePrice(fields[8]);
+                const clubPrice = parsePrice(fields[9]);
+                const price = parsePrice(fields[12]);
+                const wholesalePrice = parsePrice(fields[25]);
+                const sizes = fields[26] || '';
+                const fabric = fields[29] || '';
+                const keywords = fields[32] || '';
+
+                // 커스텀 상품의 경우 소분류 정보를 customMeta에 저장
+                const customMeta = type === 'custom'
+                    ? JSON.stringify({ subCategory: subCat || '', sport: minorCat || '' })
+                    : '{}';
+
+                insertProd.run({
+                    id: Date.now() * 1000 + i, // 고유 ID 생성 (타임스탬프 + 인덱스)
+                    type, categoryId, name: prodName, nameEn, sku, description,
+                    price, costPrice, clubPrice, wholesalePrice,
+                    sizes, fabric, keywords, customMeta,
+                    sortOrder: i, now,
+                });
+                insertedCount++;
+            }
+        });
+        seedProducts();
+        console.log(`[E-1] 상품 ${insertedCount}개 시딩 완료 (CSV 파싱)`);
+    } else {
+        console.log('[E-1] CSV 파일 미발견, 상품 시딩 건너뜀:', csvPath);
+    }
+}
+
+// --- 3) 사이즈 옵션 시딩: 커스텀 상품에 사이즈 옵션 자동 생성 ---
+const optCount = sqliteDb.prepare('SELECT COUNT(*) as cnt FROM product_options').get().cnt;
+if (optCount === 0) {
+    console.log('[E-1] 사이즈 옵션 시딩 시작...');
+
+    // 커스텀 상품 목록 조회 (사이즈가 있는 것만)
+    const customProducts = sqliteDb.prepare(
+        "SELECT id, sizes FROM products WHERE type = 'custom' AND sizes != ''"
+    ).all();
+
+    // 사이즈 범위 문자열을 개별 사이즈 배열로 변환
+    // '5XS~5XL' → ['5XS','4XS','3XS','2XS','XS','S','M','L','XL','2XL','3XL','4XL','5XL']
+    const ALL_SIZES = ['5XS','4XS','3XS','2XS','XS','S','M','L','XL','2XL','3XL','4XL','5XL'];
+
+    function expandSizeRange(sizeStr) {
+        if (!sizeStr) return [];
+        // 여러 줄이나 구분자가 있으면 첫 번째 범위만 사용
+        const firstLine = sizeStr.split('\n')[0].trim();
+        // '스탠다드 : 5XS~5XL' 같은 접두어 제거
+        const cleaned = firstLine.replace(/^[^:：]*[:：]\s*/, '').trim();
+        // '~' 또는 '-'로 분리
+        const parts = cleaned.split(/[~\-]/);
+        if (parts.length === 2) {
+            const start = parts[0].trim();
+            const end = parts[1].trim();
+            const startIdx = ALL_SIZES.indexOf(start);
+            const endIdx = ALL_SIZES.indexOf(end);
+            if (startIdx !== -1 && endIdx !== -1 && startIdx <= endIdx) {
+                return ALL_SIZES.slice(startIdx, endIdx + 1);
+            }
+        }
+        // 범위 파싱 실패 시 전체 반환
+        return ALL_SIZES;
+    }
+
+    const insertOpt = sqliteDb.prepare(`
+        INSERT INTO product_options (id, productId, optionType, optionValue, priceAdjust, stock, sortOrder, active)
+        VALUES (@id, @productId, 'size', @optionValue, 0, -1, @sortOrder, 1)
+    `);
+
+    let optInserted = 0;
+    const seedOptions = sqliteDb.transaction(() => {
+        for (const prod of customProducts) {
+            const sizes = expandSizeRange(prod.sizes);
+            for (let j = 0; j < sizes.length; j++) {
+                insertOpt.run({
+                    id: prod.id + j + 1,  // 고유 ID
+                    productId: prod.id,
+                    optionValue: sizes[j],
+                    sortOrder: j,
+                });
+                optInserted++;
+            }
+        }
+    });
+    seedOptions();
+    console.log(`[E-1] 사이즈 옵션 ${optInserted}개 시딩 완료 (${customProducts.length}개 상품)`);
+}
 
 // Start Server
 app.listen(port, () => {
