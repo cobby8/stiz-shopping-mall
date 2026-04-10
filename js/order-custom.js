@@ -10,8 +10,9 @@
  * 가격 계산: priceTable["{sport}_{grade}_{package}"] 직접 참조 (배수 곱하기 X)
  */
 
-// 서버 API 주소
-const API_BASE = 'http://localhost:4000';
+// 서버 API 주소 — 빈 문자열이면 현재 접속 호스트 기준 상대경로로 요청됨
+// (LAN 내 다른 PC에서 192.168.x.x로 접속해도 호환)
+const API_BASE = '';
 
 // ===== 7단계 정의 (진행 표시줄용) =====
 const STEPS = [

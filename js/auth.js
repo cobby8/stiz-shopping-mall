@@ -7,8 +7,9 @@
 const AUTH_KEY = 'stiz_user';
 const USERS_KEY = 'stiz_users';
 
-// API base URL (change for production)
-const API_BASE = 'http://localhost:4000';
+// API base URL — 빈 문자열이면 브라우저가 현재 접속한 호스트를 자동으로 사용한다.
+// (localhost, 192.168.x.x 등 어디서 접속해도 같은 코드로 동작)
+const API_BASE = '';
 
 // 1. Check Login Status
 function isLoggedIn() {

@@ -43,7 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 서버의 AI 이미지 생성 API 호출
-            const response = await fetch('http://localhost:4000/api/generate', {
+            // 상대경로 → 현재 접속 호스트(localhost 또는 LAN IP) 자동 사용
+            const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

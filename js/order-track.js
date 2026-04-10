@@ -7,7 +7,8 @@
  */
 
 // 서버 API 주소 (auth.js의 API_BASE와 동일)
-const TRACK_API_BASE = 'http://localhost:4000';
+// 빈 문자열이면 현재 접속 호스트 기준 상대경로로 요청됨 (LAN 내 다른 PC 호환)
+const TRACK_API_BASE = '';
 
 // 현재 조회된 주문 데이터 (시안 확정/수정 요청 등에서 사용)
 let currentOrder = null;

@@ -377,7 +377,8 @@ async function processBotResponse(input) {
 
     try {
         // 서버의 Gemini 챗봇 API 호출
-        const response = await fetch('http://localhost:4000/api/chat', {
+        // 상대경로 → 브라우저가 현재 접속한 호스트(localhost 또는 LAN IP)를 자동 사용
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: input })
