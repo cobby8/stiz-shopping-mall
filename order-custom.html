@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STIZ 커스텀 주문</title>
-    <!-- 기존 7단계 위자드 폐기: 커스텀 상품 목록(shop.html?type=custom)으로 리다이렉트 -->
+    <!-- 기존 7단계 위자드 폐기: 커스텀 상품 목록(list.html?type=custom)으로 리다이렉트 -->
     <!-- 비유: 기존 커스텀 주문 페이지의 "안내판"을 새 위치로 바꿔 붙이는 것 -->
     <script>
-        // shop.html?type=custom으로 즉시 이동
+        // list.html?type=custom으로 즉시 이동
         // 기존 order-custom.html 북마크나 외부 링크가 깨지지 않도록 리다이렉트 유지
-        window.location.replace('shop.html?type=custom');
+        window.location.replace('list.html?type=custom');
     </script>
 </head>
 <body>
     <!-- JS가 비활성화된 환경을 위한 대체 링크 -->
     <noscript>
         <p>커스텀 주문 페이지가 이동되었습니다.</p>
-        <a href="shop.html?type=custom">커스텀 상품 보러가기</a>
+        <a href="list.html?type=custom">커스텀 상품 보러가기</a>
     </noscript>
 </body>
 </html>

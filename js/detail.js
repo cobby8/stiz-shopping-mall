@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!productId) {
     // ID가 없으면 목록으로 리다이렉트
     alert('잘못된 접근입니다.');
-    location.href = 'shop.html';
+    location.href = 'list.html';
     return;
   }
 
@@ -75,7 +75,7 @@ async function loadProductDetail(id) {
       <div class="text-center py-20">
         <span class="material-symbols-outlined text-6xl text-gray-300">error_outline</span>
         <p class="text-gray-500 mt-4 text-lg">상품을 찾을 수 없습니다</p>
-        <a href="shop.html" class="inline-block mt-4 text-sm text-brand-red hover:underline">쇼핑몰로 돌아가기</a>
+        <a href="list.html" class="inline-block mt-4 text-sm text-brand-red hover:underline">쇼핑몰로 돌아가기</a>
       </div>`;
   }
 }
@@ -337,7 +337,7 @@ function renderRelated() {
       : `${price.toLocaleString()}원`;
 
     return `
-      <a href="shop-detail.html?id=${p.id}" class="block bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+      <a href="detail.html?id=${p.id}" class="block bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
         <div class="aspect-square overflow-hidden bg-gray-50">
           <img src="${thumb}" alt="${p.name}" class="w-full h-full object-cover" loading="lazy">
         </div>

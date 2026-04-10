@@ -50,23 +50,11 @@
     <!-- Main Content -->
     <main class="container mx-auto px-6 py-12 flex flex-col">
 
-        <!-- Horizontal Filter Bar (Replaces Sidebar) -->
+        <!-- Horizontal Filter Bar: js/list.js의 renderCategoryTabs()가 DB 카테고리로 동적 생성 -->
         <div class="w-full mb-8 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide">
             <div class="flex space-x-2">
-                <button onclick="filterProducts('all')" id="cat-all"
-                    class="px-4 py-2 rounded-full text-xs font-bold bg-black text-white transition-colors border border-black">All
-                    Products</button>
-                <button onclick="filterProducts('basketball')" id="cat-basketball"
-                    class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Basketball</button>
-                <button onclick="filterProducts('soccer')" id="cat-soccer"
-                    class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Soccer</button>
-                <button onclick="filterProducts('sportswear')" id="cat-sportswear"
-                    class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Sportswear</button>
-                <button onclick="filterProducts('kogas')" id="cat-kogas"
-                    class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">KOGAS
-                    MD</button>
-                <button onclick="filterProducts('accessories')" id="cat-accessories"
-                    class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Accessories</button>
+                <!-- 로딩 중 자리표시자 -->
+                <button class="px-4 py-2 rounded-full text-xs font-bold bg-black text-white border border-black">All Products</button>
             </div>
         </div>
 
@@ -74,11 +62,12 @@
         <section class="flex-1">
             <div class="flex justify-between items-center mb-8">
                 <h2 class="text-2xl font-bold uppercase" id="page-title">All Products</h2>
-                <select id="sort-select" onchange="sortProducts(this.value)"
+                <!-- 정렬 select — 이벤트 바인딩은 js/list.js의 bindEvents()에서 수행 -->
+                <select id="sort-select"
                     class="border border-gray-300 rounded px-3 py-1 text-sm bg-white focus:outline-none focus:border-black">
                     <option value="newest">Sort by: Newest</option>
-                    <option value="price-asc">Price: Low to High</option>
-                    <option value="price-desc">Price: High to Low</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
                     <option value="name">Name: A to Z</option>
                 </select>
             </div>
@@ -106,136 +95,13 @@
     <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
 
     <!-- Scripts -->
-    <script src="js/product-data.js" defer></script>
+    <!-- product-data.js 제거됨 — 이제 /api/products 로 상품을 불러온다 -->
     <script src="js/header_render.js" defer></script>
     <script src="js/chatbot.js" defer></script>
     <script src="js/fomo-toast.js" defer></script>
     <script src="js/main.js" defer></script>
-    <script>
-        // Use URL Params to determine mode (custom vs store)
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentType = urlParams.get('type') || 'all'; // 'custom', 'store', or 'all'
-        let currentCategory = urlParams.get('category') || 'all';
-
-        document.addEventListener('DOMContentLoaded', () => {
-            setupPageMode();
-            filterProducts(currentCategory);
-        });
-
-        function setupPageMode() {
-            const pageTitle = document.getElementById('page-title');
-            const filterContainer = document.querySelector('.overflow-x-auto .flex');
-
-            if (currentType === 'custom') {
-                pageTitle.innerText = "CUSTOMIZING TEAMWEAR";
-                // Update Filters for Custom
-                filterContainer.innerHTML = `
-                    <button onclick="filterProducts('all')" id="cat-all" class="px-4 py-2 rounded-full text-xs font-bold bg-black text-white transition-colors border border-black">All Custom</button>
-                    <button onclick="filterProducts('soccer')" id="cat-soccer" class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Soccer</button>
-                    <button onclick="filterProducts('basketball')" id="cat-basketball" class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Basketball</button>
-                    <button onclick="filterProducts('volleyball')" id="cat-volleyball" class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Volleyball</button>
-                    <button onclick="filterProducts('teamwear')" id="cat-teamwear" class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Warm-up/Training</button>
-                `;
-            } else if (currentType === 'store') {
-                pageTitle.innerText = "STIZ ONLINE STORE";
-                // Update Filters for Store
-                filterContainer.innerHTML = `
-                    <button onclick="filterProducts('all')" id="cat-all" class="px-4 py-2 rounded-full text-xs font-bold bg-black text-white transition-colors border border-black">All Items</button>
-                    <button onclick="filterProducts('sportswear')" id="cat-sportswear" class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Apparel</button>
-                    <button onclick="filterProducts('accessories')" id="cat-accessories" class="px-4 py-2 rounded-full text-xs font-bold bg-white text-gray-500 hover:text-black border border-gray-200 hover:border-black transition-colors">Equipment</button>
-                    <button onclick="filterProducts('kogas')" id="cat-kogas" class="px-4 py-2 rounded-full text-xs font-bold bg-white text-blue-600 hover:text-blue-800 border border-gray-200 hover:border-blue-600 transition-colors">KOGAS MD</button>
-                `;
-            }
-        }
-
-        function renderProducts(items) {
-            const grid = document.getElementById('product-grid');
-            grid.innerHTML = '';
-
-            if (items.length === 0) {
-                grid.innerHTML = '<div class="col-span-4 text-center py-20 text-gray-400">No products found in this category.</div>';
-                return;
-            }
-
-            items.forEach(p => {
-                const isCustom = p.type === 'custom';
-                const el = document.createElement('div');
-                el.className = 'group relative';
-                el.innerHTML = `
-                    <div class="aspect-[3/4] w-full bg-gray-100 overflow-hidden relative cursor-pointer" onclick="location.href='detail.html?id=${p.id}&type=${p.type}'">
-                        <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
-                        
-                        <!-- Actions Overlay -->
-                        <div class="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur-sm p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                            <button onclick="event.stopPropagation(); location.href='detail.html?id=${p.id}'" 
-                                class="w-full ${isCustom ? 'bg-blue-600' : 'bg-black'} text-white text-xs font-bold py-3 uppercase tracking-wider hover:opacity-90">
-                                ${isCustom ? 'Get Estimate' : 'Add to Cart'}
-                            </button>
-                        </div>
-                        
-                         <!-- Type Badge -->
-                        <div class="absolute top-2 left-2">
-                             <span class="text-[10px] font-bold px-2 py-1 rounded-sm ${isCustom ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
-                                ${isCustom ? 'CUSTOM' : 'STORE'}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="pt-3">
-                        <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${p.category}</p>
-                        <h3 class="text-xs font-bold text-gray-900 truncate cursor-pointer hover:underline" onclick="location.href='detail.html?id=${p.id}'">${p.name}</h3>
-                        <p class="text-xs font-medium mt-1">₩${p.price.toLocaleString()}</p>
-                    </div>
-                `;
-                grid.appendChild(el);
-            });
-        }
-
-        function sortItems(items) {
-            const sortBy = document.getElementById('sort-select')?.value || 'newest';
-            switch (sortBy) {
-                case 'price-asc':
-                    return items.sort((a, b) => a.price - b.price);
-                case 'price-desc':
-                    return items.sort((a, b) => b.price - a.price);
-                case 'name':
-                    return items.sort((a, b) => a.name.localeCompare(b.name));
-                case 'newest':
-                default:
-                    return items.sort((a, b) => b.id - a.id);
-            }
-        }
-
-        function sortProducts() {
-            filterProducts(currentCategory);
-        }
-
-        function filterProducts(cat) {
-            currentCategory = cat;
-
-            // Core Filter Logic: Category + Type
-            let items = getProductsByCategory(cat, currentType === 'all' ? null : currentType);
-            items = sortItems([...items]);
-
-            renderProducts(items);
-
-            // Update UI State
-            const buttons = document.querySelectorAll('.overflow-x-auto button');
-            buttons.forEach(btn => {
-                btn.classList.remove('bg-black', 'text-white', 'border-black');
-                btn.classList.add('bg-white', 'text-gray-500', 'border-gray-200');
-            });
-            const activeBtn = document.getElementById(`cat-${cat}`);
-            if (activeBtn) {
-                activeBtn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200');
-                activeBtn.classList.add('bg-black', 'text-white', 'border-black');
-            }
-        }
-
-        // Quick Cart/Quote Placeholder
-        function addToCartQuick(id) {
-            // ... logic ...
-        }
-    </script>
+    <!-- js/list.js: 상품 목록 + 카테고리 탭 + 정렬을 API 기반으로 처리 -->
+    <script src="js/list.js" defer></script>
 </body>
 
 </html>

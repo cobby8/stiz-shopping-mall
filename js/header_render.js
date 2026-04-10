@@ -6,7 +6,102 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHeader();
     renderFooter();
     loadAnalytics();
+    // SHOP 메뉴 카테고리를 비동기로 주입 (API 실패 시 기본 정적 메뉴 유지)
+    injectShopCategories();
 });
+
+/**
+ * 카테고리 목록을 API에서 가져와 sessionStorage에 5분간 캐시
+ * - 네비 드롭다운이 매 페이지마다 동일 API를 호출하는 낭비를 줄이기 위함
+ * - 캐시 만료 또는 실패 시 fresh 호출
+ */
+async function fetchNavCategories() {
+    const CACHE_KEY = 'stiz_nav_categories_v2';
+    const CACHE_TTL = 5 * 60 * 1000; // 5분
+
+    // 1) 세션 스토리지에서 캐시 확인
+    try {
+        const cached = sessionStorage.getItem(CACHE_KEY);
+        if (cached) {
+            const { ts, data } = JSON.parse(cached);
+            if (Date.now() - ts < CACHE_TTL && Array.isArray(data)) {
+                return data;
+            }
+        }
+    } catch (_) { /* 캐시 오류는 무시하고 재요청 */ }
+
+    // 2) API 호출
+    try {
+        const res = await fetch('/api/products/categories');
+        const json = await res.json();
+        if (!json.success || !Array.isArray(json.categories)) return [];
+        // 새 카테고리 id 100~109만 사용 (구 카테고리는 active=0이지만 안전 장치)
+        // 대분류(parentId null) 중 productCount > 0인 것만
+        const list = json.categories.filter(c => (c.productCount || 0) > 0);
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: list }));
+        return list;
+    } catch (err) {
+        console.warn('[header] 카테고리 API 실패, 기본 메뉴 유지:', err);
+        return [];
+    }
+}
+
+/**
+ * SHOP(TEAMWEAR/STORE) 메뉴에 DB 카테고리 동적 주입
+ * - 데스크톱 TEAMWEAR 메가메뉴 SPORT CATEGORY 리스트 (id=nav-teamwear-list)
+ * - 데스크톱 STORE 드롭다운 리스트 (id=nav-store-list)
+ * - 모바일 TEAMWEAR / STORE 리스트 (id=mobile-nav-teamwear-list / mobile-nav-store-list)
+ */
+async function injectShopCategories() {
+    const categories = await fetchNavCategories();
+    if (!categories.length) return; // API 실패 시 기본 정적 메뉴 유지
+
+    // "스포츠 카테고리(농구/축구/배구/팀웨어/컴프레션/연습복)" vs "스토어(캐주얼/악세서리/MD/세일)" 분류 기준
+    // 기획서 10개 카테고리를 팀웨어 쪽 / 스토어 쪽으로 나눔
+    const TEAMWEAR_SLUGS = new Set(['basketball', 'soccer', 'volleyball', 'teamwear', 'compression', 'practice']);
+    const STORE_SLUGS = new Set(['casual', 'accessories', 'md-picks', 'sale']);
+
+    const teamwearCats = categories.filter(c => TEAMWEAR_SLUGS.has(c.slug));
+    const storeCats = categories.filter(c => STORE_SLUGS.has(c.slug));
+
+    // 데스크톱: TEAMWEAR 메가메뉴 SPORT CATEGORY 리스트 교체
+    const twList = document.getElementById('nav-teamwear-list');
+    if (twList && teamwearCats.length) {
+        twList.innerHTML = teamwearCats.map(cat => `
+            <li>
+                <a href="list.html?category=${cat.slug}" class="hover:text-blue-600 block transition-transform hover:translate-x-1">
+                    ${cat.name} <span class="text-xs text-gray-400">(${cat.productCount})</span>
+                </a>
+            </li>
+        `).join('');
+    }
+
+    // 데스크톱: STORE 드롭다운 리스트 교체
+    const stList = document.getElementById('nav-store-list');
+    if (stList && storeCats.length) {
+        stList.innerHTML = storeCats.map(cat => `
+            <a href="list.html?category=${cat.slug}" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">
+                ${cat.name} (${cat.productCount})
+            </a>
+        `).join('');
+    }
+
+    // 모바일: TEAMWEAR 리스트
+    const mTwList = document.getElementById('mobile-nav-teamwear-list');
+    if (mTwList && teamwearCats.length) {
+        mTwList.innerHTML = teamwearCats.map(cat => `
+            <a href="list.html?category=${cat.slug}" class="block">${cat.name}</a>
+        `).join('');
+    }
+
+    // 모바일: STORE 리스트
+    const mStList = document.getElementById('mobile-nav-store-list');
+    if (mStList && storeCats.length) {
+        mStList.innerHTML = storeCats.map(cat => `
+            <a href="list.html?category=${cat.slug}" class="block">${cat.name}</a>
+        `).join('');
+    }
+}
 
 function loadAnalytics() {
     if (document.querySelector('script[src*="analytics.js"]')) return;
@@ -60,16 +155,12 @@ function renderHeader() {
                         <!-- Column 1: Category -->
                         <div>
                             <h3 class="font-bold text-lg mb-6 border-b-2 border-black pb-2 inline-block">SPORT CATEGORY</h3>
-                            <ul class="space-y-4 text-sm text-gray-600 font-medium">
-                                <li><a href="list.html?type=custom&category=basketball" class="hover:text-blue-600 block transition-transform hover:translate-x-1">농구 유니폼 (Basketball)</a></li>
-                                <li><a href="list.html?type=custom&category=soccer" class="hover:text-blue-600 block transition-transform hover:translate-x-1">축구 유니폼 (Soccer)</a></li>
-                                <li><a href="list.html?type=custom&category=volleyball" class="hover:text-blue-600 block transition-transform hover:translate-x-1">배구 유니폼 (Volleyball)</a></li>
-                                <li>
-                                    <a href="list.html?type=custom&category=teamwear" class="hover:text-blue-600 block transition-transform hover:translate-x-1 flex items-center">
-                                        트레이닝복 / 웜업
-                                        <span class="ml-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold tracking-wider animate-pulse">NEW</span>
-                                    </a>
-                                </li>
+                            <!-- nav-teamwear-list: injectShopCategories()가 동적으로 채움 (API 실패 시 아래 기본 목록 유지) -->
+                            <ul id="nav-teamwear-list" class="space-y-4 text-sm text-gray-600 font-medium">
+                                <li><a href="list.html?category=basketball" class="hover:text-blue-600 block transition-transform hover:translate-x-1">농구 유니폼 (Basketball)</a></li>
+                                <li><a href="list.html?category=soccer" class="hover:text-blue-600 block transition-transform hover:translate-x-1">축구 유니폼 (Soccer)</a></li>
+                                <li><a href="list.html?category=volleyball" class="hover:text-blue-600 block transition-transform hover:translate-x-1">배구 유니폼 (Volleyball)</a></li>
+                                <li><a href="list.html?category=teamwear" class="hover:text-blue-600 block transition-transform hover:translate-x-1">팀웨어 / 트레이닝</a></li>
                             </ul>
                         </div>
                         
@@ -114,11 +205,13 @@ function renderHeader() {
 
             <!-- 3. STORE (Dropdown) -->
             <div class="group h-full flex items-center relative">
-                <a href="list.html?type=store" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase">STORE</a>
-                <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-48 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
-                    <a href="list.html?type=store&category=sportswear" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">기능성 의류 (Apparel)</a>
-                    <a href="list.html?type=store&category=accessories" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">용품 / 장비 (Equipment)</a>
-                    <a href="list.html?type=store&category=kogas" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:text-blue-600 font-bold">KOGAS 공식 굿즈</a>
+                <a href="list.html" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase">STORE</a>
+                <!-- nav-store-list: injectShopCategories()가 동적으로 채움 -->
+                <div id="nav-store-list" class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-48 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
+                    <a href="list.html?category=casual" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">캐주얼</a>
+                    <a href="list.html?category=accessories" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">악세서리&용품</a>
+                    <a href="list.html?category=md-picks" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">MD제품</a>
+                    <a href="list.html?category=sale" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:text-red-600 font-bold">시즌오프 SALE</a>
                 </div>
             </div>
 
@@ -169,26 +262,27 @@ function renderHeader() {
     <!-- Mobile Menu -->
     <div id="mobile-menu" class="hidden md:hidden bg-white text-black absolute top-20 left-0 w-full shadow-lg border-t z-50">
         <div class="flex flex-col p-6 space-y-6">
-            <!-- TEAMWEAR Mobile Menu - RESTORED & RENAMED -->
+            <!-- TEAMWEAR Mobile Menu -->
             <div>
                 <h3 class="font-bold text-gray-400 text-xs mb-2">TEAMWEAR</h3>
                 <a href="list.html?type=custom" class="block text-xl font-bold mb-2">팀웨어 제작</a>
-                <div class="pl-4 space-y-2 text-sm text-gray-600">
-                    <a href="list.html?type=custom&category=soccer" class="block">축구</a>
-                    <a href="list.html?type=custom&category=basketball" class="block">농구</a>
-                    <!-- Baseball Removed -->
-                    <a href="list.html?type=custom&category=teamwear" class="block flex items-center">
-                        트레이닝복 / 웜업
-                        <span class="ml-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">NEW</span>
-                    </a>
+                <!-- mobile-nav-teamwear-list: injectShopCategories()가 동적으로 채움 -->
+                <div id="mobile-nav-teamwear-list" class="pl-4 space-y-2 text-sm text-gray-600">
+                    <a href="list.html?category=basketball" class="block">농구</a>
+                    <a href="list.html?category=soccer" class="block">축구</a>
+                    <a href="list.html?category=volleyball" class="block">배구</a>
+                    <a href="list.html?category=teamwear" class="block">팀웨어 / 트레이닝</a>
                 </div>
             </div>
             <div class="border-t pt-4">
                 <h3 class="font-bold text-gray-400 text-xs mb-2">STORE</h3>
-                <a href="list.html?type=store" class="block text-xl font-bold mb-2">스토어</a>
-                 <div class="pl-4 space-y-2 text-sm text-gray-600">
-                    <a href="list.html?type=store&category=sportswear" class="block">의류</a>
-                    <a href="list.html?type=store&category=accessories" class="block">용품</a>
+                <a href="list.html" class="block text-xl font-bold mb-2">스토어</a>
+                <!-- mobile-nav-store-list: injectShopCategories()가 동적으로 채움 -->
+                <div id="mobile-nav-store-list" class="pl-4 space-y-2 text-sm text-gray-600">
+                    <a href="list.html?category=casual" class="block">캐주얼</a>
+                    <a href="list.html?category=accessories" class="block">악세서리&용품</a>
+                    <a href="list.html?category=md-picks" class="block">MD제품</a>
+                    <a href="list.html?category=sale" class="block">시즌오프</a>
                 </div>
             </div>
             <div class="border-t pt-4 flex justify-between items-center">
@@ -324,41 +418,61 @@ function initSearchUI() {
     document.getElementById('search-close').addEventListener('click', closeSearch);
     document.getElementById('search-backdrop').addEventListener('click', closeSearch);
 
-    // Live search
+    // Live search — API 기반 (300ms 디바운스 + AbortController로 이전 요청 취소)
+    // 기존 전역 `products` 변수 의존 방식 → /api/products?search= 호출로 전환
+    let searchTimer = null;
+    let searchController = null;
+
     document.getElementById('search-input').addEventListener('input', (e) => {
-        const query = e.target.value.trim().toLowerCase();
+        const query = e.target.value.trim();
         const resultsContainer = document.getElementById('search-results');
+
+        clearTimeout(searchTimer);
+        if (searchController) searchController.abort();
 
         if (query.length < 2) {
             resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-2">2글자 이상 입력해주세요.</p>';
             return;
         }
 
-        if (typeof products === 'undefined') {
-            resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-2">상품 데이터를 불러오는 중...</p>';
-            return;
-        }
+        resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-2">검색 중...</p>';
 
-        const matches = products.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.category.toLowerCase().includes(query) ||
-            p.description.toLowerCase().includes(query)
-        ).slice(0, 8);
+        // 디바운스: 300ms 동안 추가 입력이 없으면 API 호출
+        searchTimer = setTimeout(async () => {
+            try {
+                searchController = new AbortController();
+                const res = await fetch(`/api/products?search=${encodeURIComponent(query)}&limit=8`, {
+                    signal: searchController.signal
+                });
+                const data = await res.json();
 
-        if (matches.length === 0) {
-            resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-4">검색 결과가 없습니다.</p>';
-            return;
-        }
+                if (!data.success || !Array.isArray(data.products) || data.products.length === 0) {
+                    resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-4">검색 결과가 없습니다.</p>';
+                    return;
+                }
 
-        resultsContainer.innerHTML = matches.map(p => `
-            <a href="detail.html?id=${p.id}" class="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                <img src="${p.image}" alt="${p.name}" class="w-12 h-12 object-cover rounded">
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold truncate">${p.name}</p>
-                    <p class="text-xs text-gray-500">${p.category.toUpperCase()} · ₩${p.price.toLocaleString()}</p>
-                </div>
-            </a>
-        `).join('');
+                // 결과 렌더링 — 상품 카드 8개까지 표시, 클릭 시 detail.html로 이동
+                resultsContainer.innerHTML = data.products.map(p => {
+                    const thumb = p.thumbnail || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="%23f3f4f6"/></svg>';
+                    const cat = p.categoryName || '';
+                    const price = (p.price || 0).toLocaleString();
+                    return `
+                        <a href="detail.html?id=${p.id}" class="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                            <img src="${thumb}" alt="${p.name}" class="w-12 h-12 object-cover rounded">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold truncate">${p.name}</p>
+                                <p class="text-xs text-gray-500">${cat} · ₩${price}</p>
+                            </div>
+                        </a>
+                    `;
+                }).join('');
+            } catch (err) {
+                // AbortError는 무시 (새 입력으로 취소된 경우)
+                if (err.name === 'AbortError') return;
+                console.error('[header search] 검색 실패:', err);
+                resultsContainer.innerHTML = '<p class="text-sm text-red-400 py-4">검색 중 오류가 발생했습니다.</p>';
+            }
+        }, 300);
     });
 
     // ESC key to close

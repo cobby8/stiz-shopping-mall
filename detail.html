@@ -5,13 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STIZ - Product Detail</title>
-    <!-- SEO 메타 태그: 상품 상세 기본값 (JS에서 동적 업데이트) -->
+    <!-- SEO 메타 태그: 상품 상세 기본값 (js/detail.js에서 동적 업데이트) -->
     <meta name="description" content="STIZ 프로 스포츠 유니폼 상세 정보. 커스텀 디자인, 사이즈 추천, 팀 주문.">
     <meta property="og:title" content="STIZ Product">
     <meta property="og:description" content="STIZ 프로 스포츠 유니폼 상세 정보. 커스텀 디자인, 사이즈 추천, 팀 주문.">
     <meta property="og:type" content="website">
     <meta property="og:image" content="images/hero_bg.jpg">
     <link rel="canonical" href="https://stiz.co.kr/detail.html">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -34,296 +35,353 @@
     </script>
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
     <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* 이미지 갤러리: 선택된 썸네일 강조 */
+        .thumb-item.active {
+            border-color: #111111;
+        }
+        /* 사이즈 버튼: 선택 상태 */
+        .size-btn.selected {
+            background-color: #111111;
+            color: white;
+            border-color: #111111;
+        }
+        .size-btn.out-of-stock {
+            opacity: 0.3;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        /* 수량 입력 스피너 숨기기 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        /* 탭 활성 상태 */
+        .tab-btn.active {
+            color: #111111;
+            border-bottom-color: #111111;
+        }
+        /* 커스텀 옵션 버튼: 선택 상태 */
+        .custom-opt-btn.selected {
+            background-color: #111111;
+            color: white;
+            border-color: #111111;
+        }
+    </style>
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-white">
 
-    <!-- HEADER -->
+    <!-- HEADER (header_render.js가 자동 주입) -->
     <header></header>
     <div class="h-20"></div>
     <div class="h-20"></div>
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-12">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20">
+    <!-- ===== 브레드크럼 ===== -->
+    <nav class="max-w-7xl mx-auto px-4 pt-4 pb-2">
+        <div class="flex items-center gap-2 text-sm text-gray-400" id="breadcrumb">
+            <a href="index.html" class="hover:text-gray-600">HOME</a>
+            <span>/</span>
+            <a href="list.html" class="hover:text-gray-600">SHOP</a>
+            <span>/</span>
+            <span class="text-gray-900 font-medium" id="breadcrumbName">...</span>
+        </div>
+    </nav>
 
-            <!-- Image Gallery (Left) -->
-            <div class="space-y-4">
-                <!-- 모바일: 400px로 줄여 스크롤 없이 상품정보 노출 / 데스크탑: 600px 유지 -->
-                <div class="w-full h-[400px] md:h-[600px] bg-gray-100 overflow-hidden rounded-lg">
-                    <img id="main-image" src="" alt="Product Image" class="w-full h-full object-cover">
+    <!-- ===== 상품 상세: 상단 (이미지 + 정보) ===== -->
+    <section class="max-w-7xl mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+
+            <!-- 좌측: 이미지 갤러리 -->
+            <div>
+                <!-- 메인 이미지 -->
+                <div class="aspect-square rounded-xl overflow-hidden bg-gray-50 mb-3" id="mainImageWrap">
+                    <img id="mainImage" src="" alt="상품 이미지"
+                         class="w-full h-full object-cover">
                 </div>
-                <div class="grid grid-cols-4 gap-4">
-                    <!-- Thumbnails Mock -->
-                    <div class="h-32 bg-gray-100 rounded cursor-pointer ring-2 ring-black">
-                        <img id="thumb-1" src="" class="w-full h-full object-cover rounded opacity-100">
-                    </div>
-                    <div class="h-32 bg-gray-100 rounded cursor-pointer hover:opacity-75 transition-opacity">
-                        <img src="https://placehold.co/200x200?text=Side" class="w-full h-full object-cover rounded">
-                    </div>
+                <!-- 썸네일 목록 (가로 스크롤) -->
+                <div class="flex gap-2 overflow-x-auto pb-2" id="thumbList">
+                    <!-- js/detail.js에서 동적 생성 -->
                 </div>
             </div>
 
-            <!-- Product Info (Right) -->
-            <!-- Product Info (Right) - Sticky -->
-            <div class="flex flex-col md:sticky md:top-24 self-start h-auto">
-                <div class="mb-6 border-b border-gray-100 pb-6">
-                    <p id="product-category" class="text-xs text-gray-400 uppercase font-bold tracking-widest mb-2">
-                        Category</p>
-                    <h1 id="product-name" class="text-3xl font-bold mb-2 tracking-tight">Product Name</h1>
-                    <div class="flex items-end justify-between">
-                        <p id="product-price" class="text-2xl font-bold">₩ 0</p>
-                        <!-- Auto Quote Trigger -->
-                        <button onclick="location.href='inquiry.html'"
-                            class="text-xs text-blue-600 font-bold hover:underline flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                            견적 문의하기
+            <!-- 우측: 상품 정보 + 구매 옵션 -->
+            <div class="flex flex-col">
+                <!-- 카테고리 + 타입 배지 -->
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-sm text-gray-400" id="categoryName"></span>
+                    <span id="typeBadge" class="hidden text-xs px-2 py-0.5 rounded-full font-medium"></span>
+                </div>
+
+                <!-- 상품명 -->
+                <h1 class="text-2xl md:text-3xl font-bold leading-tight mb-1" id="productName"></h1>
+                <p class="text-sm text-gray-400 mb-4" id="productNameEn"></p>
+
+                <!-- 가격 -->
+                <div class="mb-6" id="priceArea">
+                    <!-- js/detail.js에서 가격 렌더링 -->
+                </div>
+
+                <!-- 구분선 -->
+                <hr class="mb-6">
+
+                <!-- ===== 기성품(ready) 전용: 사이즈/수량/장바구니 ===== -->
+                <div id="readyPanel">
+                    <!-- 사이즈 선택 -->
+                    <div class="mb-6" id="sizeSection">
+                        <p class="text-sm font-medium mb-3">사이즈 선택</p>
+                        <div class="flex flex-wrap gap-2" id="sizeButtons">
+                            <!-- JS에서 동적 생성 -->
+                        </div>
+                    </div>
+
+                    <!-- 수량 선택 -->
+                    <div class="mb-6">
+                        <p class="text-sm font-medium mb-3">수량</p>
+                        <div class="flex items-center border border-gray-200 rounded-lg w-fit">
+                            <button onclick="changeQty(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-black">
+                                <span class="material-symbols-outlined text-xl">remove</span>
+                            </button>
+                            <input type="number" id="qtyInput" value="1" min="1" max="99"
+                                   class="w-12 h-10 text-center text-sm font-medium border-x border-gray-200 focus:outline-none">
+                            <button onclick="changeQty(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-black">
+                                <span class="material-symbols-outlined text-xl">add</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 총 금액 -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6 flex items-center justify-between">
+                        <span class="text-sm text-gray-500">총 상품 금액</span>
+                        <span class="text-xl font-bold text-brand-black" id="totalPrice">0원</span>
+                    </div>
+
+                    <!-- 구매 버튼 영역 -->
+                    <div class="flex gap-3">
+                        <button onclick="addToCartFromDetail()"
+                            class="flex-1 py-3.5 bg-brand-black text-white font-medium rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-xl">shopping_cart</span>
+                            장바구니 담기
+                        </button>
+                        <button onclick="shareProduct()"
+                            class="w-12 h-12 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 hover:text-brand-black hover:border-brand-black transition-colors"
+                            title="공유하기">
+                            <span class="material-symbols-outlined text-xl">share</span>
                         </button>
                     </div>
-                </div>
 
-                <p id="product-desc" class="text-sm text-gray-600 leading-relaxed mb-8">
-                    Loading description...
-                </p>
-
-                <!-- Options -->
-                <div class="space-y-6 mb-8">
-                    <div>
-                        <div class="flex justify-between mb-2">
-                            <label class="font-bold text-xs uppercase text-gray-500">Select Size</label>
-                            <a href="notice.html" class="text-xs text-gray-400 underline hover:text-black">Size Guide</a>
+                    <!-- 배송/교환 안내 요약 -->
+                    <div class="mt-6 space-y-2 text-sm text-gray-500">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base">local_shipping</span>
+                            <span>5만원 이상 무료배송 (미만 시 3,000원)</span>
                         </div>
-                        <div id="size-selector" class="grid grid-cols-5 gap-2">
-                            <button data-size="S"
-                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">S</button>
-                            <button data-size="M"
-                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">M</button>
-                            <button data-size="L"
-                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">L</button>
-                            <button data-size="XL"
-                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">XL</button>
-                            <button data-size="2XL"
-                                class="size-btn border border-gray-200 rounded py-2 text-sm font-medium hover:border-black hover:bg-black hover:text-white transition-all">2XL</button>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base">swap_horiz</span>
+                            <span>교환/반품: 수령 후 7일 이내</span>
                         </div>
-                        <p id="size-warning" class="text-xs text-red-500 mt-1 hidden">사이즈를 선택해주세요.</p>
                     </div>
                 </div>
 
-                <!-- Actions -->
-                <div class="flex space-x-3 mb-4">
-                    <div class="w-24">
-                        <input type="number" id="buy-qty" value="1" min="1"
-                            class="w-full border border-gray-300 rounded py-3 text-center font-bold focus:outline-none focus:border-black">
+                <!-- ===== 커스텀(custom) 전용: 옵션 패널 ===== -->
+                <!-- 비유: 피자 토핑 고르듯이 등급/패키지/마감을 선택하면 견적이 나오는 패널 -->
+                <div id="customPanel" class="hidden">
+
+                    <!-- 1) 등급 선택 -->
+                    <div class="mb-5" id="customGradeSection">
+                        <p class="text-sm font-medium mb-3">등급 선택</p>
+                        <div class="flex flex-wrap gap-2" id="customGradeButtons">
+                            <!-- JS에서 동적 생성: customMeta.grades로 필터 -->
+                        </div>
                     </div>
-                    <button id="add-to-cart-btn"
-                        class="flex-1 bg-black text-white font-bold py-3 rounded hover:bg-gray-800 transition-colors uppercase tracking-widest text-sm">
-                        Add to Cart
+
+                    <!-- 2) 패키지 선택 -->
+                    <div class="mb-5" id="customPackageSection">
+                        <p class="text-sm font-medium mb-3">패키지 구성</p>
+                        <div class="flex flex-wrap gap-2" id="customPackageButtons">
+                            <!-- JS에서 동적 생성: customMeta.packages로 필터 -->
+                        </div>
+                    </div>
+
+                    <!-- 3) 마감 옵션 (상의) -->
+                    <div class="mb-5" id="customFinishTopSection">
+                        <p class="text-sm font-medium mb-3">상의 마감</p>
+                        <div class="flex flex-wrap gap-2" id="customFinishTopButtons"></div>
+                    </div>
+
+                    <!-- 4) 마감 옵션 (하의) -->
+                    <div class="mb-5" id="customFinishBottomSection">
+                        <p class="text-sm font-medium mb-3">하의 마감</p>
+                        <div class="flex flex-wrap gap-2" id="customFinishBottomButtons"></div>
+                    </div>
+
+                    <!-- 5) 수량 선택 -->
+                    <div class="mb-5">
+                        <p class="text-sm font-medium mb-3">수량</p>
+                        <div class="flex items-center border border-gray-200 rounded-lg w-fit">
+                            <button onclick="changeCustomQty(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-black">
+                                <span class="material-symbols-outlined text-xl">remove</span>
+                            </button>
+                            <input type="number" id="customQtyInput" value="1" min="1" max="999"
+                                   class="w-14 h-10 text-center text-sm font-medium border-x border-gray-200 focus:outline-none">
+                            <button onclick="changeCustomQty(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-black">
+                                <span class="material-symbols-outlined text-xl">add</span>
+                            </button>
+                            <span class="text-sm text-gray-400 ml-2">벌</span>
+                        </div>
+                    </div>
+
+                    <!-- 6) 견적 표시 -->
+                    <div class="bg-gray-50 rounded-xl p-4 mb-5">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-base text-gray-500">calculate</span>
+                            <span class="text-sm font-medium text-gray-700">모의 견적</span>
+                        </div>
+                        <div id="customEstimateDetail" class="space-y-1 text-sm text-gray-500 mb-2"></div>
+                        <div class="flex items-baseline justify-between border-t border-gray-200 pt-2">
+                            <span class="text-sm text-gray-500">예상 총액</span>
+                            <span class="text-xl font-bold text-brand-black" id="customEstimateTotal">0원</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">* 실제 금액은 디자인 확정 후 변동될 수 있습니다</p>
+                    </div>
+
+                    <!-- 구분선 -->
+                    <hr class="mb-5">
+
+                    <!-- 7) 주문자 정보 (접이식) -->
+                    <details class="mb-5 group" id="customOrdererDetails">
+                        <summary class="flex items-center justify-between cursor-pointer text-sm font-medium mb-3">
+                            <span>주문자 정보</span>
+                            <span class="material-symbols-outlined text-base text-gray-400 group-open:rotate-180 transition-transform">expand_more</span>
+                        </summary>
+                        <div class="space-y-3 mt-2">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">이름 <span class="text-brand-red">*</span></label>
+                                <input id="customName" type="text" placeholder="홍길동"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black focus:border-brand-black outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">연락처 <span class="text-brand-red">*</span></label>
+                                <input id="customPhone" type="tel" placeholder="010-1234-5678"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black focus:border-brand-black outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">팀명</label>
+                                <input id="customTeam" type="text" placeholder="팀명 (선택)"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black focus:border-brand-black outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">요청사항</label>
+                                <textarea id="customMemo" rows="2" placeholder="디자인 참고사항, 마킹 요청 등"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black focus:border-brand-black outline-none resize-none"></textarea>
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- 8) 시안 요청 버튼 -->
+                    <button onclick="submitCustomOrder()"
+                        id="customSubmitBtn"
+                        class="w-full py-3.5 bg-brand-red text-white font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-xl">design_services</span>
+                        시안 요청하기
                     </button>
-                </div>
 
-                <button
-                    class="w-full border border-black py-3 rounded font-bold text-sm uppercase tracking-widest hover:bg-gray-50 mb-8">
-                    Buy Now
-                </button>
-
-                <!-- Shipping Info -->
-                <div class="bg-gray-50 p-4 rounded text-xs text-gray-600 space-y-2">
-                    <div class="flex items-center"><span class="font-bold w-20">Delivery</span> <span>Free shipping on
-                            orders over ₩50,000</span></div>
-                    <div class="flex items-center"><span class="font-bold w-20">Returns</span> <span>7 days free return
-                            policy</span></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Product Info Tabs -->
-        <div class="mt-16 border-t border-gray-200">
-            <!-- 모바일: overflow-x-auto로 가로 스크롤 허용, whitespace-nowrap으로 줄바꿈 방지 -->
-            <div class="flex border-b border-gray-200 overflow-x-auto">
-                <button onclick="showDetailTab('desc')" id="dtab-desc" class="detail-tab px-4 md:px-6 py-4 text-sm font-bold border-b-2 border-black whitespace-nowrap">Description</button>
-                <button onclick="showDetailTab('shipping')" id="dtab-shipping" class="detail-tab px-4 md:px-6 py-4 text-sm font-bold text-gray-400 hover:text-black whitespace-nowrap">Shipping & Returns</button>
-                <button onclick="showDetailTab('reviews')" id="dtab-reviews" class="detail-tab px-4 md:px-6 py-4 text-sm font-bold text-gray-400 hover:text-black whitespace-nowrap">Reviews</button>
-            </div>
-            <div id="dtab-content-desc" class="py-8">
-                <p id="detail-full-desc" class="text-sm text-gray-600 leading-relaxed max-w-2xl">Loading...</p>
-            </div>
-            <div id="dtab-content-shipping" class="py-8 hidden">
-                <div class="max-w-2xl space-y-4 text-sm text-gray-600">
-                    <div>
-                        <h4 class="font-bold text-black mb-2">Shipping</h4>
-                        <ul class="space-y-1">
-                            <li>- Free shipping on orders over ₩50,000</li>
-                            <li>- Standard shipping (₩3,000): 2-3 business days</li>
-                            <li>- Custom orders: 3-4 weeks production + shipping</li>
-                        </ul>
+                    <!-- 9) 공유 버튼 -->
+                    <div class="mt-3 flex justify-center">
+                        <button onclick="shareProduct()"
+                            class="text-sm text-gray-400 hover:text-brand-black flex items-center gap-1 transition-colors">
+                            <span class="material-symbols-outlined text-base">share</span>
+                            공유하기
+                        </button>
                     </div>
-                    <div>
-                        <h4 class="font-bold text-black mb-2">Returns & Exchanges</h4>
-                        <ul class="space-y-1">
-                            <li>- Free returns within 7 days of delivery</li>
-                            <li>- Items must be unworn with tags attached</li>
-                            <li>- Custom/personalized items are non-returnable</li>
-                        </ul>
+
+                    <!-- 배송 안내 (커스텀) -->
+                    <div class="mt-6 space-y-2 text-sm text-gray-500">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base">schedule</span>
+                            <span>시안 확정 후 약 2~3주 제작 소요</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base">info</span>
+                            <span>커스텀 제품은 제작 특성상 교환/반품 불가</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div id="dtab-content-reviews" class="py-8 hidden">
-                <p class="text-sm text-gray-400 text-center py-8">No reviews yet. Be the first to review this product.</p>
+        </div>
+    </section>
+
+    <!-- ===== 상품 상세: 하단 탭 (설명/배송/교환) ===== -->
+    <section class="max-w-7xl mx-auto px-4 py-8 border-t border-gray-100">
+        <!-- 탭 버튼 -->
+        <div class="flex border-b border-gray-200 mb-8">
+            <button class="tab-btn active px-6 py-3 text-sm font-medium border-b-2 border-transparent transition-colors" data-tab="description">
+                상품 설명
+            </button>
+            <button class="tab-btn px-6 py-3 text-sm font-medium text-gray-400 border-b-2 border-transparent transition-colors" data-tab="info">
+                배송/교환 안내
+            </button>
+        </div>
+
+        <!-- 탭 내용: 상품 설명 -->
+        <div id="tab-description" class="tab-content">
+            <div class="prose max-w-none text-gray-700" id="descriptionContent">
+                <!-- js/detail.js에서 상품 설명 삽입 -->
             </div>
         </div>
 
-        <!-- Related Products -->
-        <div class="mt-16">
-            <h2 class="text-2xl font-bold mb-8">You May Also Like</h2>
-            <div id="related-products" class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <!-- JS injected -->
+        <!-- 탭 내용: 배송/교환 안내 -->
+        <div id="tab-info" class="tab-content hidden">
+            <div class="max-w-2xl space-y-6 text-sm text-gray-600 leading-relaxed">
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-2">배송 안내</h3>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>기성품: 결제 확인 후 1~3일 이내 출고</li>
+                        <li>커스텀 제품: 시안 확정 후 약 2~3주 소요</li>
+                        <li>5만원 이상 구매 시 무료배송 (미만 시 3,000원)</li>
+                        <li>도서산간 지역 추가 배송비 발생 가능</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-2">교환/반품 안내</h3>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>상품 수령 후 7일 이내 교환/반품 가능</li>
+                        <li>커스텀 제품은 제작 특성상 교환/반품이 불가합니다</li>
+                        <li>단순 변심에 의한 반품 시 왕복 배송비 고객 부담</li>
+                        <li>불량/오배송의 경우 배송비 무료 교환</li>
+                    </ul>
+                </div>
             </div>
         </div>
+    </section>
 
-    </main>
+    <!-- ===== 관련 상품 ===== -->
+    <section class="max-w-7xl mx-auto px-4 py-8 border-t border-gray-100" id="relatedSection">
+        <h2 class="text-xl font-bold mb-6">관련 상품</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="relatedGrid">
+            <!-- js/detail.js에서 동적 생성 -->
+        </div>
+    </section>
 
-    <!-- FOOTER -->
-    <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
+    <!-- FOOTER (header_render.js가 주입하지 않는 경우를 위한 폴백) -->
+    <footer class="bg-black text-white"></footer>
 
-    <!-- Scripts -->
-    <script src="js/product-data.js" defer></script>
-    <script src="js/cart.js" defer></script>
-    <script src="js/auth.js" defer></script>
-    <script src="js/main.js" defer></script>
-    <script src="js/header_render.js" defer></script>
-    <script src="js/chatbot.js" defer></script>
-    <script>
-        let selectedSize = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Get ID from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const productId = urlParams.get('id') || 1;
-
-            const product = getProductById(productId);
-
-            if (product) {
-                document.getElementById('product-category').innerText = product.category;
-                document.getElementById('product-name').innerText = product.name;
-                document.getElementById('product-price').innerText = '₩ ' + product.price.toLocaleString();
-                document.getElementById('product-desc').innerText = product.description;
-                document.getElementById('detail-full-desc').innerText = product.description;
-                document.getElementById('main-image').src = product.image;
-                document.getElementById('thumb-1').src = product.image;
-                document.title = `${product.name} | STIZ Shop`;
-
-                // Related products
-                if (typeof getProductsByCategory === 'function') {
-                    const related = getProductsByCategory(product.category)
-                        .filter(p => p.id !== product.id).slice(0, 4);
-                    const grid = document.getElementById('related-products');
-                    if (grid && related.length > 0) {
-                        grid.innerHTML = '';
-                        related.forEach(p => {
-                            const el = document.createElement('div');
-                            el.className = 'group cursor-pointer';
-                            el.onclick = () => location.href = `detail.html?id=${p.id}`;
-                            el.innerHTML = `
-                                <div class="aspect-[3/4] w-full bg-gray-100 overflow-hidden mb-3">
-                                    <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
-                                </div>
-                                <p class="text-[10px] text-gray-400 uppercase">${p.category}</p>
-                                <h3 class="text-xs font-bold truncate group-hover:underline">${p.name}</h3>
-                                <p class="text-xs font-medium mt-1">₩${p.price.toLocaleString()}</p>
-                            `;
-                            grid.appendChild(el);
-                        });
-                    }
-                }
-            } else {
-                alert('Product not found');
-                location.href = 'list.html';
-            }
-
-            // Size Selection Logic
-            document.querySelectorAll('.size-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.size-btn').forEach(b => {
-                        b.classList.remove('bg-black', 'text-white', 'border-black');
-                        b.classList.add('border-gray-200');
-                    });
-                    btn.classList.add('bg-black', 'text-white', 'border-black');
-                    btn.classList.remove('border-gray-200');
-                    selectedSize = btn.dataset.size;
-                    document.getElementById('size-warning').classList.add('hidden');
-                });
-            });
-
-            // Add to Cart Logic
-            document.getElementById('add-to-cart-btn').addEventListener('click', () => {
-                if (!product) return;
-                if (!selectedSize) {
-                    document.getElementById('size-warning').classList.remove('hidden');
-                    return;
-                }
-                const qty = document.getElementById('buy-qty').value;
-
-                addToCart({
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    image: product.image,
-                    size: selectedSize,
-                    qty: qty
-                });
-            });
-        });
-
-        // Detail tab switching
-        function showDetailTab(tab) {
-            ['desc', 'shipping', 'reviews'].forEach(t => {
-                document.getElementById('dtab-content-' + t).classList.add('hidden');
-                document.getElementById('dtab-' + t).classList.remove('border-b-2', 'border-black', 'text-black');
-                document.getElementById('dtab-' + t).classList.add('text-gray-400');
-            });
-            document.getElementById('dtab-content-' + tab).classList.remove('hidden');
-            const btn = document.getElementById('dtab-' + tab);
-            btn.classList.add('border-b-2', 'border-black', 'text-black');
-            btn.classList.remove('text-gray-400');
-        }
-    </script>
-
-    <!-- JSON-LD: 상품 구조화 데이터를 동적으로 생성 (구글 리치 결과에 가격/재고 노출) -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const params = new URLSearchParams(window.location.search);
-        const productId = parseInt(params.get('id'));
-        if (typeof products !== 'undefined' && productId) {
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                const schema = {
-                    "@context": "https://schema.org",
-                    "@type": "Product",
-                    "name": product.name,
-                    "description": product.description,
-                    "image": product.image,
-                    "brand": {"@type": "Brand", "name": "STIZ"},
-                    "offers": {
-                        "@type": "Offer",
-                        "price": product.price,
-                        "priceCurrency": "KRW",
-                        "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
-                    }
-                };
-                // script 태그를 만들어 head에 삽입
-                const script = document.createElement('script');
-                script.type = 'application/ld+json';
-                script.textContent = JSON.stringify(schema);
-                document.head.appendChild(script);
-            }
-        }
-    });
-    </script>
+    <!-- 하단 스크립트 -->
+    <!-- product-data.js 제거됨 — 이제 /api/products/:id 로 상품 상세를 불러온다 -->
+    <script src="js/header_render.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/auth.js"></script>
+    <!-- js/detail.js: 상품 상세 + 이미지 갤러리 + 사이즈/수량 + 커스텀 패널 -->
+    <script src="js/detail.js"></script>
 </body>
 
 </html>

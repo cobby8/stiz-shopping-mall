@@ -251,13 +251,13 @@
                 <div class="col-span-1">
                     <h3 class="font-bold text-lg mb-4 text-white">SHOP</h3>
                     <ul class="space-y-2 text-sm text-gray-400">
-                        <li><a href="list.html?category=Soccer" class="hover:text-white transition-colors">Soccer</a>
+                        <li><a href="list.html?category=soccer" class="hover:text-white transition-colors">Soccer</a>
                         </li>
-                        <li><a href="list.html?category=Basketball"
+                        <li><a href="list.html?category=basketball"
                                 class="hover:text-white transition-colors">Basketball</a></li>
-                        <li><a href="list.html?category=Volleyball"
+                        <li><a href="list.html?category=volleyball"
                                 class="hover:text-white transition-colors">Volleyball</a></li>
-                        <li><a href="list.html" class="hover:text-white transition-colors">Accessories</a></li>
+                        <li><a href="list.html?category=accessories" class="hover:text-white transition-colors">Accessories</a></li>
                     </ul>
                 </div>
 
@@ -293,7 +293,7 @@
     </footer>
 
     <!-- Scripts (defer: 렌더 블로킹 방지, 순서는 유지됨) -->
-    <script src="js/product-data.js" defer></script>
+    <!-- product-data.js 제거됨 — 이제 /api/products/featured 로 추천/신상품을 불러온다 -->
     <script src="js/cart.js" defer></script>
     <script src="js/main.js" defer></script>
     <script src="js/header_render.js" defer></script>
@@ -301,36 +301,89 @@
     <script src="js/fomo-toast.js" defer></script>
     <script src="js/instagram-feed.js" defer></script>
     <script>
-        function renderProductGrid(items, containerId) {
+        /**
+         * 추천/신상품 카드 렌더링 — /api/products/featured 응답을 받아 HTML로 변환
+         * 비유: 매장 입구의 "오늘의 추천" 진열대에 상품을 채우는 것
+         */
+        function renderFeaturedGrid(items, containerId, opts = {}) {
             const grid = document.getElementById(containerId);
-            if (!grid || !items.length) return;
-            grid.innerHTML = '';
+            if (!grid) return;
+            if (!items || !items.length) {
+                // 비어있으면 그리드를 숨김
+                grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">표시할 상품이 없습니다</p>';
+                return;
+            }
 
+            grid.innerHTML = '';
             items.forEach(p => {
+                // 썸네일 — 없으면 회색 placeholder
+                const thumb = p.thumbnail || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" font-size="20" fill="%239ca3af">STIZ</text></svg>';
+                const category = (p.categoryName || '').toUpperCase();
+                const isCustom = p.type === 'custom';
+                // 커스텀 상품은 "~가격" 접두사, 기성품은 일반 가격
+                const priceLabel = isCustom
+                    ? `~₩${(p.price || 0).toLocaleString()}`
+                    : `₩${(p.price || 0).toLocaleString()}`;
+
+                // 배지 — 신상품 섹션이면 NEW, 베스트 섹션이면 BEST
+                const badges = [];
+                if (opts.badge === 'new') badges.push('<span class="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5">NEW</span>');
+                if (opts.badge === 'best') badges.push('<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5">BEST</span>');
+
                 const el = document.createElement('div');
                 el.className = 'group cursor-pointer';
                 el.onclick = () => location.href = `detail.html?id=${p.id}`;
                 el.innerHTML = `
                     <div class="aspect-[3/4] w-full bg-gray-100 overflow-hidden relative mb-3">
-                        <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
-                        ${p.isNew ? '<span class="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5">NEW</span>' : ''}
-                        ${p.isBest ? '<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5">BEST</span>' : ''}
+                        <img src="${thumb}" alt="${p.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                        ${badges.join('')}
                     </div>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">${p.category}</p>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">${category}</p>
                     <h3 class="text-sm font-bold truncate group-hover:underline">${p.name}</h3>
-                    <p class="text-sm font-medium mt-1">₩${p.price.toLocaleString()}</p>
+                    <p class="text-sm font-medium mt-1">${priceLabel}</p>
                 `;
                 grid.appendChild(el);
             });
         }
 
+        /**
+         * 메인 페이지 상품 섹션 로드
+         * API: GET /api/products/featured?limit=8
+         * 응답: { newest: [...], recommended: [...] }
+         * - 베스트셀러 섹션: recommended가 있으면 사용, 없으면 newest에서 뒤쪽 4개
+         * - 신상품 섹션: newest 앞쪽 4개
+         */
+        async function loadFeaturedSections() {
+            try {
+                const res = await fetch('/api/products/featured?limit=8');
+                const data = await res.json();
+                if (!data.success) throw new Error('추천 상품 로드 실패');
+
+                const newest = Array.isArray(data.newest) ? data.newest : [];
+                const recommended = Array.isArray(data.recommended) ? data.recommended : [];
+
+                // 베스트셀러: recommended 우선, 없으면 newest 뒤쪽 4개
+                const bestItems = recommended.length > 0
+                    ? recommended.slice(0, 4)
+                    : newest.slice(4, 8);
+
+                // 신상품: newest 앞쪽 4개
+                const newItems = newest.slice(0, 4);
+
+                renderFeaturedGrid(bestItems, 'best-sellers-grid', { badge: 'best' });
+                renderFeaturedGrid(newItems, 'new-arrivals-grid', { badge: 'new' });
+            } catch (err) {
+                console.error('[index] 추천 상품 로드 실패:', err);
+                // 실패해도 페이지 자체는 정상 — 그리드만 빈 상태로 둠
+                const bestGrid = document.getElementById('best-sellers-grid');
+                const newGrid = document.getElementById('new-arrivals-grid');
+                if (bestGrid) bestGrid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">상품을 불러올 수 없습니다</p>';
+                if (newGrid) newGrid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">상품을 불러올 수 없습니다</p>';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            if (typeof getBestSellers === 'function') {
-                renderProductGrid(getBestSellers(4), 'best-sellers-grid');
-            }
-            if (typeof getNewArrivals === 'function') {
-                renderProductGrid(getNewArrivals(4), 'new-arrivals-grid');
-            }
+            loadFeaturedSections();
         });
     </script>
 </body>
