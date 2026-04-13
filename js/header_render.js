@@ -415,15 +415,19 @@ function initSearchUI() {
         setTimeout(() => overlay.classList.add('hidden'), 300);
     };
 
-    document.getElementById('search-close').addEventListener('click', closeSearch);
-    document.getElementById('search-backdrop').addEventListener('click', closeSearch);
+    const searchCloseEl = document.getElementById('search-close');
+    const searchBackdropEl = document.getElementById('search-backdrop');
+    const searchInputEl = document.getElementById('search-input');
+
+    if (searchCloseEl) searchCloseEl.addEventListener('click', closeSearch);
+    if (searchBackdropEl) searchBackdropEl.addEventListener('click', closeSearch);
 
     // Live search — API 기반 (300ms 디바운스 + AbortController로 이전 요청 취소)
     // 기존 전역 `products` 변수 의존 방식 → /api/products?search= 호출로 전환
     let searchTimer = null;
     let searchController = null;
 
-    document.getElementById('search-input').addEventListener('input', (e) => {
+    if (searchInputEl) searchInputEl.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         const resultsContainer = document.getElementById('search-results');
 
