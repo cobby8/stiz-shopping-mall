@@ -62,7 +62,7 @@ async function loadProductDetail(id) {
 
     // 커스텀 상품이면 커스텀 패널 활성화, 기성품이면 기존 패널
     if (data.product.type === 'custom') {
-      initCustomPanel();           // 커스텀 옵션 패널 초기화
+      await initCustomPanel();     // 커스텀 옵션 패널 초기화 (await 필수!)
     } else {
       renderSizeOptions();
       updateTotalPrice();
