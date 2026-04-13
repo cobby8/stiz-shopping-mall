@@ -341,24 +341,16 @@ async function processTossPayment(formData) {
       orderName += ` 외 ${cart.length - 1}건`;
     }
 
-    // 토스페이먼츠 결제창 호출
-    // requestPayment는 Promise를 반환하지만, 성공 시 리다이렉트되므로 resolve되지 않는다
-    // 실패/취소 시에만 catch로 떨어진다
-    const payment = tossPayments.payment({ customerKey: 'GUEST_' + Date.now() });
-
-    await payment.requestPayment({
-      method: selectedPayMethod,     // 'CARD', 'TRANSFER', 'VIRTUAL_ACCOUNT', 'TOSSPAY'
-      amount: {
-        currency: 'KRW',
-        value: total,
-      },
+    // 토스페이먼츠 v1 결제창 호출
+    // v1: tossPayments.requestPayment(method, params)
+    // method가 첫 번째 인자, 나머지가 두 번째 인자
+    await tossPayments.requestPayment(selectedPayMethod, {
+      amount: total,
       orderId: orderId,
       orderName: orderName,
       customerName: formData.name,
       customerEmail: formData.email || undefined,
-      // 결제 성공 시 이 URL로 리다이렉트 (paymentKey, orderId, amount 쿼리 자동 추가)
       successUrl: window.location.origin + '/checkout.html?status=success',
-      // 결제 실패/취소 시 이 URL로 리다이렉트
       failUrl: window.location.origin + '/checkout.html?status=fail',
     });
 
