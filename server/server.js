@@ -4,7 +4,10 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
-dotenv.config();
+// __dirname 기준으로 .env 경로를 명시 — 어디서 실행해도 .env를 찾을 수 있다
+const __filename_main = fileURLToPath(import.meta.url);
+const __dirname_main = path.dirname(__filename_main);
+dotenv.config({ path: path.join(__dirname_main, '.env') });
 
 const app = express();
 const port = process.env.PORT || 4000;

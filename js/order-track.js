@@ -672,7 +672,7 @@ function renderPaymentTab(order) {
  * 계좌번호 클립보드 복사
  */
 function copyAccount() {
-    const accountNumber = '1005-604-824546';
+    const accountNumber = '1005-104-213186';
     navigator.clipboard.writeText(accountNumber).then(() => {
         alert('계좌번호가 복사되었습니다.');
     }).catch(() => {

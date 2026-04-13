@@ -20,26 +20,25 @@ import { Router } from 'express';
 
 const router = Router();
 
-// ===== 환경변수에서 토스페이먼츠 설정 읽기 =====
-const TOSS_CLIENT_KEY = process.env.TOSS_CLIENT_KEY || '';
-const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
-
-// 토스 설정 여부 — 하나라도 비어있으면 비활성화
-const isTossConfigured = !!(TOSS_CLIENT_KEY && TOSS_SECRET_KEY);
-
-if (!isTossConfigured) {
-  console.warn('[payment] 토스페이먼츠 키가 설정되지 않았습니다. PG 결제가 비활성화됩니다.');
-  console.warn('[payment] .env에 TOSS_CLIENT_KEY와 TOSS_SECRET_KEY를 설정하세요.');
+// ===== 환경변수 헬퍼 =====
+// ES Module에서는 import가 dotenv.config()보다 먼저 실행되므로,
+// 환경변수를 함수 호출 시점에 읽어야 한다 (모듈 레벨에서 읽으면 빈 값)
+function getTossKeys() {
+  const clientKey = process.env.TOSS_CLIENT_KEY || '';
+  const secretKey = process.env.TOSS_SECRET_KEY || '';
+  const configured = !!(clientKey && secretKey);
+  return { clientKey, secretKey, configured };
 }
 
 // ===== GET /api/payment/config — 프론트에서 clientKey 가져오기 =====
 // 토스 SDK 초기화에 필요한 clientKey를 프론트에 전달
 // secretKey는 절대 노출하지 않는다
 router.get('/payment/config', (req, res) => {
+  const { clientKey, configured } = getTossKeys();
   res.json({
     success: true,
-    clientKey: TOSS_CLIENT_KEY || '',
-    enabled: isTossConfigured
+    clientKey,
+    enabled: configured
   });
 });
 
@@ -58,8 +57,11 @@ router.post('/payment/confirm', async (req, res) => {
       });
     }
 
+    // 환경변수를 요청 시점에 읽기 (ES Module import 순서 문제 방지)
+    const { secretKey, configured } = getTossKeys();
+
     // 토스 미설정 → 에러 반환 (결제 비활성화 상태에서는 이 엔드포인트에 오면 안 됨)
-    if (!isTossConfigured) {
+    if (!configured) {
       console.warn(`[payment:warn] 토스 미설정 상태에서 결제 승인 요청 — orderId: ${orderId}`);
       return res.status(503).json({
         success: false,
@@ -70,7 +72,7 @@ router.post('/payment/confirm', async (req, res) => {
     // 토스페이먼츠 결제 승인 API 호출
     // Authorization: Basic base64(시크릿키 + ":")
     // 시크릿키 뒤에 콜론(:)을 붙이는 것이 토스 인증 규격
-    const authHeader = 'Basic ' + Buffer.from(TOSS_SECRET_KEY + ':').toString('base64');
+    const authHeader = 'Basic ' + Buffer.from(secretKey + ':').toString('base64');
 
     const tossRes = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
       method: 'POST',
