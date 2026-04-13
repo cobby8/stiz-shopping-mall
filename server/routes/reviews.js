@@ -181,4 +181,75 @@ router.delete('/reviews/:id', requireAuth, (req, res) => {
   }
 });
 
+// ===== 5. GET /api/admin/reviews — 관리자용 전체 리뷰 목록 (W-2) =====
+// 비유: 관리자가 모든 상품의 후기를 한 곳에서 관리하는 대시보드
+// adminAuth는 server.js에서 개별 적용하지 않고, 여기서 직접 import하여 사용
+import { adminAuth } from '../middleware/adminAuth.js';
+
+router.get('/admin/reviews', adminAuth, (req, res) => {
+  try {
+    // 쿼리 파라미터: page, limit, productId, rating (필터)
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+    const productId = parseInt(req.query.productId) || null;
+    const rating = parseInt(req.query.rating) || null;
+
+    // WHERE 조건 동적 조립 — 필터가 있으면 추가
+    let where = '1=1';
+    const params = [];
+
+    if (productId) {
+      where += ' AND r.productId = ?';
+      params.push(productId);
+    }
+    if (rating && rating >= 1 && rating <= 5) {
+      where += ' AND r.rating = ?';
+      params.push(rating);
+    }
+
+    // 총 개수 (페이지네이션용)
+    const countRow = database.prepare(
+      `SELECT COUNT(*) as total FROM product_reviews r WHERE ${where}`
+    ).get(...params);
+
+    // 리뷰 목록 — 상품명도 함께 조회 (JOIN)
+    const reviews = database.prepare(`
+      SELECT r.*, p.name as productName, p.thumbnail as productThumbnail
+      FROM product_reviews r
+      LEFT JOIN products p ON r.productId = p.id
+      WHERE ${where}
+      ORDER BY r.createdAt DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset);
+
+    // 통계: 전체 리뷰 수, 평균 별점, 별점 분포
+    const stats = database.prepare(
+      'SELECT COUNT(*) as total, COALESCE(AVG(rating), 0) as avgRating FROM product_reviews'
+    ).get();
+    const distribution = database.prepare(
+      'SELECT rating, COUNT(*) as count FROM product_reviews GROUP BY rating ORDER BY rating DESC'
+    ).all();
+
+    res.json({
+      success: true,
+      reviews,
+      pagination: {
+        page,
+        limit,
+        total: countRow.total,
+        totalPages: Math.ceil(countRow.total / limit)
+      },
+      stats: {
+        total: stats.total,
+        avgRating: Math.round(stats.avgRating * 10) / 10,
+        distribution
+      }
+    });
+  } catch (error) {
+    console.error('[Reviews] 관리자 목록 조회 실패:', error);
+    res.status(500).json({ success: false, error: '리뷰 목록 조회 실패' });
+  }
+});
+
 export default router;

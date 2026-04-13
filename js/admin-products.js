@@ -223,8 +223,9 @@ function renderProductTable(products, pagination) {
         // 상태 배지 클래스 결정
         const statusClass = p.status === 'active' ? 'status-active' :
                             p.status === 'draft' ? 'status-draft' : 'status-archived';
+        // draft 상태에 "비공개" 배지 + 안내 텍스트 추가 (W-3)
         const statusLabel = p.status === 'active' ? '판매중' :
-                            p.status === 'draft' ? '숨김' : '보관';
+                            p.status === 'draft' ? '비공개' : '보관';
 
         // 타입 배지
         const typeClass = p.type === 'ready' ? 'type-ready' : 'type-custom';
@@ -259,6 +260,7 @@ function renderProductTable(products, pagination) {
                 <td class="px-4 py-3 text-right text-sm text-gray-500">${costDisplay}</td>
                 <td class="px-4 py-3 text-center">
                     <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusLabel}</span>
+                    ${p.status === 'draft' ? '<p class="text-[10px] text-gray-400 mt-0.5">고객에게 미노출</p>' : ''}
                 </td>
                 <td class="px-4 py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
@@ -493,7 +495,13 @@ async function handleProductSubmit(event) {
             if (savedId) {
                 await uploadPendingImages(savedId);
             }
-            alert(isEdit ? '상품이 수정되었습니다.' : '상품이 등록되었습니다.');
+            // 등록 성공 시 draft 상태 안내 포함 (W-3)
+            // 비유: 새 상품은 "비공개 창고"에 먼저 들어가고, 관리자가 직접 "매장 진열"로 바꿔야 고객에게 보임
+            if (isEdit) {
+                alert('상품이 수정되었습니다.');
+            } else {
+                alert('상품이 등록되었습니다.\n\n현재 \'숨김(초안)\' 상태입니다.\n쇼핑몰에 노출하려면 상태를 \'판매중\'으로 변경하세요.');
+            }
             closeModal();
             loadProducts();  // 목록 새로고침
         } else {
