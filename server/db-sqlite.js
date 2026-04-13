@@ -80,7 +80,12 @@ const ALLOWED_TABLES = [
     'product_reviews',
     'cart_items',
     'board_posts',
-    'wishlists'
+    'wishlists',
+    // #15: 쿠폰/적립금 인프라
+    'coupons',
+    'user_mileage',
+    // #18: 뉴스레터 구독
+    'newsletter_subscribers'
 ];
 
 // 테이블명 검증 함수 — 화이트리스트에 없으면 즉시 에러

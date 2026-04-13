@@ -283,3 +283,49 @@ CREATE TABLE IF NOT EXISTS wishlists (
 );
 CREATE INDEX IF NOT EXISTS idx_wishlists_userId ON wishlists(userId);
 CREATE INDEX IF NOT EXISTS idx_wishlists_productId ON wishlists(productId);
+
+-- =============================================
+-- 쿠폰 테이블 (#15: 쿠폰/적립금 인프라)
+-- 비유: 할인 쿠폰함 — 코드를 입력하면 할인이 적용되는 시스템
+-- discountType: 'percent'(정률 할인) 또는 'fixed'(정액 할인)
+-- =============================================
+CREATE TABLE IF NOT EXISTS coupons (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT UNIQUE NOT NULL,             -- 쿠폰 코드 (예: 'WELCOME10')
+  name TEXT NOT NULL,                    -- 쿠폰 이름 (예: '신규 회원 10% 할인')
+  discountType TEXT DEFAULT 'percent',   -- 할인 유형: percent(정률) / fixed(정액)
+  discountValue INTEGER NOT NULL,        -- 할인 값 (percent면 10=10%, fixed면 5000=5000원)
+  minOrderAmount INTEGER DEFAULT 0,      -- 최소 주문 금액 (이 금액 이상 주문 시만 사용 가능)
+  maxDiscount INTEGER,                   -- 최대 할인 금액 (정률 할인 시 상한선)
+  usageLimit INTEGER DEFAULT 1,          -- 총 사용 가능 횟수
+  usedCount INTEGER DEFAULT 0,           -- 현재까지 사용된 횟수
+  expiresAt TEXT,                        -- 만료일시 (NULL이면 무기한)
+  isActive INTEGER DEFAULT 1,            -- 활성 상태 (1=사용 가능, 0=비활성)
+  createdAt TEXT DEFAULT (datetime('now'))
+);
+
+-- =============================================
+-- 사용자 적립금(마일리지) 테이블 (#15)
+-- 비유: 포인트 통장 — 적립(양수)과 사용(음수)이 기록되는 원장
+-- 잔액은 SUM(amount) WHERE userId=?로 계산
+-- =============================================
+CREATE TABLE IF NOT EXISTS user_mileage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  userId INTEGER NOT NULL,               -- 어떤 사용자의 적립금인지
+  amount INTEGER NOT NULL,               -- 양수=적립, 음수=사용
+  reason TEXT,                           -- 사유 (예: '주문 적립', '쿠폰 사용')
+  orderId INTEGER,                       -- 관련 주문 ID (있으면)
+  createdAt TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_user_mileage_userId ON user_mileage(userId);
+
+-- =============================================
+-- 뉴스레터 구독자 테이블 (#18)
+-- 비유: 매장 앞 "이메일 뉴스 신청" 명단
+-- =============================================
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,            -- 구독자 이메일 (중복 방지)
+  isActive INTEGER DEFAULT 1,            -- 구독 상태 (1=구독중, 0=구독취소)
+  createdAt TEXT DEFAULT (datetime('now'))
+);

@@ -147,6 +147,24 @@
                             class="form-input w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm resize-none"></textarea>
                     </div>
 
+                    <!-- 3.5. 쿠폰 적용 (#15) -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm">
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-xl">confirmation_number</span>
+                            쿠폰 할인
+                        </h2>
+                        <div class="flex gap-2">
+                            <input type="text" id="couponCode" placeholder="쿠폰 코드 입력"
+                                class="form-input flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm uppercase">
+                            <button onclick="applyCoupon()" id="couponApplyBtn"
+                                class="px-4 py-2.5 bg-brand-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors whitespace-nowrap">
+                                적용
+                            </button>
+                        </div>
+                        <!-- 쿠폰 적용 결과 표시 영역 -->
+                        <div id="couponResult" class="hidden mt-3 p-3 rounded-lg text-sm"></div>
+                    </div>
+
                     <!-- 4. 결제 방법 -->
                     <div class="bg-white rounded-xl p-6 shadow-sm">
                         <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
@@ -321,6 +339,58 @@
     <script src="js/header_render.js" defer></script>
     <script src="js/chatbot.js" defer></script>
     <script src="js/checkout.js" defer></script>
+
+    <!-- 쿠폰 적용 스크립트 (#15) -->
+    <script>
+        // 현재 적용된 쿠폰 정보를 저장 (할인 계산에 사용)
+        let appliedCoupon = null;
+
+        // 쿠폰 코드 적용 — 서버에서 유효성 검증 후 할인 정보 표시
+        async function applyCoupon() {
+            const codeInput = document.getElementById('couponCode');
+            const resultDiv = document.getElementById('couponResult');
+            const code = codeInput.value.trim();
+
+            // 빈 입력 체크
+            if (!code) {
+                showCouponResult('쿠폰 코드를 입력해주세요.', false);
+                return;
+            }
+
+            try {
+                // 서버 API로 쿠폰 유효성 검증
+                const resp = await fetch('/api/coupons/check?code=' + encodeURIComponent(code));
+                const data = await resp.json();
+
+                if (data.success) {
+                    // 유효한 쿠폰 — 할인 정보 표시
+                    appliedCoupon = data.coupon;
+                    const desc = data.coupon.discountType === 'percent'
+                        ? data.coupon.discountValue + '% 할인'
+                        : data.coupon.discountValue.toLocaleString() + '원 할인';
+                    showCouponResult(data.coupon.name + ' (' + desc + ') 적용됨!', true);
+                } else {
+                    // 유효하지 않은 쿠폰
+                    appliedCoupon = null;
+                    showCouponResult(data.error, false);
+                }
+            } catch (e) {
+                showCouponResult('쿠폰 확인 중 오류가 발생했습니다.', false);
+            }
+        }
+
+        // 쿠폰 결과 메시지 표시 헬퍼
+        function showCouponResult(msg, isSuccess) {
+            const resultDiv = document.getElementById('couponResult');
+            resultDiv.classList.remove('hidden', 'bg-green-50', 'text-green-700', 'bg-red-50', 'text-red-700');
+            if (isSuccess) {
+                resultDiv.classList.add('bg-green-50', 'text-green-700');
+            } else {
+                resultDiv.classList.add('bg-red-50', 'text-red-700');
+            }
+            resultDiv.textContent = msg;
+        }
+    </script>
 </body>
 
 </html>

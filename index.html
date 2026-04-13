@@ -272,15 +272,18 @@
                     </ul>
                 </div>
 
-                <!-- Newsletter -->
+                <!-- Newsletter (#18: 뉴스레터 구독 API 연동) -->
                 <div class="col-span-1">
                     <h3 class="font-bold text-lg mb-4 text-white">NEWSLETTER</h3>
                     <p class="text-gray-400 text-sm mb-4">Subscribe to get special offers and new product drops.</p>
                     <div class="flex">
-                        <input type="email" placeholder="Your email" aria-label="이메일 주소"
+                        <input type="email" id="newsletterEmail" placeholder="Your email" aria-label="이메일 주소"
                             class="bg-gray-800 text-white px-4 py-2 text-sm focus:outline-none w-full">
-                        <button class="bg-white text-black px-4 py-2 font-bold text-sm hover:bg-gray-200">JOIN</button>
+                        <button onclick="subscribeNewsletter()" id="newsletterBtn"
+                            class="bg-white text-black px-4 py-2 font-bold text-sm hover:bg-gray-200 whitespace-nowrap">JOIN</button>
                     </div>
+                    <!-- 구독 결과 메시지 표시 -->
+                    <p id="newsletterMsg" class="text-xs mt-2 hidden"></p>
                 </div>
             </div>
 
@@ -391,6 +394,53 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadFeaturedSections();
         });
+
+        // ============================================================
+        // 뉴스레터 구독 함수 (#18)
+        // 푸터의 JOIN 버튼 클릭 → 서버 API 호출 → 결과 표시
+        // ============================================================
+        async function subscribeNewsletter() {
+            const emailInput = document.getElementById('newsletterEmail');
+            const msgEl = document.getElementById('newsletterMsg');
+            const btn = document.getElementById('newsletterBtn');
+            const email = emailInput.value.trim();
+
+            // 이메일 형식 간단 체크
+            if (!email || !email.includes('@')) {
+                msgEl.textContent = '올바른 이메일을 입력해주세요.';
+                msgEl.className = 'text-xs mt-2 text-red-400';
+                return;
+            }
+
+            // 버튼 비활성화 (중복 클릭 방지)
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                const resp = await fetch('/api/newsletter/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    msgEl.textContent = data.message;
+                    msgEl.className = 'text-xs mt-2 text-green-400';
+                    emailInput.value = '';  // 입력란 비움
+                } else {
+                    msgEl.textContent = data.error || '구독 실패';
+                    msgEl.className = 'text-xs mt-2 text-red-400';
+                }
+            } catch (e) {
+                msgEl.textContent = '서버 연결에 실패했습니다.';
+                msgEl.className = 'text-xs mt-2 text-red-400';
+            }
+
+            // 버튼 복구
+            btn.disabled = false;
+            btn.textContent = 'JOIN';
+        }
     </script>
 </body>
 

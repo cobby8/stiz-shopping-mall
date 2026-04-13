@@ -1,12 +1,14 @@
 /**
- * 인스타그램 피드 모듈 (Mock)
- * - 실제 Instagram API 없이 가짜 데이터로 피드를 보여줌
- * - 나중에 Instagram Basic Display API 연동 시 데이터 소스만 교체하면 됨
+ * 인스타그램 피드 모듈 (#17 개선)
+ * - 우선 서버에서 인스타그램 토큰 설정 여부를 확인
+ * - 토큰이 있으면: Instagram Basic Display API로 실제 피드 로드
+ * - 토큰이 없으면: Mock 데이터로 피드 표시 (기존 동작 유지)
+ * - 비유: 매장 간판에 실제 인스타 사진을 걸거나, 없으면 샘플 사진을 거는 것
  */
 (function () {
     'use strict';
 
-    // --- Mock 인스타그램 게시물 데이터 ---
+    // --- Mock 인스타그램 게시물 데이터 (토큰 미설정 시 사용) ---
     // 각 항목은 실제 인스타 포스트와 동일한 구조
     const instagramPosts = [
         {
@@ -148,13 +150,50 @@
         container.appendChild(scrollWrapper);
     }
 
+    /**
+     * Instagram Basic Display API로 실제 피드를 가져오는 함수
+     * 서버에서 토큰을 관리하므로, /api/instagram/feed 프록시를 통해 호출
+     * (클라이언트에 토큰을 노출하지 않기 위함)
+     */
+    async function fetchInstagramFeed() {
+        try {
+            const resp = await fetch('/api/instagram/feed');
+            const data = await resp.json();
+            if (data.success && data.posts && data.posts.length > 0) {
+                return data.posts;
+            }
+        } catch (e) {
+            // API 호출 실패 → Mock으로 폴백
+            console.log('[Instagram] API 미설정 또는 호출 실패 → Mock 데이터 사용');
+        }
+        return null; // null이면 Mock 사용
+    }
+
     // --- 초기화 ---
-    // DOM 준비 후 인스타 피드 렌더링
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            renderInstagramFeed('instagram-feed-container');
-        });
-    } else {
+    // DOM 준비 후: 실제 API 시도 → 실패 시 Mock 폴백
+    async function init() {
+        const livePosts = await fetchInstagramFeed();
+        if (livePosts) {
+            // 실제 API 데이터를 Mock 형식으로 변환 후 렌더링
+            // Instagram Basic Display API 응답: { id, media_url, caption, permalink, timestamp }
+            instagramPosts.length = 0; // Mock 비우기
+            livePosts.forEach(p => {
+                instagramPosts.push({
+                    id: p.id,
+                    imageUrl: p.media_url || p.imageUrl,
+                    caption: p.caption || '',
+                    likes: p.likes || 0,
+                    username: p.username || 'stiz_official',
+                    permalink: p.permalink || '#'
+                });
+            });
+        }
         renderInstagramFeed('instagram-feed-container');
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
 })();

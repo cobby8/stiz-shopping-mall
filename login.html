@@ -83,12 +83,15 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-            <button class="flex items-center justify-center border border-gray-300 py-3 rounded hover:bg-gray-50">
-                <span class="font-bold text-sm">Kakao</span>
+        <!-- SNS 로그인 버튼 — 서버에서 설정 상태를 확인 후 활성/비활성 결정 -->
+        <div id="snsLoginBtns" class="grid grid-cols-2 gap-4">
+            <button id="kakaoLoginBtn" onclick="snsLogin('kakao')" disabled
+                class="flex items-center justify-center border border-gray-300 py-3 rounded opacity-40 cursor-not-allowed">
+                <span class="font-bold text-sm" style="color:#FEE500;text-shadow:0 0 1px #000">Kakao</span>
             </button>
-            <button class="flex items-center justify-center border border-gray-300 py-3 rounded hover:bg-gray-50">
-                <span class="font-bold text-sm">Naver</span>
+            <button id="naverLoginBtn" onclick="snsLogin('naver')" disabled
+                class="flex items-center justify-center border border-gray-300 py-3 rounded opacity-40 cursor-not-allowed">
+                <span class="font-bold text-sm" style="color:#03C75A">Naver</span>
             </button>
         </div>
 
@@ -144,6 +147,37 @@
                 errEl.classList.remove('hidden');
             }
         }
+
+        // SNS 로그인 버튼 클릭 — 서버로 리다이렉트
+        function snsLogin(provider) {
+            // 서버의 /api/auth/kakao 또는 /api/auth/naver로 이동
+            // 서버가 카카오/네이버 로그인 페이지로 리다이렉트 시켜줌
+            window.location.href = '/api/auth/' + provider;
+        }
+
+        // 서버에서 SNS 설정 상태를 확인 → 키가 등록된 SNS만 버튼 활성화
+        (async function checkSnsStatus() {
+            try {
+                const resp = await fetch('/api/auth/sns/status');
+                const data = await resp.json();
+                // 카카오 키가 설정되어 있으면 버튼 활성화
+                if (data.kakao) {
+                    const btn = document.getElementById('kakaoLoginBtn');
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-40', 'cursor-not-allowed');
+                    btn.classList.add('hover:bg-yellow-50');
+                }
+                // 네이버 키가 설정되어 있으면 버튼 활성화
+                if (data.naver) {
+                    const btn = document.getElementById('naverLoginBtn');
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-40', 'cursor-not-allowed');
+                    btn.classList.add('hover:bg-green-50');
+                }
+            } catch (e) {
+                // API 호출 실패 시 버튼 비활성 상태 유지 (에러 무시)
+            }
+        })();
     </script>
 </body>
 

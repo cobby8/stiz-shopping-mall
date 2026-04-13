@@ -34,6 +34,7 @@ import cartRoutes from './routes/cart.js';               // 장바구니 서버 
 import paymentRoutes from './routes/payment.js';         // PG 결제 인프라 API (#1)
 import boardRoutes from './routes/board.js';               // 게시판 API (공지+문의)
 import wishlistRoutes from './routes/wishlist.js';         // 위시리스트(찜) API
+import couponRoutes from './routes/coupon.js';               // 쿠폰/적립금 API (#15)
 import { adminAuth } from './middleware/adminAuth.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
 import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
@@ -86,6 +87,16 @@ app.get('/', (req, res) => {
             'GET  /api/wishlist          (login required)',
             'POST /api/wishlist          (login required)',
             'DELETE /api/wishlist/:productId (login required)',
+            'GET  /api/coupons/check?code=xxx',
+            'POST /api/admin/coupons      (admin only)',
+            'GET  /api/admin/coupons       (admin only)',
+            'POST /api/newsletter/subscribe',
+            'POST /api/newsletter/unsubscribe',
+            'GET  /api/auth/sns/status',
+            'GET  /api/auth/kakao',
+            'GET  /api/auth/kakao/callback',
+            'GET  /api/auth/naver',
+            'GET  /api/auth/naver/callback',
         ]
     });
 });
@@ -133,6 +144,72 @@ app.use('/api', boardRoutes);
 // 위시리스트 라우트 — 로그인 사용자 전용
 // wishlistRoutes 내부에서 requireAuth를 개별 적용
 app.use('/api', wishlistRoutes);
+
+// 쿠폰 라우트 — 공개(유효성 검증) + 관리자(생성/목록) (#15)
+// couponRoutes 내부에서 adminAuth를 개별 적용
+app.use('/api', couponRoutes);
+
+// ============================================================
+// 뉴스레터 구독 API (#18)
+// 비유: 매장 입구의 "이메일 뉴스 신청서" — 이메일만 적으면 구독 완료
+// 별도 라우트 파일 없이 server.js에 직접 정의 (2개 엔드포인트뿐이므로)
+// ============================================================
+
+// POST /api/newsletter/subscribe — 이메일 구독 신청
+app.post('/api/newsletter/subscribe', (req, res) => {
+    try {
+        const { email } = req.body;
+
+        // 이메일 형식 검증
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, error: '올바른 이메일을 입력해주세요.' });
+        }
+
+        const trimmedEmail = email.trim().toLowerCase();
+
+        // 이미 구독 중인지 확인
+        const existing = sqliteDb.prepare('SELECT * FROM newsletter_subscribers WHERE email = ?').get(trimmedEmail);
+        if (existing) {
+            // 구독 취소했던 사용자 → 다시 활성화
+            if (!existing.isActive) {
+                sqliteDb.prepare('UPDATE newsletter_subscribers SET isActive = 1 WHERE email = ?').run(trimmedEmail);
+                return res.json({ success: true, message: '뉴스레터 구독이 다시 활성화되었습니다.' });
+            }
+            return res.json({ success: true, message: '이미 구독 중입니다.' });
+        }
+
+        // 신규 구독자 등록
+        sqliteDb.prepare('INSERT INTO newsletter_subscribers (email) VALUES (?)').run(trimmedEmail);
+        console.log(`[Newsletter] 신규 구독: ${trimmedEmail}`);
+        res.json({ success: true, message: '뉴스레터 구독이 완료되었습니다!' });
+    } catch (error) {
+        console.error('[Newsletter] 구독 실패:', error);
+        res.status(500).json({ success: false, error: '구독 처리 중 오류가 발생했습니다.' });
+    }
+});
+
+// POST /api/newsletter/unsubscribe — 구독 취소
+app.post('/api/newsletter/unsubscribe', (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ success: false, error: '이메일을 입력해주세요.' });
+        }
+
+        const trimmedEmail = email.trim().toLowerCase();
+        const result = sqliteDb.prepare('UPDATE newsletter_subscribers SET isActive = 0 WHERE email = ? AND isActive = 1').run(trimmedEmail);
+
+        if (result.changes === 0) {
+            return res.status(404).json({ success: false, error: '구독 내역을 찾을 수 없습니다.' });
+        }
+
+        console.log(`[Newsletter] 구독 취소: ${trimmedEmail}`);
+        res.json({ success: true, message: '뉴스레터 구독이 취소되었습니다.' });
+    } catch (error) {
+        console.error('[Newsletter] 구독 취소 실패:', error);
+        res.status(500).json({ success: false, error: '구독 취소 중 오류가 발생했습니다.' });
+    }
+});
 
 // --- settings 테이블 초기 시딩 (A-1) ---
 // 비유: 식당 오픈 전에 기본 메뉴판을 세팅하는 것. 이미 메뉴판이 있으면 건드리지 않음
@@ -621,6 +698,35 @@ if (optCount === 0) {
     seedOptions();
     console.log(`[E-1] 사이즈 옵션 ${optInserted}개 시딩 완료 (${customProducts.length}개 상품)`);
 }
+
+// ============================================================
+// 미이전 카테고리 6개 시딩 (#16)
+// 비유: 아직 빈 진열대만 준비해두는 것 — 상품은 관리자가 나중에 등록
+// INSERT OR IGNORE: slug가 이미 있으면 건너뜀 (중복 안전)
+// ============================================================
+const seedCategories = sqliteDb.transaction(() => {
+    const insertCat = sqliteDb.prepare(`
+        INSERT OR IGNORE INTO product_categories (name, slug, parentId, sortOrder, active, createdAt, updatedAt)
+        VALUES (?, ?, NULL, ?, 1, datetime('now'), datetime('now'))
+    `);
+    const newCats = [
+        { name: 'MOLTEN', slug: 'molten', sort: 100 },
+        { name: 'E-SPORTS', slug: 'esports', sort: 101 },
+        { name: '잠스트', slug: 'zamst', sort: 102 },
+        { name: '스킬즈', slug: 'skillz', sort: 103 },
+        { name: '스포츠테이핑', slug: 'taping', sort: 104 },
+        { name: '한국중고농구연맹', slug: 'kjbl', sort: 105 },
+    ];
+    let inserted = 0;
+    for (const cat of newCats) {
+        const result = insertCat.run(cat.name, cat.slug, cat.sort);
+        if (result.changes > 0) inserted++;
+    }
+    if (inserted > 0) {
+        console.log(`[#16] 미이전 카테고리 ${inserted}개 시딩 완료`);
+    }
+});
+seedCategories();
 
 // Start Server
 app.listen(port, () => {

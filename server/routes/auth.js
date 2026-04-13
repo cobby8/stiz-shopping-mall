@@ -433,6 +433,90 @@ router.delete('/admin/users/:id', adminAuth, (req, res) => {
     }
 });
 
+// ============================================================
+// SNS 로그인 인프라 (#14) — 카카오/네이버 OAuth 리다이렉트
+// 비유: SNS 로그인 버튼을 누르면 카카오/네이버 로그인 페이지로 이동시켜주는 "안내 데스크"
+// 실제 API 키가 없으면 "아직 설정 안 됨" 메시지만 반환 (SOLAPI와 동일한 패턴)
+// ============================================================
+
+// 환경변수에서 SNS 키 읽기 — 없으면 빈 문자열 (미설정 상태)
+const KAKAO_CLIENT_ID = process.env.KAKAO_CLIENT_ID || '';
+const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET || '';
+const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID || '';
+const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET || '';
+
+// SNS 키가 모두 설정되었는지 확인하는 헬퍼 함수
+function isKakaoConfigured() { return !!(KAKAO_CLIENT_ID && KAKAO_CLIENT_SECRET); }
+function isNaverConfigured() { return !!(NAVER_CLIENT_ID && NAVER_CLIENT_SECRET); }
+
+// GET /api/auth/sns/status — SNS 로그인 설정 상태 조회
+// 프론트엔드에서 SNS 버튼 표시 여부를 결정할 때 사용
+router.get('/sns/status', (req, res) => {
+    res.json({
+        success: true,
+        kakao: isKakaoConfigured(),
+        naver: isNaverConfigured()
+    });
+});
+
+// GET /api/auth/kakao — 카카오 로그인 리다이렉트 URL 생성
+router.get('/kakao', (req, res) => {
+    if (!isKakaoConfigured()) {
+        return res.status(503).json({
+            success: false,
+            error: 'SNS 로그인 미설정: 카카오 API 키가 환경변수에 등록되지 않았습니다.'
+        });
+    }
+    // 콜백 URL: 프론트엔드 도메인 기준으로 설정 필요
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/kakao/callback`;
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+    res.redirect(kakaoAuthUrl);
+});
+
+// GET /api/auth/kakao/callback — 카카오 콜백 처리
+router.get('/kakao/callback', async (req, res) => {
+    if (!isKakaoConfigured()) {
+        return res.status(503).json({ success: false, error: 'SNS 로그인 미설정' });
+    }
+    // TODO: 카카오 인가코드(req.query.code)로 액세스 토큰 발급 → 사용자 정보 조회 → 회원 생성/로그인
+    // 현재는 인프라만 준비된 상태 — 실제 구현은 API 키 확보 후
+    const code = req.query.code;
+    if (!code) {
+        return res.status(400).json({ success: false, error: '인가 코드가 없습니다.' });
+    }
+    console.log(`[Auth] 카카오 콜백 수신 — code: ${code.substring(0, 10)}...`);
+    res.json({ success: false, error: '카카오 로그인 처리 미구현 (인프라만 준비됨)' });
+});
+
+// GET /api/auth/naver — 네이버 로그인 리다이렉트 URL 생성
+router.get('/naver', (req, res) => {
+    if (!isNaverConfigured()) {
+        return res.status(503).json({
+            success: false,
+            error: 'SNS 로그인 미설정: 네이버 API 키가 환경변수에 등록되지 않았습니다.'
+        });
+    }
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/naver/callback`;
+    // state: CSRF 방지용 랜덤 토큰 (실제 운영 시 세션에 저장하여 검증 필요)
+    const state = Math.random().toString(36).substring(2, 15);
+    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
+    res.redirect(naverAuthUrl);
+});
+
+// GET /api/auth/naver/callback — 네이버 콜백 처리
+router.get('/naver/callback', async (req, res) => {
+    if (!isNaverConfigured()) {
+        return res.status(503).json({ success: false, error: 'SNS 로그인 미설정' });
+    }
+    // TODO: 네이버 인가코드(req.query.code)로 액세스 토큰 발급 → 사용자 정보 조회 → 회원 생성/로그인
+    const code = req.query.code;
+    if (!code) {
+        return res.status(400).json({ success: false, error: '인가 코드가 없습니다.' });
+    }
+    console.log(`[Auth] 네이버 콜백 수신 — code: ${code.substring(0, 10)}...`);
+    res.json({ success: false, error: '네이버 로그인 처리 미구현 (인프라만 준비됨)' });
+});
+
 // JWT_SECRET을 다른 모듈에서도 사용할 수 있도록 내보냄
 export { JWT_SECRET };
 export default router;
