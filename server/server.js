@@ -64,6 +64,7 @@ app.get('/', (req, res) => {
             'POST /api/admin/customers/merge (admin only)',
             'GET  /api/admin/customers/stats/summary (admin only)',
             'GET  /api/admin/backup          (admin only)',
+            'GET  /api/admin/reviews         (admin only)',
             'GET  /api/products/:id/reviews',
             'POST /api/products/:id/reviews  (login required)',
             'PUT  /api/reviews/:id           (login required)',
@@ -106,6 +107,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/generate', aiRoutes);
 
+// 리뷰 라우트 — /api/admin/reviews가 adminRoutes보다 먼저 매칭되어야 함
+// reviewRoutes 내부에서 requireAuth/adminAuth를 개별 적용
+app.use('/api', reviewRoutes);
+
 // 관리자 전용 라우트 - adminAuth 미들웨어가 "보안 검색대" 역할
 // adminAuth를 통과한 요청만 admin 라우트에 도달
 app.use('/api/admin', adminAuth, adminRoutes);
@@ -125,9 +130,7 @@ app.use('/api', uploadRoutes);
 // productRoutes 내부에서 /admin/* 엔드포인트에 adminAuth를 개별 적용
 app.use('/api', productRoutes);
 
-// 리뷰 라우트 — 공개(목록 조회) + 로그인 필요(작성/수정/삭제) (F-4)
-// reviewRoutes 내부에서 requireAuth를 개별 적용
-app.use('/api', reviewRoutes);
+// (reviewRoutes는 위에서 /api/admin보다 먼저 등록됨)
 
 // 장바구니 라우트 — 로그인 사용자 전용 서버 동기화 (#3)
 // cartRoutes 내부에서 requireAuth를 개별 적용

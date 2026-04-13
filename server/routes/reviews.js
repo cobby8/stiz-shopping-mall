@@ -215,7 +215,8 @@ router.get('/admin/reviews', adminAuth, (req, res) => {
 
     // 리뷰 목록 — 상품명도 함께 조회 (JOIN)
     const reviews = database.prepare(`
-      SELECT r.*, p.name as productName, p.thumbnail as productThumbnail
+      SELECT r.*, p.name as productName,
+             (SELECT url FROM product_images WHERE productId = p.id AND isPrimary = 1 LIMIT 1) as productThumbnail
       FROM product_reviews r
       LEFT JOIN products p ON r.productId = p.id
       WHERE ${where}
