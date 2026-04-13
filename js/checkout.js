@@ -347,7 +347,7 @@ async function processTossPayment(formData) {
     const payment = tossPayments.payment({ customerKey: 'GUEST_' + Date.now() });
 
     await payment.requestPayment({
-      method: selectedPayMethod,     // '카드', '계좌이체', '가상계좌', '토스페이'
+      method: selectedPayMethod,     // 'CARD', 'TRANSFER', 'VIRTUAL_ACCOUNT', 'TOSSPAY'
       amount: {
         currency: 'KRW',
         value: total,
