@@ -647,7 +647,6 @@ function selectCustomGrade(btn) {
 function renderCustomPackages(meta) {
   const container = document.getElementById('customPackageButtons');
   const section = document.getElementById('customPackageSection');
-  if (!container || !customState.catalog) return;
 
   const allPackages = customState.catalog.packages || [];
   const gradePackageMap = customState.catalog.gradePackageMap || {};
@@ -757,7 +756,8 @@ function clearCustomFinish() {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
-  document.getElementById('customPackageButtons').innerHTML = '';
+  // 패키지 버튼은 여기서 지우면 안 됨! (마감 옵션만 초기화)
+  // document.getElementById('customPackageButtons').innerHTML = '';  // ← 버그: 패키지를 지움!
 }
 
 function selectCustomFinishTop(btn) {
