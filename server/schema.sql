@@ -221,3 +221,24 @@ CREATE TABLE IF NOT EXISTS product_reviews (
 );
 CREATE INDEX IF NOT EXISTS idx_product_reviews_productId ON product_reviews(productId);
 CREATE INDEX IF NOT EXISTS idx_product_reviews_userId ON product_reviews(userId);
+
+-- =============================================
+-- 장바구니 테이블 (서버 동기화용)
+-- 비유: 마트에서 "내 장바구니"를 카운터에 맡겨두는 것
+-- 로그인 사용자만 서버에 장바구니 저장 → 다른 기기에서도 볼 수 있음
+-- 비로그인 사용자는 기존처럼 localStorage만 사용 (이 테이블 무관)
+-- =============================================
+CREATE TABLE IF NOT EXISTS cart_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  userId INTEGER NOT NULL,              -- 어떤 사용자의 장바구니인지 (users.id)
+  productId INTEGER NOT NULL,           -- 상품 ID (products.id)
+  name TEXT,                            -- 상품명 스냅샷 (상품 삭제돼도 장바구니에서는 보임)
+  price INTEGER DEFAULT 0,             -- 가격 스냅샷
+  size TEXT,                            -- 선택한 사이즈
+  qty INTEGER DEFAULT 1,               -- 수량
+  image TEXT,                           -- 상품 이미지 URL 스냅샷
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  UNIQUE(userId, productId, size)       -- 같은 사용자+상품+사이즈 조합은 1건만 (수량으로 관리)
+);
+CREATE INDEX IF NOT EXISTS idx_cart_items_userId ON cart_items(userId);

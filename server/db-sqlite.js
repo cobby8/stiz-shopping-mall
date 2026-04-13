@@ -64,7 +64,8 @@ const ALLOWED_TABLES = [
     'sales_goals', 'users', 'order_templates', 'settings',
     // Phase E-1: 상품 시스템 테이블 4개 추가
     'product_categories', 'products', 'product_options', 'product_images',
-    'product_reviews'
+    'product_reviews',
+    'cart_items'
 ];
 
 // 테이블명 검증 함수 — 화이트리스트에 없으면 즉시 에러

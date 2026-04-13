@@ -30,6 +30,8 @@ import catalogRoutes from './routes/catalog.js';      // 상품 카탈로그 API
 import uploadRoutes from './routes/upload.js';          // 파일 업로드 API (A-4)
 import productRoutes from './routes/products.js';       // 상품 CRUD API (E-2)
 import reviewRoutes from './routes/reviews.js';         // 상품 리뷰 API (F-4)
+import cartRoutes from './routes/cart.js';               // 장바구니 서버 동기화 API (#3)
+import paymentRoutes from './routes/payment.js';         // PG 결제 인프라 API (#1)
 import { adminAuth } from './middleware/adminAuth.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
 import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
@@ -63,6 +65,13 @@ app.get('/', (req, res) => {
             'POST /api/products/:id/reviews  (login required)',
             'PUT  /api/reviews/:id           (login required)',
             'DELETE /api/reviews/:id         (login required)',
+            'GET  /api/cart                 (login required)',
+            'POST /api/cart                 (login required)',
+            'DELETE /api/cart/:id           (login required)',
+            'POST /api/cart/merge           (login required)',
+            'GET  /api/payment/config',
+            'POST /api/payment/prepare',
+            'POST /api/payment/complete',
             'POST /api/generate',
         ]
     });
@@ -95,6 +104,14 @@ app.use('/api', productRoutes);
 // 리뷰 라우트 — 공개(목록 조회) + 로그인 필요(작성/수정/삭제) (F-4)
 // reviewRoutes 내부에서 requireAuth를 개별 적용
 app.use('/api', reviewRoutes);
+
+// 장바구니 라우트 — 로그인 사용자 전용 서버 동기화 (#3)
+// cartRoutes 내부에서 requireAuth를 개별 적용
+app.use('/api', cartRoutes);
+
+// 결제 라우트 — PortOne PG 결제 인프라 (#1)
+// config 엔드포인트는 공개, prepare/complete는 공개 (주문 시 호출)
+app.use('/api', paymentRoutes);
 
 // --- settings 테이블 초기 시딩 (A-1) ---
 // 비유: 식당 오픈 전에 기본 메뉴판을 세팅하는 것. 이미 메뉴판이 있으면 건드리지 않음

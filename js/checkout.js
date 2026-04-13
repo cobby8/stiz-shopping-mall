@@ -2,13 +2,25 @@
  * STIZ SHOP - 주문/결제 페이지
  * 비유: 마트 계산대 — 장바구니 내용을 확인하고, 정보 입력 후 결제를 진행한다.
  *
- * 흐름: cart.js에서 장바구니 데이터 가져오기 -> 주문자 정보 입력 -> POST /api/orders -> 완료 화면
+ * 결제 방식:
+ *  - 카드 결제: PortOne(아임포트) SDK를 통해 PG 결제창 호출
+ *  - 무통장 입금: 기존 계좌 안내 방식 (기본값)
+ *
+ * 흐름:
+ *  카드: cart.js에서 데이터 → 주문자 정보 → PortOne 결제창 → 서버 검증 → 완료
+ *  무통장: cart.js에서 데이터 → 주문자 정보 → POST /api/orders → 완료 (기존)
  */
 
 const CHECKOUT_API = '/api/orders';
 
+// PortOne 설정 상태 — 서버에서 가져온다 (초기값: 미설정)
+let portOneConfig = { merchantId: '', configured: false };
+
+// 현재 선택된 결제 방법 ('bank' 또는 'card')
+let selectedPayMethod = 'bank';
+
 // ===== 페이지 초기화 =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const cart = getCart();
 
   // 장바구니가 비어있으면 장바구니 페이지로 리다이렉트
@@ -21,7 +33,71 @@ document.addEventListener('DOMContentLoaded', () => {
   renderOrderItems();   // 주문 상품 목록 렌더링
   renderOrderSummary(); // 금액 요약 렌더링
   bindPhoneFormat();    // 전화번호 자동 하이픈
+
+  // PortOne 설정 확인 — 서버에 키가 있으면 카드 결제 옵션 표시
+  await checkPortOneConfig();
 });
+
+/**
+ * PortOne 설정 확인
+ * 서버에 PORTONE 키가 설정되어 있으면 카드 결제 옵션을 보여준다
+ * 키가 없으면 무통장 입금만 표시 (기존과 동일)
+ */
+async function checkPortOneConfig() {
+  try {
+    const res = await fetch('/api/payment/config');
+    const data = await res.json();
+
+    if (data.success && data.configured) {
+      portOneConfig = {
+        merchantId: data.merchantId,
+        configured: true
+      };
+      // 카드 결제 옵션 표시
+      const cardOption = document.getElementById('payMethodCard');
+      if (cardOption) cardOption.classList.remove('hidden');
+
+      // PortOne SDK 초기화
+      if (window.IMP) {
+        window.IMP.init(portOneConfig.merchantId);
+      }
+    }
+  } catch (err) {
+    // 서버 오류 시 무통장만 표시 (graceful degradation)
+    console.warn('[checkout] PortOne 설정 확인 실패:', err.message);
+  }
+}
+
+/**
+ * 결제 방법 선택 UI 처리
+ * 라디오 버튼 클릭 시 선택 상태 시각적 표시 + 계좌 정보 토글
+ */
+function selectPayMethod(method) {
+  selectedPayMethod = method;
+
+  // 모든 옵션의 테두리 초기화
+  document.querySelectorAll('.pay-method-option').forEach(el => {
+    el.classList.remove('border-brand-black', 'bg-gray-50');
+    el.classList.add('border-gray-200');
+  });
+
+  // 선택된 옵션 강조
+  const selected = document.querySelector(`.pay-method-option[data-method="${method}"]`);
+  if (selected) {
+    selected.classList.remove('border-gray-200');
+    selected.classList.add('border-brand-black', 'bg-gray-50');
+  }
+
+  // 라디오 버튼 체크 상태 동기화
+  const radio = document.querySelector(`input[name="payMethod"][value="${method}"]`);
+  if (radio) radio.checked = true;
+
+  // 무통장 입금 계좌 정보 표시/숨김
+  const bankInfo = document.getElementById('bankInfo');
+  if (bankInfo) {
+    bankInfo.style.display = method === 'bank' ? 'block' : 'none';
+  }
+}
 
 /**
  * 주문 상품 목록 렌더링 (사이드바)
@@ -91,11 +167,10 @@ function bindPhoneFormat() {
 }
 
 /**
- * 주문 제출 (핵심 함수)
- * 입력값 검증 -> POST /api/orders -> 성공 시 완료 화면 표시 + 장바구니 비우기
+ * 입력값 검증 — 주문 제출 전 필수값 체크
+ * 실패 시 null 반환, 성공 시 정리된 데이터 반환
  */
-async function submitOrder() {
-  // --- 1. 입력값 가져오기 ---
+function validateAndGetFormData() {
   const name = document.getElementById('customerName').value.trim();
   const phone = document.getElementById('customerPhone').value.trim();
   const email = document.getElementById('customerEmail').value.trim();
@@ -104,36 +179,41 @@ async function submitOrder() {
   const addressDetail = document.getElementById('shippingDetail').value.trim();
   const memo = document.getElementById('orderMemo').value.trim();
 
-  // --- 2. 필수 입력값 검증 ---
   if (!name) {
     alert('이름을 입력해주세요.');
     document.getElementById('customerName').focus();
-    return;
+    return null;
   }
   if (!phone) {
     alert('연락처를 입력해주세요.');
     document.getElementById('customerPhone').focus();
-    return;
+    return null;
   }
-  // 전화번호 형식 검증 (하이픈 포함/미포함 모두 허용)
   const phoneClean = phone.replace(/-/g, '');
   if (phoneClean.length < 10 || phoneClean.length > 11) {
     alert('올바른 연락처를 입력해주세요.');
     document.getElementById('customerPhone').focus();
-    return;
+    return null;
   }
 
-  // --- 3. 장바구니 데이터를 주문 아이템으로 변환 ---
   const cart = getCart();
   if (cart.length === 0) {
     alert('장바구니가 비어있습니다.');
-    return;
+    return null;
   }
 
-  // POST /api/orders에 맞는 형식으로 변환
+  return { name, phone, email, recipientName, address, addressDetail, memo, cart };
+}
+
+/**
+ * 주문 데이터 조립 — 카드/무통장 공통
+ */
+function buildOrderData(formData, payMethod, extraPayInfo = {}) {
+  const { name, phone, email, recipientName, address, addressDetail, memo, cart } = formData;
+
   const items = cart.map(item => ({
     name: item.name,
-    sport: '',              // 기성품 주문이므로 빈값
+    sport: '',
     category: '',
     quantity: item.qty,
     price: item.price,
@@ -145,44 +225,156 @@ async function submitOrder() {
   const shipping = getShippingCost();
   const total = getGrandTotal();
 
-  // --- 4. 주문 데이터 조립 ---
-  const orderData = {
+  return {
     customer: {
-      name: name,
-      phone: phone,
+      name, phone,
       email: email || '',
-      teamName: ''           // 기성품 주문에는 팀명 없음
+      teamName: ''
     },
-    items: items,
-    total: total,
-    // 배송 정보 (선택)
+    items,
+    total,
     shipping: {
       address: address ? `${address} ${addressDetail}`.trim() : '',
       recipientName: recipientName || name,
     },
-    // 결제 정보
     payment: {
-      method: 'bank_transfer',  // 무통장 입금
+      method: payMethod === 'card' ? 'card' : 'bank_transfer',
       totalAmount: total,
-      subtotal: subtotal,
-      shipping: shipping,
+      subtotal,
+      shipping,
+      ...extraPayInfo  // 카드 결제 시 imp_uid, merchant_uid 등 추가
     },
-    // 고객 메모
     customerMemo: memo,
-    // 주문 타입 구분
-    type: 'shop',              // 쇼핑몰 기성품 주문
-    status: 'consult_started'  // 초기 상태 (입금 대기)
+    type: 'shop',
+    // 카드 결제 완료 시 바로 결제 확인 상태, 무통장은 입금 대기
+    status: payMethod === 'card' ? 'design_requested' : 'consult_started'
   };
+}
 
-  // --- 5. API 호출 ---
-  const submitBtn = document.getElementById('submitOrder');
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = `
-    <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-    주문 처리 중...
-  `;
+/**
+ * 주문 제출 (핵심 함수) — 결제 방법에 따라 분기
+ */
+async function submitOrder() {
+  const formData = validateAndGetFormData();
+  if (!formData) return;
+
+  if (selectedPayMethod === 'card') {
+    await processCardPayment(formData);
+  } else {
+    await processBankTransfer(formData);
+  }
+}
+
+/**
+ * 카드 결제 처리 — PortOne 결제창 호출
+ * 비유: 카드 결제기에 카드를 대면 결제창이 뜨고, 완료되면 서버에서 검증하는 것
+ */
+async function processCardPayment(formData) {
+  const IMP = window.IMP;
+  if (!IMP || !portOneConfig.configured) {
+    alert('카드 결제를 사용할 수 없습니다. 무통장 입금을 이용해주세요.');
+    return;
+  }
+
+  const total = getGrandTotal();
+  const merchantUid = `order_${Date.now()}`;
+
+  // 주문 버튼 비활성화
+  setSubmitButtonLoading(true);
 
   try {
+    // 1. 결제 사전 등록 — 서버에 "이 주문은 XX원" 기록 (위변조 방지)
+    const prepareRes = await fetch('/api/payment/prepare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ merchant_uid: merchantUid, amount: total })
+    });
+    const prepareData = await prepareRes.json();
+    if (!prepareData.success) {
+      throw new Error(prepareData.error || '결제 사전 등록 실패');
+    }
+
+    // 2. PortOne 결제창 호출
+    IMP.request_pay({
+      pg: 'html5_inicis',          // PG사 (이니시스)
+      pay_method: 'card',           // 결제 수단
+      merchant_uid: merchantUid,    // 주문번호 (우리 시스템)
+      name: '스티즈 주문',           // 결제창에 표시될 상품명
+      amount: total,                // 결제 금액
+      buyer_name: formData.name,
+      buyer_tel: formData.phone,
+      buyer_email: formData.email || undefined,
+    }, async (rsp) => {
+      if (rsp.success) {
+        // 3. 결제 성공 → 서버에서 금액 검증
+        try {
+          const verifyRes = await fetch('/api/payment/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imp_uid: rsp.imp_uid,
+              merchant_uid: rsp.merchant_uid,
+              paid_amount: total
+            })
+          });
+          const verifyData = await verifyRes.json();
+
+          if (!verifyData.success) {
+            throw new Error(verifyData.error || '결제 검증 실패');
+          }
+
+          // 4. 검증 통과 → 주문 생성
+          const orderData = buildOrderData(formData, 'card', {
+            imp_uid: rsp.imp_uid,
+            merchant_uid: rsp.merchant_uid,
+            paid_amount: total
+          });
+
+          const orderRes = await fetch(CHECKOUT_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+          });
+          const orderResult = await orderRes.json();
+
+          if (!orderResult.success) {
+            throw new Error(orderResult.error || '주문 처리 실패');
+          }
+
+          // 5. 주문 완료
+          clearCart();
+          showOrderComplete(orderResult.orderNumber, total, 'card');
+
+        } catch (err) {
+          console.error('[checkout] 결제 검증/주문 실패:', err);
+          alert(`결제는 완료되었으나 주문 처리에 실패했습니다.\n고객센터에 문의해주세요.\n\n결제번호: ${rsp.imp_uid}\n${err.message}`);
+          setSubmitButtonLoading(false);
+        }
+      } else {
+        // 결제 실패 또는 취소
+        console.warn('[checkout] 결제 실패/취소:', rsp.error_msg);
+        if (rsp.error_msg) {
+          alert(`결제가 취소되었습니다.\n${rsp.error_msg}`);
+        }
+        setSubmitButtonLoading(false);
+      }
+    });
+  } catch (err) {
+    console.error('[checkout] 카드 결제 오류:', err);
+    alert(`결제 처리 중 오류가 발생했습니다.\n${err.message}`);
+    setSubmitButtonLoading(false);
+  }
+}
+
+/**
+ * 무통장 입금 처리 — 기존 로직 그대로
+ */
+async function processBankTransfer(formData) {
+  setSubmitButtonLoading(true);
+
+  try {
+    const orderData = buildOrderData(formData, 'bank');
+
     const res = await fetch(CHECKOUT_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -195,26 +387,60 @@ async function submitOrder() {
       throw new Error(result.error || '주문 처리에 실패했습니다.');
     }
 
-    // --- 6. 주문 성공 ---
-    // 장바구니 비우기
+    // 주문 성공 → 장바구니 비우기 + 완료 화면
     clearCart();
-
-    // 완료 화면에 주문 정보 표시
-    document.getElementById('resultOrderNumber').textContent = result.orderNumber;
-    document.getElementById('resultTotal').textContent = `${total.toLocaleString()}원`;
-
-    // 폼 숨기고 완료 화면 표시
-    document.getElementById('checkoutForm').classList.add('hidden');
-    document.getElementById('orderComplete').classList.remove('hidden');
-
-    // 페이지 최상단으로 스크롤
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showOrderComplete(result.orderNumber, getGrandTotal(), 'bank');
 
   } catch (err) {
     console.error('[checkout] 주문 실패:', err);
     alert(`주문에 실패했습니다.\n${err.message}`);
+    setSubmitButtonLoading(false);
+  }
+}
 
-    // 버튼 복구
+/**
+ * 주문 완료 화면 표시
+ * 결제 방법에 따라 다른 안내 문구 표시
+ */
+function showOrderComplete(orderNumber, total, method) {
+  document.getElementById('resultOrderNumber').textContent = orderNumber;
+  document.getElementById('resultTotal').textContent = `${total.toLocaleString()}원`;
+
+  // 결제 방법에 따라 안내 문구 분기
+  const subtitle = document.getElementById('resultSubtitle');
+  const bankInfo = document.getElementById('resultBankInfo');
+  const cardInfo = document.getElementById('resultCardInfo');
+
+  if (method === 'card') {
+    // 카드 결제: 입금 안내 숨기고 결제 완료 표시
+    subtitle.textContent = '카드 결제가 정상 처리되었습니다.';
+    if (bankInfo) bankInfo.classList.add('hidden');
+    if (cardInfo) cardInfo.classList.remove('hidden');
+  } else {
+    // 무통장 입금: 계좌 안내 표시
+    subtitle.textContent = '아래 계좌로 입금해주시면 주문이 확정됩니다.';
+    if (bankInfo) bankInfo.classList.remove('hidden');
+    if (cardInfo) cardInfo.classList.add('hidden');
+  }
+
+  // 폼 숨기고 완료 화면 표시
+  document.getElementById('checkoutForm').classList.add('hidden');
+  document.getElementById('orderComplete').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * 주문 버튼 로딩 상태 토글
+ */
+function setSubmitButtonLoading(loading) {
+  const submitBtn = document.getElementById('submitOrder');
+  if (loading) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+      <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+      주문 처리 중...
+    `;
+  } else {
     submitBtn.disabled = false;
     submitBtn.innerHTML = `
       <span class="material-symbols-outlined text-xl">check_circle</span>
