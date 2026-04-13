@@ -546,9 +546,11 @@ async function initCustomPanel() {
 
     // 등급 렌더링
     renderCustomGrades(meta);
-    // 패키지는 등급 선택 후 렌더링
-    // 마감 옵션은 패키지 선택 후 렌더링
-    // 견적은 옵션 변경 시마다 자동 갱신
+    // 첫 번째 등급 자동 선택 → 패키지도 바로 표시
+    const firstGradeBtn = document.querySelector('#customGradeButtons .custom-opt-btn');
+    if (firstGradeBtn) {
+      selectCustomGrade(firstGradeBtn);
+    }
 
     // 수량 입력 이벤트
     const qtyInput = document.getElementById('customQtyInput');
