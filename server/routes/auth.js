@@ -20,7 +20,7 @@ const JWT_EXPIRES_IN = '7d';
 // POST /api/auth/register - 회원가입
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, phone } = req.body;
 
         // 필수 입력값 검증
         if (!name || !email || !password) {
@@ -42,10 +42,12 @@ router.post('/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // 신규 사용자는 기본적으로 'customer' 역할
+        // phone: 선택 입력이지만 있으면 저장 (주문 시 연락처로 활용)
         const user = db.insert('users', {
             name: name.trim(),
             email: email.trim().toLowerCase(),
             password: hashedPassword,
+            phone: phone ? phone.trim() : '',
             role: 'customer',           // 기본 역할: 고객 (admin은 시드 스크립트로만 생성)
             joinedAt: new Date().toISOString()
         });

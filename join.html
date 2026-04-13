@@ -47,40 +47,76 @@
         <p class="text-center text-gray-500 mb-10 text-sm">Join STIZ for exclusive offers and faster checkout.</p>
 
         <form class="space-y-4" onsubmit="event.preventDefault(); handleRegister();">
+            <!-- 이름 -->
             <div>
                 <input type="text" id="reg-name" placeholder="Name (이름) *" required aria-label="이름"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
+            <!-- 이메일 -->
             <div>
                 <input type="email" id="reg-email" placeholder="Email *" required aria-label="이메일 주소"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
+            <!-- 전화번호: 주문 시 연락처로 사용 (선택 입력) -->
+            <div>
+                <input type="tel" id="reg-phone" placeholder="Phone (전화번호)" aria-label="전화번호"
+                    pattern="[0-9\-]+"
+                    class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
+                <p class="text-xs text-gray-400 mt-1">선택 입력. 주문 시 연락처로 사용됩니다.</p>
+            </div>
+
+            <!-- 비밀번호 -->
             <div>
                 <input type="password" id="reg-password" placeholder="Password *" required minlength="8" aria-label="비밀번호"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
-                <p class="text-xs text-gray-400 mt-1">Must be at least 8 characters.</p>
+                <p class="text-xs text-gray-400 mt-1">8자 이상 입력해주세요.</p>
             </div>
 
+            <!-- 비밀번호 확인 -->
             <div>
                 <input type="password" id="reg-password-confirm" placeholder="Confirm Password *" required aria-label="비밀번호 확인"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
+            <!-- 에러 메시지 표시 영역 -->
             <p id="reg-error" class="text-xs text-red-500 hidden"></p>
 
-            <div class="pt-4">
+            <!-- 약관 동의: 이용약관 + 개인정보처리방침 분리 -->
+            <div class="pt-4 space-y-3">
                 <label class="flex items-start">
-                    <input type="checkbox" id="reg-agree" required
-                        class="mt-1 mr-2 rounded border-gray-300 text-black focus:ring-black">
-                    <span class="text-xs text-gray-500 leading-relaxed">
-                        I agree to STIZ's <a href="notice.html" class="underline font-bold">Privacy Policy</a> and Terms of Use. *
-                    </span>
+                    <input type="checkbox" id="reg-agree-all"
+                        class="mt-1 mr-2 rounded border-gray-300 text-black focus:ring-black"
+                        onchange="toggleAllAgree(this.checked)">
+                    <span class="text-sm font-bold text-gray-700">전체 동의</span>
                 </label>
+                <div class="border-t pt-3 space-y-2 pl-1">
+                    <label class="flex items-start">
+                        <input type="checkbox" id="reg-agree-terms" required
+                            class="mt-1 mr-2 rounded border-gray-300 text-black focus:ring-black agree-item">
+                        <span class="text-xs text-gray-500 leading-relaxed">
+                            [필수] <a href="notice.html" class="underline font-bold">이용약관</a>에 동의합니다.
+                        </span>
+                    </label>
+                    <label class="flex items-start">
+                        <input type="checkbox" id="reg-agree-privacy" required
+                            class="mt-1 mr-2 rounded border-gray-300 text-black focus:ring-black agree-item">
+                        <span class="text-xs text-gray-500 leading-relaxed">
+                            [필수] <a href="notice.html" class="underline font-bold">개인정보처리방침</a>에 동의합니다.
+                        </span>
+                    </label>
+                    <label class="flex items-start">
+                        <input type="checkbox" id="reg-agree-marketing"
+                            class="mt-1 mr-2 rounded border-gray-300 text-black focus:ring-black agree-item">
+                        <span class="text-xs text-gray-500 leading-relaxed">
+                            [선택] 마케팅 정보 수신에 동의합니다.
+                        </span>
+                    </label>
+                </div>
             </div>
 
-            <button type="submit"
+            <button type="submit" id="reg-submit-btn"
                 class="w-full bg-black text-white py-4 font-bold rounded hover:bg-gray-800 transition-colors uppercase mt-6">
                 Create Account
             </button>
@@ -100,25 +136,67 @@
     <script src="js/chatbot.js" defer></script>
     <script src="js/auth.js" defer></script>
     <script>
-        // Redirect if already logged in
+        // 이미 로그인된 상태면 마이페이지로 이동
         if (isLoggedIn()) {
             location.href = 'myshop.html';
         }
 
-        function handleRegister() {
+        // "전체 동의" 체크박스 토글: 전체를 누르면 하위 항목 모두 체크/해제
+        function toggleAllAgree(checked) {
+            document.querySelectorAll('.agree-item').forEach(cb => {
+                cb.checked = checked;
+            });
+        }
+
+        // 하위 항목 변경 시 "전체 동의" 상태 자동 업데이트
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.agree-item').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const allChecked = [...document.querySelectorAll('.agree-item')].every(c => c.checked);
+                    document.getElementById('reg-agree-all').checked = allChecked;
+                });
+            });
+        });
+
+        // 회원가입 처리 — async로 서버 API 호출
+        async function handleRegister() {
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value;
+            const phone = document.getElementById('reg-phone').value;
             const password = document.getElementById('reg-password').value;
             const passwordConfirm = document.getElementById('reg-password-confirm').value;
             const errEl = document.getElementById('reg-error');
+            const submitBtn = document.getElementById('reg-submit-btn');
 
+            // 에러 초기화
+            errEl.classList.add('hidden');
+
+            // 비밀번호 확인 일치 여부 (서버 전송 전에 체크)
             if (password !== passwordConfirm) {
                 errEl.innerText = '비밀번호가 일치하지 않습니다.';
                 errEl.classList.remove('hidden');
                 return;
             }
 
-            const result = register({ name, email, password });
+            // 필수 약관 동의 확인
+            if (!document.getElementById('reg-agree-terms').checked ||
+                !document.getElementById('reg-agree-privacy').checked) {
+                errEl.innerText = '필수 약관에 동의해주세요.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            // 버튼 비활성화 (중복 클릭 방지)
+            submitBtn.disabled = true;
+            submitBtn.innerText = '처리 중...';
+
+            // 서버 API 호출 (auth.js의 register 함수)
+            const result = await register({ name, email, password, phone });
+
+            // 버튼 복구
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Create Account';
+
             if (result.success) {
                 alert('회원가입이 완료되었습니다! 로그인해주세요.');
                 location.href = 'login.html';

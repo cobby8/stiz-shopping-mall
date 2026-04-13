@@ -57,6 +57,7 @@
                     onkeydown="if(event.key==='Enter') handleLogin()">
             </div>
 
+            <!-- 에러 메시지 표시 영역 -->
             <p id="login-error" class="text-xs text-red-500 hidden"></p>
 
             <div class="flex justify-between items-center text-xs text-gray-500">
@@ -105,19 +106,39 @@
     <script src="js/chatbot.js" defer></script>
     <script src="js/auth.js" defer></script>
     <script>
-        // Redirect if already logged in
+        // 이미 로그인된 상태면 마이페이지로 이동
         if (isLoggedIn()) {
             location.href = 'myshop.html';
         }
 
-        function handleLogin() {
+        // 로그인 처리 — async로 서버 API 호출
+        async function handleLogin() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const errEl = document.getElementById('login-error');
+            const loginBtn = document.getElementById('login-btn');
 
-            const result = login(email, password);
+            // 에러 초기화
+            errEl.classList.add('hidden');
+
+            // 버튼 비활성화 (중복 클릭 방지)
+            loginBtn.disabled = true;
+            loginBtn.innerText = '로그인 중...';
+
+            // 서버 API 호출 (auth.js의 login 함수)
+            const result = await login(email, password);
+
+            // 버튼 복구
+            loginBtn.disabled = false;
+            loginBtn.innerText = 'Sign In';
+
             if (result.success) {
-                location.href = 'myshop.html';
+                // 관리자이면 관리자 페이지로, 일반 고객이면 마이페이지로
+                if (result.user.role === 'admin') {
+                    location.href = result.user.defaultPage || 'admin.html';
+                } else {
+                    location.href = 'myshop.html';
+                }
             } else {
                 errEl.innerText = result.error;
                 errEl.classList.remove('hidden');

@@ -68,6 +68,9 @@ async function loadProductDetail(id) {
       updateTotalPrice();
     }
 
+    // 리뷰 로드 — 상품 상세가 로드된 후 리뷰도 불러온다
+    loadReviews();
+
     // 페이지 타이틀 업데이트
     document.title = `${data.product.name} - STIZ SHOP`;
 
@@ -898,5 +901,385 @@ async function submitCustomOrder() {
     btn.innerHTML = originalHtml;
     btn.disabled = false;
     customState.isSubmitting = false;
+  }
+}
+
+
+// ==========================================================
+// ===== 상품 리뷰 시스템 (F-4) =====
+// 비유: 상품 페이지 하단의 "구매 후기" 게시판
+// 로그인한 회원만 작성 가능, 별점(1~5) + 텍스트 리뷰
+// ==========================================================
+
+// 리뷰 전용 상태
+const reviewState = {
+  reviews: [],         // 현재 상품의 리뷰 목록
+  stats: null,         // { count, avgRating }
+  selectedRating: 5,   // 작성 폼의 선택된 별점
+  editingId: null,     // 수정 중인 리뷰 ID (null이면 신규 작성)
+};
+
+/**
+ * 리뷰 데이터 로드
+ * 상품 상세가 로드된 후 호출됨
+ */
+async function loadReviews() {
+  if (!detailState.product) return;
+
+  try {
+    const res = await fetch(`${DETAIL_API_BASE}/products/${detailState.product.id}/reviews`);
+    const data = await res.json();
+
+    if (data.success) {
+      reviewState.reviews = data.reviews || [];
+      reviewState.stats = data.stats || { count: 0, avgRating: 0 };
+    }
+  } catch (err) {
+    console.error('[reviews] 리뷰 로드 실패:', err);
+    reviewState.reviews = [];
+    reviewState.stats = { count: 0, avgRating: 0 };
+  }
+
+  renderReviewSummary();
+  renderReviewList();
+  initReviewForm();
+}
+
+/**
+ * 리뷰 요약 렌더링 (평균 별점 + 개수)
+ */
+function renderReviewSummary() {
+  const stats = reviewState.stats;
+  if (!stats) return;
+
+  // 탭 버튼의 배지에 리뷰 수 표시
+  const badge = document.getElementById('reviewCountBadge');
+  if (badge) badge.textContent = stats.count > 0 ? `(${stats.count})` : '';
+
+  // 평균 별점 숫자
+  const avgEl = document.getElementById('reviewAvgRating');
+  if (avgEl) avgEl.textContent = stats.avgRating.toFixed(1);
+
+  // 평균 별점 별 아이콘
+  const starsEl = document.getElementById('reviewAvgStars');
+  if (starsEl) {
+    starsEl.innerHTML = renderStarIcons(stats.avgRating);
+  }
+
+  // 총 리뷰 수
+  const countEl = document.getElementById('reviewTotalCount');
+  if (countEl) countEl.textContent = stats.count;
+}
+
+/**
+ * 별점을 별 아이콘 HTML로 변환
+ * 비유: 4.3점이면 별 4개 꽉 채우고 5번째 별은 30% 채움
+ */
+function renderStarIcons(rating) {
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    if (i <= Math.floor(rating)) {
+      // 꽉 찬 별
+      html += '<span class="text-yellow-400 text-sm">&#9733;</span>';
+    } else if (i === Math.ceil(rating) && rating % 1 > 0) {
+      // 반쯤 찬 별 (간략하게 꽉 찬 별로 표시)
+      html += '<span class="text-yellow-400 text-sm">&#9733;</span>';
+    } else {
+      // 빈 별
+      html += '<span class="text-gray-300 text-sm">&#9733;</span>';
+    }
+  }
+  return html;
+}
+
+/**
+ * 리뷰 목록 렌더링
+ */
+function renderReviewList() {
+  const listEl = document.getElementById('reviewList');
+  const emptyEl = document.getElementById('reviewEmpty');
+  if (!listEl || !emptyEl) return;
+
+  // 리뷰가 없으면 안내 메시지 표시
+  if (reviewState.reviews.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+
+  emptyEl.classList.add('hidden');
+
+  // 현재 로그인한 사용자 정보 — 수정/삭제 버튼 표시 여부 결정
+  const currentUser = getUser();
+  // JWT 토큰에서 사용자 정보 가져오기 (auth.js의 getUser는 localStorage 기반)
+  const token = localStorage.getItem('stiz_token');
+
+  listEl.innerHTML = reviewState.reviews.map(r => {
+    // 작성일 포맷 — "2026.04.06" 형태
+    const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ko-KR') : '';
+    // 수정 여부 표시
+    const editedMark = (r.updatedAt && r.updatedAt !== r.createdAt)
+      ? '<span class="text-xs text-gray-400 ml-1">(수정됨)</span>' : '';
+
+    // 본인 리뷰인지 확인 — 수정/삭제 버튼 표시
+    const isOwner = currentUser && (currentUser.id === r.userId);
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    const actionBtns = (isOwner || isAdmin) ? `
+      <div class="flex gap-2 mt-2">
+        ${isOwner ? `<button onclick="editReview(${r.id})" class="text-xs text-gray-400 hover:text-brand-black">수정</button>` : ''}
+        <button onclick="deleteReview(${r.id})" class="text-xs text-gray-400 hover:text-brand-red">삭제</button>
+      </div>
+    ` : '';
+
+    return `
+      <div class="p-4 border border-gray-100 rounded-xl" data-review-id="${r.id}">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium">${escapeHtml(r.userName || '익명')}</span>
+            <span class="text-xs text-gray-400">${dateStr}</span>
+            ${editedMark}
+          </div>
+          <div class="flex gap-0.5">${renderStarIcons(r.rating)}</div>
+        </div>
+        <p class="text-sm text-gray-700 leading-relaxed">${escapeHtml(r.content)}</p>
+        ${actionBtns}
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * HTML 이스케이프 — XSS 방지
+ * 비유: 사용자 입력에 악성 코드가 섞여있을 수 있으니 안전하게 치환
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * 리뷰 작성 폼 초기화
+ * 로그인 상태에 따라 작성 폼 또는 로그인 안내를 표시
+ */
+function initReviewForm() {
+  const formWrap = document.getElementById('reviewFormWrap');
+  const loginPrompt = document.getElementById('reviewLoginPrompt');
+  if (!formWrap || !loginPrompt) return;
+
+  // JWT 토큰이 있으면 로그인 상태로 판단
+  const token = localStorage.getItem('stiz_token');
+
+  if (token) {
+    formWrap.classList.remove('hidden');
+    loginPrompt.classList.add('hidden');
+
+    // 이미 리뷰를 작성한 경우 — 작성 폼 대신 "이미 작성" 안내
+    const currentUser = getUser();
+    if (currentUser) {
+      const myReview = reviewState.reviews.find(r => r.userId === currentUser.id);
+      if (myReview) {
+        formWrap.classList.add('hidden');
+      }
+    }
+  } else {
+    formWrap.classList.add('hidden');
+    loginPrompt.classList.remove('hidden');
+  }
+
+  // 별점 선택 이벤트 바인딩
+  bindStarInput();
+}
+
+/**
+ * 별점 선택 버튼 이벤트
+ */
+function bindStarInput() {
+  const starBtns = document.querySelectorAll('#reviewStarInput .star-btn');
+  starBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const star = parseInt(btn.dataset.star);
+      reviewState.selectedRating = star;
+
+      // 선택된 별까지 노란색, 나머지는 회색
+      starBtns.forEach(b => {
+        const bStar = parseInt(b.dataset.star);
+        if (bStar <= star) {
+          b.classList.add('text-yellow-400');
+          b.classList.remove('text-gray-300');
+        } else {
+          b.classList.remove('text-yellow-400');
+          b.classList.add('text-gray-300');
+        }
+      });
+
+      // 별점 라벨 업데이트
+      const label = document.getElementById('reviewStarLabel');
+      if (label) label.textContent = `${star}점`;
+    });
+  });
+}
+
+/**
+ * 리뷰 등록/수정 제출
+ */
+async function submitReview() {
+  const content = document.getElementById('reviewContent')?.value?.trim();
+  if (!content || content.length < 2) {
+    alert('리뷰 내용을 2자 이상 입력해주세요.');
+    return;
+  }
+
+  const token = localStorage.getItem('stiz_token');
+  if (!token) {
+    alert('로그인이 필요합니다.');
+    return;
+  }
+
+  const btn = document.getElementById('reviewSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '처리 중...';
+
+  try {
+    let url, method;
+
+    // 수정 모드인지 신규 작성인지 판단
+    if (reviewState.editingId) {
+      url = `${DETAIL_API_BASE}/reviews/${reviewState.editingId}`;
+      method = 'PUT';
+    } else {
+      url = `${DETAIL_API_BASE}/products/${detailState.product.id}/reviews`;
+      method = 'POST';
+    }
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        rating: reviewState.selectedRating,
+        content,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // 폼 초기화
+      document.getElementById('reviewContent').value = '';
+      reviewState.editingId = null;
+      document.getElementById('reviewCancelBtn')?.classList.add('hidden');
+      btn.textContent = '리뷰 등록';
+
+      // 리뷰 목록 새로고침
+      await loadReviews();
+    } else {
+      alert(data.error || '리뷰 등록에 실패했습니다.');
+    }
+  } catch (err) {
+    console.error('[reviews] 제출 실패:', err);
+    alert('리뷰 등록 중 오류가 발생했습니다.');
+  } finally {
+    btn.disabled = false;
+    if (!reviewState.editingId) btn.textContent = '리뷰 등록';
+  }
+}
+
+/**
+ * 리뷰 수정 모드 진입
+ */
+function editReview(reviewId) {
+  const review = reviewState.reviews.find(r => r.id === reviewId);
+  if (!review) return;
+
+  // 작성 폼에 기존 내용 채우기
+  reviewState.editingId = reviewId;
+  reviewState.selectedRating = review.rating;
+
+  const formWrap = document.getElementById('reviewFormWrap');
+  formWrap.classList.remove('hidden');
+
+  // 별점 반영
+  const starBtns = document.querySelectorAll('#reviewStarInput .star-btn');
+  starBtns.forEach(b => {
+    const bStar = parseInt(b.dataset.star);
+    if (bStar <= review.rating) {
+      b.classList.add('text-yellow-400');
+      b.classList.remove('text-gray-300');
+    } else {
+      b.classList.remove('text-yellow-400');
+      b.classList.add('text-gray-300');
+    }
+  });
+  const label = document.getElementById('reviewStarLabel');
+  if (label) label.textContent = `${review.rating}점`;
+
+  // 내용 채우기
+  document.getElementById('reviewContent').value = review.content;
+
+  // 버튼 텍스트 변경 + 취소 버튼 표시
+  document.getElementById('reviewSubmitBtn').textContent = '수정 완료';
+  document.getElementById('reviewCancelBtn')?.classList.remove('hidden');
+
+  // 폼으로 스크롤
+  formWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/**
+ * 수정 모드 취소
+ */
+function cancelReviewEdit() {
+  reviewState.editingId = null;
+  document.getElementById('reviewContent').value = '';
+  document.getElementById('reviewSubmitBtn').textContent = '리뷰 등록';
+  document.getElementById('reviewCancelBtn')?.classList.add('hidden');
+
+  // 이미 리뷰를 작성한 경우 폼 다시 숨기기
+  const currentUser = getUser();
+  if (currentUser) {
+    const myReview = reviewState.reviews.find(r => r.userId === currentUser.id);
+    if (myReview) {
+      document.getElementById('reviewFormWrap')?.classList.add('hidden');
+    }
+  }
+}
+
+/**
+ * 리뷰 삭제
+ */
+async function deleteReview(reviewId) {
+  if (!confirm('리뷰를 삭제하시겠습니까?')) return;
+
+  const token = localStorage.getItem('stiz_token');
+  if (!token) {
+    alert('로그인이 필요합니다.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${DETAIL_API_BASE}/reviews/${reviewId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // 리뷰 목록 새로고침
+      await loadReviews();
+    } else {
+      alert(data.error || '삭제에 실패했습니다.');
+    }
+  } catch (err) {
+    console.error('[reviews] 삭제 실패:', err);
+    alert('삭제 중 오류가 발생했습니다.');
   }
 }

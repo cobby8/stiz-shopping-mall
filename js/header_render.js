@@ -140,10 +140,10 @@ function renderHeader() {
             <div class="group h-full flex items-center relative">
                 <a href="index.html" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase">STIZ</a>
                 <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-48 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
-                    <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">브랜드 스토리</a>
-                    <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">가치 (Values)</a>
+                    <a href="about.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">회사소개</a>
+                    <a href="about.html#values" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">가치 (Values)</a>
                     <a href="lookbook.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">룩북 (Lookbook)</a>
-                    <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">오시는 길</a>
+                    <a href="about.html#contact" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">오시는 길</a>
                 </div>
             </div>
 

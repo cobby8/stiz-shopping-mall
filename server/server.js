@@ -29,6 +29,7 @@ import customerRoutes from './routes/customers.js';
 import catalogRoutes from './routes/catalog.js';      // 상품 카탈로그 API (A-2)
 import uploadRoutes from './routes/upload.js';          // 파일 업로드 API (A-4)
 import productRoutes from './routes/products.js';       // 상품 CRUD API (E-2)
+import reviewRoutes from './routes/reviews.js';         // 상품 리뷰 API (F-4)
 import { adminAuth } from './middleware/adminAuth.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
 import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
@@ -58,6 +59,10 @@ app.get('/', (req, res) => {
             'POST /api/admin/customers/merge (admin only)',
             'GET  /api/admin/customers/stats/summary (admin only)',
             'GET  /api/admin/backup          (admin only)',
+            'GET  /api/products/:id/reviews',
+            'POST /api/products/:id/reviews  (login required)',
+            'PUT  /api/reviews/:id           (login required)',
+            'DELETE /api/reviews/:id         (login required)',
             'POST /api/generate',
         ]
     });
@@ -86,6 +91,10 @@ app.use('/api', uploadRoutes);
 // 상품 라우트 — 공개(목록/상세/카테고리/추천) + 관리자(CRUD/이미지/카테고리관리) (E-2)
 // productRoutes 내부에서 /admin/* 엔드포인트에 adminAuth를 개별 적용
 app.use('/api', productRoutes);
+
+// 리뷰 라우트 — 공개(목록 조회) + 로그인 필요(작성/수정/삭제) (F-4)
+// reviewRoutes 내부에서 requireAuth를 개별 적용
+app.use('/api', reviewRoutes);
 
 // --- settings 테이블 초기 시딩 (A-1) ---
 // 비유: 식당 오픈 전에 기본 메뉴판을 세팅하는 것. 이미 메뉴판이 있으면 건드리지 않음

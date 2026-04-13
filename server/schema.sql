@@ -201,3 +201,23 @@ CREATE TABLE IF NOT EXISTS product_images (
   FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_product_images_productId ON product_images(productId);
+
+-- =============================================
+-- 리뷰 시스템 테이블 (Phase F: 오픈 전 필수)
+-- 비유: 쇼핑몰 상품 페이지 하단의 "구매 후기" 게시판
+-- 로그인한 회원만 작성 가능, 별점(1~5) + 텍스트 리뷰
+-- =============================================
+CREATE TABLE IF NOT EXISTS product_reviews (
+  id INTEGER PRIMARY KEY,
+  productId INTEGER NOT NULL,         -- 어떤 상품의 리뷰인지
+  userId INTEGER NOT NULL,            -- 작성자 (users.id)
+  userName TEXT DEFAULT '',           -- 작성자 이름 (스냅샷: 탈퇴해도 유지)
+  rating INTEGER NOT NULL DEFAULT 5,  -- 별점 (1~5)
+  content TEXT DEFAULT '',            -- 리뷰 내용
+  createdAt TEXT,
+  updatedAt TEXT,
+  FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_productId ON product_reviews(productId);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_userId ON product_reviews(userId);
