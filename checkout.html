@@ -172,30 +172,78 @@
                             결제 방법
                         </h2>
                         <div class="space-y-3">
-                            <!-- 카드 결제 옵션 (PortOne 설정 시만 표시, checkout.js에서 제어) -->
-                            <label id="payMethodCard" class="hidden cursor-pointer">
-                                <div class="border-2 rounded-lg p-4 transition-colors pay-method-option"
-                                     data-method="card" onclick="selectPayMethod('card')">
-                                    <div class="flex items-center gap-3">
-                                        <input type="radio" name="payMethod" value="card"
-                                               class="w-4 h-4 text-brand-black accent-brand-black">
-                                        <span class="material-symbols-outlined text-brand-black">credit_card</span>
-                                        <div>
-                                            <p class="font-medium text-sm">카드 결제</p>
-                                            <p class="text-xs text-gray-400 mt-0.5">신용/체크카드, 간편결제</p>
+                            <!-- 토스페이먼츠 결제 수단들 (설정 시만 표시, checkout.js에서 제어) -->
+                            <div id="tossPayMethods" class="hidden space-y-3">
+                                <!-- 카드 결제 -->
+                                <label class="cursor-pointer">
+                                    <div class="border-2 rounded-lg p-4 transition-colors pay-method-option"
+                                         data-method="카드" onclick="selectPayMethod('카드')">
+                                        <div class="flex items-center gap-3">
+                                            <input type="radio" name="payMethod" value="카드"
+                                                   class="w-4 h-4 text-brand-black accent-brand-black">
+                                            <span class="material-symbols-outlined text-brand-black">credit_card</span>
+                                            <div>
+                                                <p class="font-medium text-sm">카드 결제</p>
+                                                <p class="text-xs text-gray-400 mt-0.5">신용/체크카드</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </label>
+                                </label>
+                                <!-- 계좌이체 -->
+                                <label class="cursor-pointer">
+                                    <div class="border-2 rounded-lg p-4 transition-colors pay-method-option"
+                                         data-method="계좌이체" onclick="selectPayMethod('계좌이체')">
+                                        <div class="flex items-center gap-3">
+                                            <input type="radio" name="payMethod" value="계좌이체"
+                                                   class="w-4 h-4 text-brand-black accent-brand-black">
+                                            <span class="material-symbols-outlined text-brand-black">account_balance</span>
+                                            <div>
+                                                <p class="font-medium text-sm">계좌이체</p>
+                                                <p class="text-xs text-gray-400 mt-0.5">실시간 계좌이체</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                                <!-- 가상계좌 -->
+                                <label class="cursor-pointer">
+                                    <div class="border-2 rounded-lg p-4 transition-colors pay-method-option"
+                                         data-method="가상계좌" onclick="selectPayMethod('가상계좌')">
+                                        <div class="flex items-center gap-3">
+                                            <input type="radio" name="payMethod" value="가상계좌"
+                                                   class="w-4 h-4 text-brand-black accent-brand-black">
+                                            <span class="material-symbols-outlined text-brand-black">receipt_long</span>
+                                            <div>
+                                                <p class="font-medium text-sm">가상계좌</p>
+                                                <p class="text-xs text-gray-400 mt-0.5">발급된 계좌로 입금</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                                <!-- 토스페이 -->
+                                <label class="cursor-pointer">
+                                    <div class="border-2 rounded-lg p-4 transition-colors pay-method-option"
+                                         data-method="토스페이" onclick="selectPayMethod('토스페이')">
+                                        <div class="flex items-center gap-3">
+                                            <input type="radio" name="payMethod" value="토스페이"
+                                                   class="w-4 h-4 text-brand-black accent-brand-black">
+                                            <span class="material-symbols-outlined text-brand-black">smartphone</span>
+                                            <div>
+                                                <p class="font-medium text-sm">토스페이</p>
+                                                <p class="text-xs text-gray-400 mt-0.5">토스 앱으로 간편 결제</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
 
-                            <!-- 무통장 입금 옵션 (기본 선택) -->
+                            <!-- 무통장 입금 옵션 (기본 선택, 항상 표시) -->
                             <label class="cursor-pointer">
                                 <div class="border-2 border-brand-black rounded-lg p-4 bg-gray-50 transition-colors pay-method-option"
                                      data-method="bank" onclick="selectPayMethod('bank')">
                                     <div class="flex items-center gap-3">
                                         <input type="radio" name="payMethod" value="bank" checked
                                                class="w-4 h-4 text-brand-black accent-brand-black">
-                                        <span class="material-symbols-outlined text-brand-black">account_balance</span>
+                                        <span class="material-symbols-outlined text-brand-black">savings</span>
                                         <div>
                                             <p class="font-medium text-sm">무통장 입금</p>
                                             <p class="text-xs text-gray-400 mt-0.5">주문 후 아래 계좌로 입금해주세요</p>
@@ -330,8 +378,8 @@
     <!-- 푸터 (header_render.js가 자동 주입) -->
     <footer></footer>
 
-    <!-- PortOne(아임포트) SDK — PG 결제 연동 -->
-    <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
+    <!-- 토스페이먼츠 SDK — PG 결제 연동 -->
+    <script src="https://js.tosspayments.com/v2/standard"></script>
 
     <!-- 하단 스크립트 -->
     <script src="js/cart.js"></script>

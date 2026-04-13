@@ -31,7 +31,7 @@ import uploadRoutes from './routes/upload.js';          // 파일 업로드 API 
 import productRoutes from './routes/products.js';       // 상품 CRUD API (E-2)
 import reviewRoutes from './routes/reviews.js';         // 상품 리뷰 API (F-4)
 import cartRoutes from './routes/cart.js';               // 장바구니 서버 동기화 API (#3)
-import paymentRoutes from './routes/payment.js';         // PG 결제 인프라 API (#1)
+import paymentRoutes from './routes/payment.js';         // 토스페이먼츠 결제 API
 import boardRoutes from './routes/board.js';               // 게시판 API (공지+문의)
 import wishlistRoutes from './routes/wishlist.js';         // 위시리스트(찜) API
 import couponRoutes from './routes/coupon.js';               // 쿠폰/적립금 API (#15)
@@ -74,8 +74,7 @@ app.get('/', (req, res) => {
             'DELETE /api/cart/:id           (login required)',
             'POST /api/cart/merge           (login required)',
             'GET  /api/payment/config',
-            'POST /api/payment/prepare',
-            'POST /api/payment/complete',
+            'POST /api/payment/confirm',
             'POST /api/generate',
             'GET  /api/auth/me/orders    (login required)',
             'PUT  /api/auth/me/profile   (login required)',

@@ -1,207 +1,138 @@
 /**
- * PG 결제 API (payment.js) — PortOne(구 아임포트) 연동 인프라
- * 비유: 마트 카드 결제기 — 카드를 긁으면 PG사에 승인 요청하고, 결과를 받아 검증하는 것
+ * 토스페이먼츠 결제 API (payment.js)
+ * 비유: 마트 카드 결제기 — 고객이 토스로 결제하면, 서버에서 "진짜 결제됐나요?" 확인하는 것
  *
- * 흐름:
- *   1. 프론트에서 PortOne SDK로 결제창 호출
- *   2. 사용자가 결제 완료
- *   3. 프론트에서 imp_uid + merchant_uid를 서버로 전송
- *   4. 서버에서 PortOne API로 결제 금액 검증 (위변조 방지)
- *   5. 검증 통과 → 주문 상태를 "결제 완료"로 변경
+ * 토스페이먼츠 결제 흐름:
+ *   1. 프론트에서 토스 SDK로 결제창 호출 → 사용자가 결제 완료
+ *   2. 토스가 successUrl로 리다이렉트 (paymentKey, orderId, amount 쿼리)
+ *   3. 프론트에서 서버로 POST /api/payment/confirm 요청
+ *   4. 서버에서 토스 API로 결제 승인 확인 (금액 위변조 방지)
+ *   5. 승인 통과 → 프론트에서 주문 생성 진행
  *
  * 엔드포인트:
- *   POST /api/payment/prepare   — 결제 사전 등록 (결제할 금액을 서버에 미리 기록)
- *   POST /api/payment/complete  — 결제 완료 검증 (PortOne에 실제 결제 금액 확인)
+ *   GET  /api/payment/config   — 프론트에 clientKey 전달 (SDK 초기화용)
+ *   POST /api/payment/confirm  — 결제 승인 확인 (토스 API 호출)
  *
- * 주의: PortOne API 키가 없으면(.env 미설정) 콘솔 경고만 출력하고 검증을 스킵한다.
+ * 주의: TOSS_CLIENT_KEY / TOSS_SECRET_KEY가 없으면 PG 결제 비활성화 (무통장만 표시)
  */
 
 import { Router } from 'express';
 
 const router = Router();
 
-// ===== 환경변수에서 PortOne 설정 읽기 =====
-// 키가 없으면 테스트 모드로 동작 (실제 PG 호출 안 함)
-const PORTONE_API_KEY = process.env.PORTONE_API_KEY || '';
-const PORTONE_API_SECRET = process.env.PORTONE_API_SECRET || '';
-const PORTONE_MERCHANT_ID = process.env.PORTONE_MERCHANT_ID || '';
+// ===== 환경변수에서 토스페이먼츠 설정 읽기 =====
+const TOSS_CLIENT_KEY = process.env.TOSS_CLIENT_KEY || '';
+const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
 
-// PortOne 설정 여부 — 하나라도 비어있으면 테스트 모드
-const isPortOneConfigured = !!(PORTONE_API_KEY && PORTONE_API_SECRET && PORTONE_MERCHANT_ID);
+// 토스 설정 여부 — 하나라도 비어있으면 비활성화
+const isTossConfigured = !!(TOSS_CLIENT_KEY && TOSS_SECRET_KEY);
 
-if (!isPortOneConfigured) {
-  console.warn('[payment] PortOne API 키가 설정되지 않았습니다. 테스트 모드로 동작합니다.');
-  console.warn('[payment] .env에 PORTONE_API_KEY, PORTONE_API_SECRET, PORTONE_MERCHANT_ID를 설정하세요.');
+if (!isTossConfigured) {
+  console.warn('[payment] 토스페이먼츠 키가 설정되지 않았습니다. PG 결제가 비활성화됩니다.');
+  console.warn('[payment] .env에 TOSS_CLIENT_KEY와 TOSS_SECRET_KEY를 설정하세요.');
 }
 
-/**
- * PortOne 액세스 토큰 발급
- * 비유: PG사 창구에 "직원증"을 보여주고 임시 출입증을 받는 것
- * API 호출할 때마다 이 토큰이 필요하다
- */
-async function getPortOneToken() {
-  if (!isPortOneConfigured) return null;
-
-  try {
-    const res = await fetch('https://api.iamport.kr/users/getToken', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imp_key: PORTONE_API_KEY,
-        imp_secret: PORTONE_API_SECRET
-      })
-    });
-    const data = await res.json();
-    if (data.code === 0) {
-      return data.response.access_token;
-    }
-    console.error('[payment] PortOne 토큰 발급 실패:', data.message);
-    return null;
-  } catch (err) {
-    console.error('[payment] PortOne 토큰 요청 오류:', err.message);
-    return null;
-  }
-}
-
-// ===== POST /api/payment/prepare — 결제 사전 등록 =====
-// 비유: "이 주문은 15만원짜리입니다"를 PG사에 미리 알려두는 것
-// 나중에 실제 결제 금액과 비교하여 위변조를 감지
-router.post('/payment/prepare', async (req, res) => {
-  try {
-    const { merchant_uid, amount } = req.body;
-
-    if (!merchant_uid || !amount) {
-      return res.status(400).json({
-        success: false,
-        error: 'merchant_uid와 amount는 필수입니다.'
-      });
-    }
-
-    // PortOne 미설정 → 테스트 모드 (사전 등록 스킵)
-    if (!isPortOneConfigured) {
-      console.log(`[payment:test] 사전 등록 — ${merchant_uid}: ${amount}원`);
-      return res.json({ success: true, test: true, merchant_uid, amount });
-    }
-
-    // PortOne API로 사전 등록
-    const token = await getPortOneToken();
-    if (!token) {
-      return res.status(500).json({ success: false, error: 'PortOne 인증 실패' });
-    }
-
-    const prepareRes = await fetch('https://api.iamport.kr/payments/prepare', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token
-      },
-      body: JSON.stringify({ merchant_uid, amount })
-    });
-    const prepareData = await prepareRes.json();
-
-    if (prepareData.code !== 0) {
-      return res.status(400).json({
-        success: false,
-        error: prepareData.message || '사전 등록 실패'
-      });
-    }
-
-    res.json({ success: true, merchant_uid, amount });
-  } catch (err) {
-    console.error('[payment] 사전 등록 오류:', err);
-    res.status(500).json({ success: false, error: '결제 사전 등록 실패' });
-  }
-});
-
-// ===== POST /api/payment/complete — 결제 완료 검증 =====
-// 비유: 카드 결제 후 "영수증"을 PG사에 보여주고 "진짜 결제됐나요?" 확인하는 것
-// 프론트에서 받은 imp_uid로 PortOne에 실제 결제 정보를 조회하여 금액 일치 여부 확인
-router.post('/payment/complete', async (req, res) => {
-  try {
-    const { imp_uid, merchant_uid, paid_amount } = req.body;
-
-    if (!imp_uid || !merchant_uid) {
-      return res.status(400).json({
-        success: false,
-        error: 'imp_uid와 merchant_uid는 필수입니다.'
-      });
-    }
-
-    // PortOne 미설정 → 테스트 모드 (검증 스킵, 무조건 성공)
-    if (!isPortOneConfigured) {
-      console.log(`[payment:test] 결제 완료 — imp: ${imp_uid}, merchant: ${merchant_uid}, amount: ${paid_amount}`);
-      return res.json({
-        success: true,
-        test: true,
-        message: '테스트 모드 — PortOne 키 미설정으로 검증을 건너뜁니다.',
-        imp_uid,
-        merchant_uid,
-        paid_amount
-      });
-    }
-
-    // 1. PortOne 액세스 토큰 발급
-    const token = await getPortOneToken();
-    if (!token) {
-      return res.status(500).json({ success: false, error: 'PortOne 인증 실패' });
-    }
-
-    // 2. PortOne에서 실제 결제 정보 조회
-    const paymentRes = await fetch(`https://api.iamport.kr/payments/${imp_uid}`, {
-      headers: { 'Authorization': token }
-    });
-    const paymentData = await paymentRes.json();
-
-    if (paymentData.code !== 0) {
-      return res.status(400).json({
-        success: false,
-        error: paymentData.message || '결제 정보 조회 실패'
-      });
-    }
-
-    const payment = paymentData.response;
-
-    // 3. 결제 상태 확인 — "paid"여야 정상
-    if (payment.status !== 'paid') {
-      return res.status(400).json({
-        success: false,
-        error: `결제가 완료되지 않았습니다. 상태: ${payment.status}`
-      });
-    }
-
-    // 4. 금액 검증 — 프론트에서 보낸 금액과 실제 결제 금액이 일치하는지
-    // 위변조 방지의 핵심: 해커가 금액을 줄여서 결제하는 것을 막는다
-    if (paid_amount && payment.amount !== paid_amount) {
-      return res.status(400).json({
-        success: false,
-        error: `결제 금액 불일치. 예상: ${paid_amount}, 실제: ${payment.amount}`
-      });
-    }
-
-    // 5. 검증 통과 — 결제 성공
-    res.json({
-      success: true,
-      imp_uid: payment.imp_uid,
-      merchant_uid: payment.merchant_uid,
-      paid_amount: payment.amount,
-      pay_method: payment.pay_method,
-      status: payment.status
-    });
-  } catch (err) {
-    console.error('[payment] 결제 검증 오류:', err);
-    res.status(500).json({ success: false, error: '결제 검증 실패' });
-  }
-});
-
-// ===== GET /api/payment/config — 프론트에서 merchantId 가져오기 =====
-// PortOne SDK 초기화에 필요한 가맹점 식별코드를 프론트에 전달
-// 비밀키(API_SECRET)는 절대 노출하지 않는다
+// ===== GET /api/payment/config — 프론트에서 clientKey 가져오기 =====
+// 토스 SDK 초기화에 필요한 clientKey를 프론트에 전달
+// secretKey는 절대 노출하지 않는다
 router.get('/payment/config', (req, res) => {
   res.json({
     success: true,
-    merchantId: PORTONE_MERCHANT_ID || '',
-    configured: isPortOneConfigured
+    clientKey: TOSS_CLIENT_KEY || '',
+    enabled: isTossConfigured
   });
+});
+
+// ===== POST /api/payment/confirm — 결제 승인 확인 =====
+// 비유: 결제 영수증을 토스에 보여주고 "진짜 이 금액으로 결제됐나요?" 확인하는 것
+// 프론트에서 받은 paymentKey로 토스 API에 승인 요청을 보내 금액 일치 여부를 확인한다
+router.post('/payment/confirm', async (req, res) => {
+  try {
+    const { paymentKey, orderId, amount } = req.body;
+
+    // 필수 파라미터 검증
+    if (!paymentKey || !orderId || !amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'paymentKey, orderId, amount는 필수입니다.'
+      });
+    }
+
+    // 토스 미설정 → 에러 반환 (결제 비활성화 상태에서는 이 엔드포인트에 오면 안 됨)
+    if (!isTossConfigured) {
+      console.warn(`[payment:warn] 토스 미설정 상태에서 결제 승인 요청 — orderId: ${orderId}`);
+      return res.status(503).json({
+        success: false,
+        error: '결제 시스템이 설정되지 않았습니다. 관리자에게 문의하세요.'
+      });
+    }
+
+    // 토스페이먼츠 결제 승인 API 호출
+    // Authorization: Basic base64(시크릿키 + ":")
+    // 시크릿키 뒤에 콜론(:)을 붙이는 것이 토스 인증 규격
+    const authHeader = 'Basic ' + Buffer.from(TOSS_SECRET_KEY + ':').toString('base64');
+
+    const tossRes = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        paymentKey,
+        orderId,
+        amount: Number(amount) // 숫자형으로 전달 (토스 API 요구사항)
+      })
+    });
+
+    const tossData = await tossRes.json();
+
+    // 토스 API 응답 확인
+    if (!tossRes.ok) {
+      // 토스 API가 에러를 반환한 경우
+      console.error('[payment] 토스 승인 실패:', tossData);
+      return res.status(400).json({
+        success: false,
+        error: tossData.message || '결제 승인에 실패했습니다.',
+        code: tossData.code || 'UNKNOWN'
+      });
+    }
+
+    // 결제 상태 확인 — "DONE"이어야 정상 완료
+    if (tossData.status !== 'DONE') {
+      return res.status(400).json({
+        success: false,
+        error: `결제가 완료되지 않았습니다. 상태: ${tossData.status}`
+      });
+    }
+
+    // 금액 검증 — 프론트에서 보낸 금액과 실제 결제 금액이 일치하는지
+    // 위변조 방지의 핵심: 해커가 금액을 줄여서 결제하는 것을 막는다
+    if (tossData.totalAmount !== Number(amount)) {
+      console.error(`[payment] 금액 불일치! 요청: ${amount}, 실제: ${tossData.totalAmount}`);
+      return res.status(400).json({
+        success: false,
+        error: `결제 금액 불일치. 예상: ${amount}, 실제: ${tossData.totalAmount}`
+      });
+    }
+
+    // 승인 통과 — 결제 성공 정보 반환
+    console.log(`[payment] 결제 승인 완료 — orderId: ${orderId}, amount: ${tossData.totalAmount}, method: ${tossData.method}`);
+
+    res.json({
+      success: true,
+      paymentKey: tossData.paymentKey,
+      orderId: tossData.orderId,
+      totalAmount: tossData.totalAmount,
+      method: tossData.method,        // 카드, 계좌이체 등
+      status: tossData.status,        // DONE
+      approvedAt: tossData.approvedAt // 승인 시각
+    });
+
+  } catch (err) {
+    console.error('[payment] 결제 승인 오류:', err);
+    res.status(500).json({ success: false, error: '결제 승인 처리 중 오류가 발생했습니다.' });
+  }
 });
 
 export default router;
