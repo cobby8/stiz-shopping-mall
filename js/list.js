@@ -385,8 +385,8 @@ function renderProducts() {
  */
 function createCard(p) {
   const isCustom = p.type === 'custom';
-  const thumb = p.thumbnail
-    || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" font-size="20" fill="%239ca3af">No Image</text></svg>';
+  // 이미지 없는 상품은 정적 SVG 플레이스홀더 사용 (인라인 SVG는 HTML 깨짐 유발)
+  const thumb = p.thumbnail || '/img/no-image.svg';
 
   const categoryLabel = (p.categoryName || '').toUpperCase();
 
@@ -410,7 +410,7 @@ function createCard(p) {
         <img src="${thumb}" alt="${p.name}"
              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
              loading="lazy"
-             onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22400%22><rect width=%22400%22 height=%22400%22 fill=%22%23f3f4f6%22/></svg>'">
+             onerror="this.src='/img/no-image.svg'">
 
         <!-- 호버 오버레이: 상세 보기 -->
         <div class="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur-sm p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">

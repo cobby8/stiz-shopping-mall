@@ -191,7 +191,8 @@ function renderImageGallery() {
 
   // 이미지가 없는 경우 — 기본 플레이스홀더
   if (detailState.images.length === 0) {
-    const placeholder = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" fill="#f3f4f6"><rect width="600" height="600"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-size="20">No Image</text></svg>')}`;
+    // 정적 SVG 플레이스홀더 참조 (인라인 SVG 대신 안전한 파일 참조)
+    const placeholder = '/img/no-image.svg';
     mainImg.src = placeholder;
     return;
   }
