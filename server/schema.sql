@@ -157,6 +157,13 @@ CREATE TABLE IF NOT EXISTS products (
   customMeta TEXT DEFAULT '{}',        -- 커스텀 전용 메타 (JSON): 등급/패키지/마감 등
   status TEXT DEFAULT 'active',        -- 상품 상태: active/draft/archived
   sortOrder INTEGER DEFAULT 0,
+  -- Part 11 확장 컬럼 (stiz.kr 완벽 재이전)
+  detailHtml TEXT DEFAULT '',          -- 상세 설명 HTML (이미지 로컬 경로로 치환된 상태)
+  origin TEXT DEFAULT '',              -- 원산지 (예: '대한민국', '중국 OEM')
+  brand TEXT DEFAULT '',               -- 브랜드 (예: 'STIZ')
+  modelName TEXT DEFAULT '',           -- 모델명 (stiz.kr 상품정보고시)
+  manufacturer TEXT DEFAULT '',        -- 제조사 (stiz.kr 상품정보고시)
+  isConsultPrice INTEGER DEFAULT 0,    -- 1이면 "상담 후 결제" 상품 (price=0 인 커스텀 주문과 구분)
   createdAt TEXT,
   updatedAt TEXT,
   FOREIGN KEY (categoryId) REFERENCES product_categories(id)
