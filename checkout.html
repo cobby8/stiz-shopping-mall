@@ -80,6 +80,29 @@
             <h1 class="text-3xl font-bold tracking-tight">주문/결제</h1>
         </section>
 
+        <!-- 비로그인 회원가입 유도 배너 -->
+        <div id="checkout-join-banner" class="hidden max-w-4xl mx-auto px-4 mb-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                <span class="material-symbols-outlined text-blue-600 text-xl mt-0.5">person_add</span>
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-blue-800">회원가입하면 주문이 더 편리해요!</p>
+                    <p class="text-xs text-blue-600 mt-1">주문 내역 자동 관리, 배송지 저장, 할인 쿠폰을 받을 수 있습니다.</p>
+                    <a href="join.html" class="inline-block mt-2 px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition">
+                        무료 회원가입
+                    </a>
+                </div>
+                <button onclick="this.closest('#checkout-join-banner').classList.add('hidden')" class="text-blue-400 hover:text-blue-600">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+        </div>
+        <script>
+            // 비로그인 상태에서만 회원가입 배너를 표시
+            if (!localStorage.getItem('stiz_token')) {
+                document.getElementById('checkout-join-banner').classList.remove('hidden');
+            }
+        </script>
+
         <!-- ===== 주문 콘텐츠 ===== -->
         <section class="max-w-4xl mx-auto px-4 pb-16">
             <div class="flex flex-col lg:flex-row gap-8">

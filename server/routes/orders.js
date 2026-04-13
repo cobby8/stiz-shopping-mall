@@ -265,6 +265,68 @@ router.get('/', adminAuth, (req, res) => {
     res.json({ success: true, orders });
 });
 
+/**
+ * GET /api/orders/search - 이름+연락처로 주문 검색 (비로그인)
+ * 비유: 전화번호부에서 이름과 번호로 사람을 찾는 것
+ * 주문번호를 모를 때 이름+연락처로 내 주문 목록을 찾을 수 있다.
+ * query params: name (필수), phone (필수)
+ */
+router.get('/search', (req, res) => {
+    try {
+        const { name, phone } = req.query;
+
+        // 필수값 검증
+        if (!name || !phone) {
+            return res.status(400).json({ success: false, error: '이름과 연락처를 모두 입력해주세요.' });
+        }
+
+        const orders = db.getAll('orders');
+        // 하이픈 제거 후 비교 (010-1234-5678 → 01012345678)
+        const inputPhone = phone.replace(/-/g, '');
+        const inputName = name.trim();
+
+        // 이름+연락처가 일치하는 주문들 필터링
+        const matched = orders.filter(o => {
+            const customerName = (o.customer?.name || '').trim();
+            const customerPhone = (o.customer?.phone || '').replace(/-/g, '');
+            return customerName === inputName && customerPhone === inputPhone;
+        });
+
+        if (matched.length === 0) {
+            return res.json({ success: true, orders: [] });
+        }
+
+        // 최신 주문순으로 정렬, 고객에게 필요한 최소 정보만 반환
+        const result = matched
+            .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+            .map(o => {
+                const normalizedStatus = normalizeStatus(o.status);
+                const customerStatus = getCustomerStatus(normalizedStatus);
+                // 아이템 요약 (첫 번째 상품명 + 나머지 개수)
+                const items = o.items || [];
+                let itemSummary = '';
+                if (items.length > 0) {
+                    itemSummary = items[0].name || '상품';
+                    if (items.length > 1) itemSummary += ` 외 ${items.length - 1}건`;
+                }
+                return {
+                    orderNumber: o.orderNumber,
+                    teamName: o.customer?.teamName || '',
+                    customerName: o.customer?.name || '',
+                    customerStatus,
+                    statusLabel: STATUS_LABELS[normalizedStatus] || normalizedStatus,
+                    itemSummary,
+                    createdAt: o.createdAt,
+                };
+            });
+
+        res.json({ success: true, orders: result });
+    } catch (error) {
+        console.error('[Order] Search error:', error);
+        res.status(500).json({ success: false, error: '주문 검색 실패' });
+    }
+});
+
 // GET /api/orders/track/:orderNumber - 비로그인 주문 추적 (주문번호로 조회)
 // 비유: 택배 송장번호 조회 - 로그인 없이 주문번호만으로 진행상황 확인
 router.get('/track/:orderNumber', (req, res) => {

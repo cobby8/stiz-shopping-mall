@@ -935,7 +935,10 @@ async function submitCustomOrder() {
 
     if (data.success || data.orderNumber) {
       // 성공: 완료 안내
-      alert(`시안 요청이 접수되었습니다!\n주문번호: ${data.orderNumber}\n\n확인 후 디자인 시안을 제작하여 연락드리겠습니다.`);
+      // 비로그인 사용자에게 회원가입 유도 메시지를 함께 표시
+      const token = localStorage.getItem('stiz_token');
+      const joinMsg = token ? '' : '\n\n회원가입하시면 주문 내역 관리, 할인 쿠폰 등 더 많은 혜택을 받으실 수 있습니다.';
+      alert(`시안 요청이 접수되었습니다!\n주문번호: ${data.orderNumber}\n\n확인 후 디자인 시안을 제작하여 연락드리겠습니다.${joinMsg}`);
       // 주문 추적 페이지로 이동
       location.href = `order-track.html?orderNumber=${data.orderNumber}`;
     } else {

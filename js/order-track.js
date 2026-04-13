@@ -826,10 +826,222 @@ function getTrackingUrl(carrier, trackingNumber) {
     return urls[carrier] || `https://www.cjlogistics.com/ko/tool/parcel/tracking?gnbInvcNo=${trackingNumber}`;
 }
 
+// ============================================================
+// 검색모드 전환 + 일괄입력 + 이름연락처 검색
+// ============================================================
+
+/**
+ * 검색 모드 전환
+ * 비유: 라디오 버튼 — "주문번호" 또는 "이름+연락처" 중 하나를 선택
+ * @param {string} mode - 'orderNumber' 또는 'namePhone'
+ */
+function switchSearchMode(mode) {
+    const modes = ['orderNumber', 'namePhone'];
+    modes.forEach(m => {
+        const panel = document.getElementById(`search-mode-${m}`);
+        const tab = document.getElementById(`mode-${m}`);
+        if (m === mode) {
+            panel.classList.remove('hidden');
+            tab.classList.remove('border-transparent', 'text-gray-400');
+            tab.classList.add('border-black', 'text-black');
+        } else {
+            panel.classList.add('hidden');
+            tab.classList.remove('border-black', 'text-black');
+            tab.classList.add('border-transparent', 'text-gray-400');
+        }
+    });
+    // 모드 전환 시 기존 결과 숨기기
+    document.getElementById('result-area').classList.add('hidden');
+    document.getElementById('not-found').classList.add('hidden');
+    document.getElementById('search-results-list').classList.add('hidden');
+    document.getElementById('bulk-results-list').classList.add('hidden');
+}
+
+/**
+ * 일괄입력 텍스트를 파싱하여 주문번호 배열로 변환
+ * 줄바꿈, 쉼표, 세미콜론, 공백으로 구분된 주문번호를 인식
+ * @param {string} text - 사용자가 입력한 텍스트
+ * @returns {string[]} - 유효한 주문번호 배열 (중복 제거)
+ */
+function parseBulkInput(text) {
+    if (!text || !text.trim()) return [];
+    // 구분자: 줄바꿈, 쉼표, 세미콜론으로 분리
+    const parts = text.split(/[\n,;]+/);
+    const numbers = [];
+    const seen = new Set();
+    parts.forEach(part => {
+        const trimmed = part.trim();
+        // ORD- 접두사가 있는 것만 유효한 주문번호로 취급
+        if (trimmed && trimmed.startsWith('ORD-') && !seen.has(trimmed)) {
+            seen.add(trimmed);
+            numbers.push(trimmed);
+        }
+    });
+    return numbers;
+}
+
+/**
+ * 일괄 조회: 여러 주문번호를 순차 조회하여 요약 목록 표시
+ */
+async function trackBulkOrders() {
+    const textarea = document.getElementById('bulk-input');
+    const orderNumbers = parseBulkInput(textarea.value);
+
+    if (orderNumbers.length === 0) {
+        alert('유효한 주문번호가 없습니다. ORD-로 시작하는 주문번호를 입력해주세요.');
+        return;
+    }
+
+    // 기존 결과 숨기기
+    document.getElementById('result-area').classList.add('hidden');
+    document.getElementById('not-found').classList.add('hidden');
+    document.getElementById('search-results-list').classList.add('hidden');
+
+    const listEl = document.getElementById('bulk-results-list');
+    const itemsEl = document.getElementById('bulk-results-items');
+    itemsEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">조회 중...</p>';
+    listEl.classList.remove('hidden');
+
+    // 각 주문번호를 병렬로 조회
+    const results = await Promise.allSettled(
+        orderNumbers.map(async (num) => {
+            const res = await fetch(`${TRACK_API_BASE}/api/orders/track/${encodeURIComponent(num)}`);
+            const data = await res.json();
+            return { orderNumber: num, success: data.success, order: data.order };
+        })
+    );
+
+    // 결과 렌더링
+    itemsEl.innerHTML = '';
+    results.forEach(r => {
+        const div = document.createElement('div');
+        if (r.status === 'fulfilled' && r.value.success) {
+            const o = r.value.order;
+            const stepColors = STATUS_BADGE_COLORS[o.customerStatus?.step] || 'bg-gray-100 text-gray-800';
+            div.className = 'border border-gray-200 rounded-lg p-4 hover:border-gray-400 cursor-pointer transition';
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-gray-400">${escapeHtml(o.orderNumber)}</span>
+                        <p class="text-sm font-bold mt-0.5">${escapeHtml(o.teamName || o.customerName || '-')}</p>
+                    </div>
+                    <span class="px-2 py-0.5 text-xs font-bold rounded-full ${stepColors}">
+                        ${escapeHtml(o.customerStatus?.label || o.statusLabel || '확인중')}
+                    </span>
+                </div>
+            `;
+            // 클릭 시 해당 주문 상세 조회
+            div.addEventListener('click', () => {
+                document.getElementById('order-number-input').value = o.orderNumber;
+                trackOrder();
+                listEl.classList.add('hidden');
+            });
+        } else {
+            div.className = 'border border-red-100 bg-red-50 rounded-lg p-4';
+            div.innerHTML = `
+                <span class="text-xs text-red-400">${escapeHtml(r.value?.orderNumber || '알 수 없음')}</span>
+                <p class="text-sm text-red-600 mt-0.5">주문을 찾을 수 없습니다</p>
+            `;
+        }
+        itemsEl.appendChild(div);
+    });
+}
+
+/**
+ * 이름+연락처로 주문 검색
+ * GET /api/orders/search?name=...&phone=... API 호출
+ * 여러 주문이 나올 수 있으므로 목록으로 표시
+ */
+async function searchByNamePhone() {
+    const nameInput = document.getElementById('search-name-input');
+    const phoneInput = document.getElementById('search-phone-input');
+    const errorEl = document.getElementById('search-error-np');
+    const name = nameInput.value.trim();
+    const phone = phoneInput.value.trim();
+
+    errorEl.classList.add('hidden');
+    document.getElementById('result-area').classList.add('hidden');
+    document.getElementById('not-found').classList.add('hidden');
+    document.getElementById('bulk-results-list').classList.add('hidden');
+
+    // 필수값 검증
+    if (!name) {
+        errorEl.textContent = '이름을 입력해주세요.';
+        errorEl.classList.remove('hidden');
+        nameInput.focus();
+        return;
+    }
+    if (!phone) {
+        errorEl.textContent = '연락처를 입력해주세요.';
+        errorEl.classList.remove('hidden');
+        phoneInput.focus();
+        return;
+    }
+
+    try {
+        const res = await fetch(`${TRACK_API_BASE}/api/orders/search?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`);
+        const data = await res.json();
+
+        if (!res.ok || !data.success || !data.orders || data.orders.length === 0) {
+            document.getElementById('not-found').classList.remove('hidden');
+            return;
+        }
+
+        // 검색 결과 목록 표시
+        const listEl = document.getElementById('search-results-list');
+        const itemsEl = document.getElementById('search-results-items');
+        itemsEl.innerHTML = '';
+        listEl.classList.remove('hidden');
+
+        data.orders.forEach(o => {
+            const stepColors = STATUS_BADGE_COLORS[o.customerStatus?.step] || 'bg-gray-100 text-gray-800';
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-lg p-4 hover:border-gray-400 cursor-pointer transition';
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-gray-400">${escapeHtml(o.orderNumber)}</span>
+                        <p class="text-sm font-bold mt-0.5">${escapeHtml(o.teamName || o.customerName || '-')}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">${o.itemSummary ? escapeHtml(o.itemSummary) : ''}</p>
+                    </div>
+                    <span class="px-2 py-0.5 text-xs font-bold rounded-full ${stepColors}">
+                        ${escapeHtml(o.customerStatus?.label || o.statusLabel || '확인중')}
+                    </span>
+                </div>
+            `;
+            // 클릭 시 주문번호 모드로 전환하여 상세 조회
+            div.addEventListener('click', () => {
+                switchSearchMode('orderNumber');
+                document.getElementById('order-number-input').value = o.orderNumber;
+                document.getElementById('phone-input').value = phone;
+                trackOrder();
+                listEl.classList.add('hidden');
+            });
+            itemsEl.appendChild(div);
+        });
+    } catch (error) {
+        errorEl.textContent = '서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
+        errorEl.classList.remove('hidden');
+    }
+}
+
+/**
+ * 비로그인 사용자에게 회원가입 유도 배너 표시
+ * localStorage에 auth token이 없으면 배너를 보여준다
+ */
+function showJoinBannerIfNeeded() {
+    const token = localStorage.getItem('stiz_token');
+    const banner = document.getElementById('join-banner');
+    if (!token && banner) {
+        banner.classList.remove('hidden');
+    }
+}
+
 /**
  * 페이지 초기화
  * - URL 파라미터에 주문번호(+연락처)가 있으면 자동 조회
  * - Enter 키로도 조회 가능
+ * - 비로그인 시 회원가입 유도 배너 표시
  */
 document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('order-number-input');
@@ -846,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', () => {
         trackOrder();
     }
 
-    // Enter 키로 조회 (주문번호, 연락처 필드 모두)
+    // Enter 키로 조회 (주문번호 모드)
     [input, phoneInput].forEach(el => {
         if (el) {
             el.addEventListener('keydown', (e) => {
@@ -854,4 +1066,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+
+    // Enter 키로 조회 (이름+연락처 모드)
+    const nameInput = document.getElementById('search-name-input');
+    const searchPhoneInput = document.getElementById('search-phone-input');
+    [nameInput, searchPhoneInput].forEach(el => {
+        if (el) {
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') searchByNamePhone();
+            });
+        }
+    });
+
+    // 비로그인 시 회원가입 배너 표시
+    showJoinBannerIfNeeded();
 });

@@ -136,9 +136,20 @@
             <p class="text-gray-500 text-sm">주문번호를 입력하면 현재 진행 단계를 확인할 수 있습니다.</p>
         </div>
 
-        <!-- 검색 폼: 주문번호 + 연락처를 입력받아 API로 조회 -->
-        <!-- 연락처는 시안 확정/수정요청/주문서/결제 등 본인 확인에 필요 -->
-        <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
+        <!-- 검색모드 전환 탭: 주문번호 검색 / 이름+연락처 검색 -->
+        <div class="flex border-b border-gray-200 mb-0 rounded-t-lg overflow-hidden">
+            <button onclick="switchSearchMode('orderNumber')" id="mode-orderNumber"
+                class="flex-1 py-3 text-sm font-bold text-center border-b-2 border-black text-black bg-gray-50 transition">
+                <span class="material-symbols-outlined text-base align-middle mr-1">tag</span>주문번호로 조회
+            </button>
+            <button onclick="switchSearchMode('namePhone')" id="mode-namePhone"
+                class="flex-1 py-3 text-sm font-bold text-center border-b-2 border-transparent text-gray-400 bg-gray-50 hover:text-gray-600 transition">
+                <span class="material-symbols-outlined text-base align-middle mr-1">person_search</span>이름+연락처로 조회
+            </button>
+        </div>
+
+        <!-- 검색 폼: 주문번호 모드 (기본) -->
+        <div id="search-mode-orderNumber" class="bg-gray-50 border border-gray-200 border-t-0 rounded-b-lg p-6 mb-4">
             <div class="space-y-3">
                 <div>
                     <label for="order-number-input" class="block text-sm font-bold mb-2">주문번호</label>
@@ -154,6 +165,23 @@
                         class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                         autocomplete="off">
                 </div>
+                <!-- 일괄입력 토글: 여러 주문번호를 한번에 조회할 수 있는 확장 영역 -->
+                <details id="bulk-input-toggle" class="mt-1">
+                    <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 select-none">
+                        <span class="material-symbols-outlined text-xs align-middle mr-0.5">playlist_add</span>
+                        여러 주문번호 한번에 조회
+                    </summary>
+                    <div class="mt-2">
+                        <textarea id="bulk-input" rows="4"
+                            placeholder="주문번호를 줄바꿈 또는 쉼표로 구분하여 입력&#10;예:&#10;ORD-20260326-001&#10;ORD-20260326-002"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent resize-none"></textarea>
+                        <button onclick="trackBulkOrders()"
+                            class="mt-2 w-full bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-700 transition">
+                            <span class="material-symbols-outlined text-base align-middle mr-1">search</span>
+                            일괄 조회
+                        </button>
+                    </div>
+                </details>
                 <button onclick="trackOrder()"
                     class="w-full sm:w-auto bg-black text-white px-6 py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
                     조회
@@ -161,6 +189,58 @@
             </div>
             <!-- 에러 메시지 영역 -->
             <p id="search-error" class="text-red-500 text-xs mt-2 hidden"></p>
+        </div>
+
+        <!-- 검색 폼: 이름+연락처 모드 (숨김) -->
+        <div id="search-mode-namePhone" class="hidden bg-gray-50 border border-gray-200 border-t-0 rounded-b-lg p-6 mb-4">
+            <div class="space-y-3">
+                <div>
+                    <label for="search-name-input" class="block text-sm font-bold mb-2">주문자 이름</label>
+                    <input type="text" id="search-name-input"
+                        placeholder="예: 홍길동"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                        autocomplete="off">
+                </div>
+                <div>
+                    <label for="search-phone-input" class="block text-sm font-bold mb-2">연락처</label>
+                    <input type="tel" id="search-phone-input"
+                        placeholder="예: 010-1234-5678"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                        autocomplete="off">
+                </div>
+                <button onclick="searchByNamePhone()"
+                    class="w-full sm:w-auto bg-black text-white px-6 py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
+                    조회
+                </button>
+            </div>
+            <!-- 에러 메시지 영역 -->
+            <p id="search-error-np" class="text-red-500 text-xs mt-2 hidden"></p>
+        </div>
+
+        <!-- 이름+연락처 검색 결과 목록 (여러 주문이 나올 수 있음) -->
+        <div id="search-results-list" class="hidden mb-8">
+            <h3 class="text-sm font-bold text-gray-500 mb-3">검색 결과</h3>
+            <div id="search-results-items" class="space-y-2"></div>
+        </div>
+
+        <!-- 일괄조회 결과 목록 -->
+        <div id="bulk-results-list" class="hidden mb-8">
+            <h3 class="text-sm font-bold text-gray-500 mb-3">일괄 조회 결과</h3>
+            <div id="bulk-results-items" class="space-y-2"></div>
+        </div>
+
+        <!-- 비로그인 회원가입 유도 배너 -->
+        <div id="join-banner" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+            <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-blue-600 text-xl mt-0.5">person_add</span>
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-blue-800">회원가입하면 더 편리해요!</p>
+                    <p class="text-xs text-blue-600 mt-1">주문 내역 자동 관리, 할인 쿠폰, 재주문이 간편해집니다.</p>
+                    <a href="join.html" class="inline-block mt-2 px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition">
+                        무료 회원가입
+                    </a>
+                </div>
+            </div>
         </div>
 
         <!-- 로딩 스피너 (조회 중 표시) -->
