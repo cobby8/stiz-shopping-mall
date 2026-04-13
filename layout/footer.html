@@ -1,61 +1,57 @@
 <div class="container mx-auto px-6 py-12">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-        <!-- Brand Info -->
+        <!-- 브랜드 정보 -->
         <div class="col-span-1">
             <h2 class="text-2xl font-bold uppercase tracking-tighter mb-4">STIZ</h2>
             <p class="text-gray-400 text-sm leading-relaxed mb-6">
-                We provide the best sports gear for your team. <br>
-                Make Your Team Identity with STIZ.
+                최고의 팀웨어로 승리를 함께합니다.<br>
+                프리미엄 품질의 장비로 팀의 정체성을 디자인하세요.
             </p>
             <div class="flex space-x-4">
-                <a href="#" class="text-gray-400 hover:text-white transition-colors">Instagram</a>
+                <a href="https://www.instagram.com/stiz_official" target="_blank" class="text-gray-400 hover:text-white transition-colors">Instagram</a>
                 <a href="#" class="text-gray-400 hover:text-white transition-colors">Facebook</a>
                 <a href="#" class="text-gray-400 hover:text-white transition-colors">Youtube</a>
             </div>
         </div>
 
-        <!-- Links -->
+        <!-- 쇼핑 -->
         <div class="col-span-1">
-            <h3 class="font-bold text-lg mb-4 text-white">SHOP</h3>
+            <h3 class="font-bold text-lg mb-4 text-white">쇼핑</h3>
             <ul class="space-y-2 text-sm text-gray-400">
-                <li><a href="list.html?category=Soccer" class="hover:text-white transition-colors">Soccer</a></li>
-                <li><a href="list.html?category=Basketball" class="hover:text-white transition-colors">Basketball</a>
-                </li>
-                <li><a href="list.html?category=Volleyball" class="hover:text-white transition-colors">Volleyball</a>
-                </li>
-                <li><a href="list.html" class="hover:text-white transition-colors">Accessories</a></li>
+                <li><a href="list.html?category=basketball" class="hover:text-white transition-colors">농구</a></li>
+                <li><a href="list.html?category=soccer" class="hover:text-white transition-colors">축구</a></li>
+                <li><a href="list.html?category=volleyball" class="hover:text-white transition-colors">배구</a></li>
+                <li><a href="list.html?category=accessories" class="hover:text-white transition-colors">악세서리&용품</a></li>
             </ul>
         </div>
 
-        <!-- Links -->
+        <!-- 고객지원 -->
         <div class="col-span-1">
-            <h3 class="font-bold text-lg mb-4 text-white">SUPPORT</h3>
+            <h3 class="font-bold text-lg mb-4 text-white">고객지원</h3>
             <ul class="space-y-2 text-sm text-gray-400">
-                <li><a href="notice.html" class="hover:text-white transition-colors">FAQ</a></li>
-                <li><a href="notice.html" class="hover:text-white transition-colors">Contact Us</a></li>
-                <li><a href="notice.html" class="hover:text-white transition-colors">Size Guide</a></li>
-                <li><a href="notice.html" class="hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="notice.html" class="hover:text-white transition-colors">자주묻는질문</a></li>
+                <li><a href="inquiry.html" class="hover:text-white transition-colors">문의하기</a></li>
+                <li><a href="about.html" class="hover:text-white transition-colors">회사소개</a></li>
+                <li><a href="bulk-order.html" class="hover:text-white transition-colors">단체주문</a></li>
             </ul>
         </div>
 
-        <!-- Newsletter -->
+        <!-- 뉴스레터 -->
         <div class="col-span-1">
-            <h3 class="font-bold text-lg mb-4 text-white">NEWSLETTER</h3>
-            <p class="text-gray-400 text-sm mb-4">Subscribe to get special offers and updates.</p>
-            <form class="flex">
-                <input type="email" placeholder="Your email"
+            <h3 class="font-bold text-lg mb-4 text-white">뉴스레터</h3>
+            <p class="text-gray-400 text-sm mb-4">특별 할인과 새 상품 소식을 받아보세요.</p>
+            <form class="flex" onsubmit="event.preventDefault(); const email=this.querySelector('input').value; if(!email)return; fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})}).then(r=>r.json()).then(d=>{if(d.success){alert('구독 완료!');this.querySelector('input').value='';}else{alert(d.error||'구독 실패');}}).catch(()=>alert('구독 처리 중 오류가 발생했습니다.'));">
+                <input type="email" placeholder="이메일 주소" required
                     class="bg-gray-800 text-white px-4 py-2 rounded-l-md w-full focus:outline-none focus:ring-1 focus:ring-gray-500">
-                <button
-                    class="bg-white text-black font-bold px-4 py-2 rounded-r-md hover:bg-gray-200 transition-colors">GO</button>
+                <button type="submit"
+                    class="bg-white text-black font-bold px-4 py-2 rounded-r-md hover:bg-gray-200 transition-colors">구독</button>
             </form>
         </div>
     </div>
 
     <div
         class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
-        <p>&copy; 2025 STIZ Corp. All rights reserved.</p>
-        <p class="mt-2 md:mt-0">Seoul, Republic of Korea | Business License: 000-00-00000</p>
+        <p>&copy; 2026 소명엔비씨(주) STIZ. 사업자등록번호: 119-86-78811 | 대표: 김수빈</p>
+        <p class="mt-2 md:mt-0">서울특별시 성동구 한림말길 33, 지하2층 | 통신판매: 2019-서울강동-1084</p>
     </div>
-    <!-- Chatbot Script (Global) -->
-    <script src="js/chatbot.js" defer></script>
 </div>
