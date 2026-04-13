@@ -101,18 +101,63 @@ function renderProductInfo() {
   document.getElementById('productName').textContent = p.name;
   document.getElementById('productNameEn').textContent = p.nameEn || '';
 
+  // 브랜드/원산지 표시 — 있으면 카테고리명 옆에 추가 정보
+  const brandOriginParts = [];
+  if (p.brand) brandOriginParts.push(p.brand);
+  if (p.origin) brandOriginParts.push(`원산지: ${p.origin}`);
+  if (brandOriginParts.length > 0) {
+    const infoEl = document.getElementById('categoryName');
+    infoEl.textContent = [p.categoryName, ...brandOriginParts].filter(Boolean).join(' · ');
+  }
+
   // 가격 영역
   renderPriceArea(p);
+
+  // 상담 후 결제 상품일 때 — 기성품 패널의 버튼을 "커스텀 주문하기"로 교체
+  if (p.isConsultPrice === 1 && p.type !== 'custom') {
+    const readyPanel = document.getElementById('readyPanel');
+    if (readyPanel) {
+      // 사이즈/수량/총금액 숨기고 상담 안내 버튼만 표시
+      const sizeSection = document.getElementById('sizeSection');
+      const qtySection = sizeSection?.parentElement?.querySelector('.mb-6:nth-child(2)');
+      if (sizeSection) sizeSection.classList.add('hidden');
+
+      // 총 금액 영역 숨기기
+      const totalArea = readyPanel.querySelector('.bg-gray-50');
+      if (totalArea) totalArea.classList.add('hidden');
+
+      // 장바구니 버튼 → 커스텀 주문 버튼으로 교체
+      const cartBtn = readyPanel.querySelector('button[onclick="addToCartFromDetail()"]');
+      if (cartBtn) {
+        cartBtn.outerHTML = `
+          <a href="custom_mockup.html"
+             class="flex-1 py-3.5 bg-brand-red text-white font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-xl">design_services</span>
+            커스텀 주문하기
+          </a>`;
+      }
+    }
+  }
 }
 
 /**
  * 가격 영역 렌더링
- * 기성품: 정가 + 클럽가(할인가)
- * 커스텀: "~기본가" + 옵션에 따라 변동 안내
+ * - 상담 후 결제(isConsultPrice=1): 가격 대신 "상담 후 결제" 배지
+ * - 커스텀: "~기본가" + 옵션에 따라 변동 안내
+ * - 기성품: 정가 + 클럽가(할인가)
  */
 function renderPriceArea(product) {
   const area = document.getElementById('priceArea');
   const price = product.price || 0;
+
+  // 상담 후 결제 상품 — 가격 대신 배지 표시
+  if (product.isConsultPrice === 1) {
+    area.innerHTML = `
+      <span class="inline-block px-3 py-1.5 bg-amber-100 text-amber-800 text-sm font-bold rounded-full">상담 후 결제</span>
+      <p class="text-sm text-gray-400 mt-2">가격은 상담을 통해 안내드립니다</p>
+    `;
+    return;
+  }
 
   if (product.type === 'custom') {
     area.innerHTML = `
@@ -303,10 +348,25 @@ function addToCartFromDetail() {
 }
 
 // ===== 상품 설명 렌더링 =====
+// detailHtml이 있으면 카페24 상세페이지 HTML을 그대로 삽입 (이미지 포함)
+// 없으면 기존 description 텍스트를 표시
 function renderDescription() {
   const content = document.getElementById('descriptionContent');
-  const desc = detailState.product.description;
+  const p = detailState.product;
 
+  // detailHtml 우선 — 카페24에서 가져온 상세 HTML (이미지들 포함)
+  if (p.detailHtml) {
+    content.innerHTML = p.detailHtml;
+    // 상세 HTML 내 이미지에 반응형 스타일 적용
+    content.querySelectorAll('img').forEach(img => {
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+    });
+    return;
+  }
+
+  // detailHtml 없으면 텍스트 description 사용
+  const desc = p.description;
   if (!desc) {
     content.innerHTML = '<p class="text-gray-400 py-8 text-center">상품 설명이 없습니다.</p>';
     return;

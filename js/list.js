@@ -13,14 +13,16 @@
 // ===== 전역 상태 =====
 const listState = {
   products: [],      // 현재 표시 중인 상품 배열
-  categories: [],    // 네비게이션용 카테고리 (상단 탭)
-  categoryMap: {},   // slug → { id, name, productCount } 매핑 (빠른 조회용)
+  categories: [],    // 네비게이션용 카테고리 (상단 탭) — 트리 구조 (children 포함)
+  categoryMap: {},   // slug → { id, name, productCount, children? } 매핑 (빠른 조회용)
   page: 1,
   limit: 20,
   total: 0,
   totalPages: 0,
   categorySlug: '',  // 현재 선택된 카테고리 slug ('' = 전체)
   categoryId: '',    // 해당 slug의 실제 DB id
+  subCategorySlug: '', // 현재 선택된 하위 카테고리 slug ('' = 전체)
+  subCategoryId: '',   // 하위 카테고리의 실제 DB id
   type: '',          // 'ready' | 'custom' | ''
   search: '',
   sort: 'newest',
@@ -69,6 +71,10 @@ function restoreFromURL() {
   const rawCategory = params.get('category') || '';
   listState.categorySlug = normalizeSlug(rawCategory);
 
+  // 하위 서브탭 slug 복원 (?sub=heritage 등)
+  const rawSub = params.get('sub') || '';
+  if (rawSub) listState.subCategorySlug = rawSub;
+
   const type = params.get('type') || '';
   // type=store 같은 과거 값은 그냥 빈 값으로 (기성/커스텀만 유효)
   if (type === 'ready' || type === 'custom') {
@@ -89,6 +95,8 @@ function restoreFromURL() {
 function syncToURL() {
   const params = new URLSearchParams();
   if (listState.categorySlug) params.set('category', listState.categorySlug);
+  // 하위 서브탭이 선택되면 URL에도 반영
+  if (listState.subCategorySlug) params.set('sub', listState.subCategorySlug);
   if (listState.type) params.set('type', listState.type);
   if (listState.search) params.set('search', listState.search);
   if (listState.sort && listState.sort !== 'newest') params.set('sort', listState.sort);
@@ -104,20 +112,44 @@ async function loadCategories() {
     const data = await res.json();
     if (!data.success) return;
 
-    // 트리 구조로 받아지므로 대분류만 사용 + productCount 0 제외
-    const list = (data.categories || []).filter(c => (c.productCount || 0) > 0);
+    // 트리 구조로 받아짐 — 대분류(children 포함)
+    // 대분류의 productCount에 하위 상품수를 합산하여 표시
+    const rawList = data.categories || [];
+    rawList.forEach(c => {
+      // 하위 카테고리 상품 수를 대분류에 합산
+      const childTotal = (c.children || []).reduce((sum, ch) => sum + (ch.productCount || 0), 0);
+      c.totalProductCount = (c.productCount || 0) + childTotal;
+    });
+    // 상품이 하나도 없는 대분류 제외
+    const list = rawList.filter(c => c.totalProductCount > 0);
     listState.categories = list;
 
-    // slug → 카테고리 맵 구성
-    list.forEach(c => { listState.categoryMap[c.slug] = c; });
+    // slug → 카테고리 맵 구성 (대분류 + 하위 모두 등록)
+    list.forEach(c => {
+      listState.categoryMap[c.slug] = c;
+      // 하위 카테고리도 맵에 등록 (서브탭 클릭 시 조회용)
+      (c.children || []).forEach(ch => {
+        listState.categoryMap[ch.slug] = ch;
+      });
+    });
 
     // URL의 slug가 실제 맵에 존재하는지 확인하여 categoryId 세팅
     if (listState.categorySlug) {
       const matched = listState.categoryMap[listState.categorySlug];
       if (matched) {
-        listState.categoryId = matched.id;
+        // 하위 카테고리 slug로 들어온 경우 — parentId가 있으면 서브탭 선택 상태로
+        if (matched.parentId) {
+          const parent = list.find(c => c.id === matched.parentId);
+          if (parent) {
+            listState.categorySlug = parent.slug;
+            listState.categoryId = parent.id;
+            listState.subCategorySlug = matched.slug;
+            listState.subCategoryId = matched.id;
+          }
+        } else {
+          listState.categoryId = matched.id;
+        }
       } else {
-        // 알 수 없는 slug면 전체로 폴백
         listState.categorySlug = '';
         listState.categoryId = '';
       }
@@ -131,36 +163,78 @@ async function loadCategories() {
 
 /**
  * 상단 카테고리 필터 탭 렌더링
- * 기존 list.html의 가로 스크롤 탭 스타일을 유지하면서 DB 카테고리로 교체
+ * 대분류 탭 + 선택된 대분류의 하위 서브탭을 2줄 구조로 표시
  */
 function renderCategoryTabs() {
-  const container = document.querySelector('.overflow-x-auto .flex');
-  if (!container) return;
+  const wrapper = document.querySelector('.overflow-x-auto');
+  if (!wrapper) return;
 
-  // "전체" + 상품 있는 카테고리들
+  // 대분류 탭 — "전체" + 상품 있는 대분류들
   const tabs = [
-    { slug: '', name: 'All Products', productCount: null },
+    { slug: '', name: 'All Products', totalProductCount: null },
     ...listState.categories
   ];
 
-  container.innerHTML = tabs.map(cat => {
+  // 대분류 탭 렌더링
+  const mainTabsHtml = tabs.map(cat => {
     const isActive = cat.slug === listState.categorySlug;
     const activeClass = isActive
       ? 'bg-black text-white border-black'
       : 'bg-white text-gray-500 hover:text-black border-gray-200 hover:border-black';
-    const countLabel = cat.productCount !== null ? ` (${cat.productCount})` : '';
-    // data-slug에 slug 저장, 클릭 시 selectCategory 호출
+    const count = cat.totalProductCount !== null ? ` (${cat.totalProductCount})` : '';
     return `
       <button data-slug="${cat.slug}"
               class="list-cat-btn px-4 py-2 rounded-full text-xs font-bold ${activeClass} transition-colors border whitespace-nowrap">
-        ${cat.name}${countLabel}
+        ${cat.name}${count}
       </button>
     `;
   }).join('');
 
-  // 이벤트 바인딩
-  container.querySelectorAll('.list-cat-btn').forEach(btn => {
+  // 하위 서브탭 — 선택된 대분류에 children이 있으면 표시
+  let subTabsHtml = '';
+  if (listState.categorySlug) {
+    const parentCat = listState.categories.find(c => c.slug === listState.categorySlug);
+    const children = parentCat?.children || [];
+    if (children.length > 0) {
+      // "전체" + 하위 카테고리들
+      const subTabs = [
+        { slug: '', name: '전체', productCount: null },
+        ...children
+      ];
+      subTabsHtml = `
+        <div class="flex space-x-2 mt-2" id="sub-category-tabs">
+          ${subTabs.map(sub => {
+            const isSubActive = sub.slug === listState.subCategorySlug;
+            const subActiveClass = isSubActive
+              ? 'bg-gray-800 text-white border-gray-800'
+              : 'bg-gray-50 text-gray-500 hover:text-black border-gray-200 hover:border-gray-400';
+            const subCount = sub.productCount !== null ? ` (${sub.productCount})` : '';
+            return `
+              <button data-sub-slug="${sub.slug}"
+                      class="list-sub-btn px-3 py-1.5 rounded-full text-xs font-medium ${subActiveClass} transition-colors border whitespace-nowrap">
+                ${sub.name}${subCount}
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+  }
+
+  // 기존 container(첫 번째 .flex)를 찾아서 전체 교체
+  wrapper.innerHTML = `
+    <div class="flex space-x-2">${mainTabsHtml}</div>
+    ${subTabsHtml}
+  `;
+
+  // 대분류 탭 이벤트 바인딩
+  wrapper.querySelectorAll('.list-cat-btn').forEach(btn => {
     btn.addEventListener('click', () => selectCategory(btn.dataset.slug));
+  });
+
+  // 하위 서브탭 이벤트 바인딩
+  wrapper.querySelectorAll('.list-sub-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectSubCategory(btn.dataset.subSlug));
   });
 
   // 페이지 타이틀 업데이트
@@ -168,11 +242,29 @@ function renderCategoryTabs() {
 }
 
 /**
- * 카테고리 선택 핸들러
+ * 대분류 카테고리 선택 핸들러
+ * 대분류 변경 시 하위 서브탭 초기화
  */
 function selectCategory(slug) {
   listState.categorySlug = slug;
   listState.categoryId = slug ? (listState.categoryMap[slug]?.id || '') : '';
+  // 대분류가 바뀌면 서브탭 초기화
+  listState.subCategorySlug = '';
+  listState.subCategoryId = '';
+  listState.page = 1;
+  listState.products = [];
+  syncToURL();
+  renderCategoryTabs();
+  loadProducts();
+}
+
+/**
+ * 하위 서브탭 선택 핸들러
+ * 서브탭 클릭 시 해당 하위 카테고리로 필터링
+ */
+function selectSubCategory(subSlug) {
+  listState.subCategorySlug = subSlug;
+  listState.subCategoryId = subSlug ? (listState.categoryMap[subSlug]?.id || '') : '';
   listState.page = 1;
   listState.products = [];
   syncToURL();
@@ -242,7 +334,10 @@ async function loadProducts() {
       limit: listState.limit,
       sort: listState.sort
     });
-    if (listState.categoryId) params.set('category', listState.categoryId);
+    // 서브탭 선택 시 하위 카테고리 ID로, 아니면 대분류 ID로 필터
+    // API가 대분류 ID를 받으면 자동으로 하위 합집합을 반환 (D-89)
+    const effectiveCategoryId = listState.subCategoryId || listState.categoryId;
+    if (effectiveCategoryId) params.set('category', effectiveCategoryId);
     if (listState.type) params.set('type', listState.type);
     if (listState.search) params.set('search', listState.search);
 
@@ -294,14 +389,19 @@ function createCard(p) {
     || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" font-size="20" fill="%239ca3af">No Image</text></svg>';
 
   const categoryLabel = (p.categoryName || '').toUpperCase();
-  const priceLabel = isCustom
-    ? `~₩${(p.price || 0).toLocaleString()}`
-    : `₩${(p.price || 0).toLocaleString()}`;
 
-  // 할인가가 있으면 클럽가 우선 표시
-  const hasClubPrice = !isCustom && p.clubPrice && p.clubPrice < p.price;
-  const mainPrice = hasClubPrice ? `₩${p.clubPrice.toLocaleString()}` : priceLabel;
-  const origPrice = hasClubPrice ? `<span class="text-[10px] text-gray-400 line-through ml-1">₩${p.price.toLocaleString()}</span>` : '';
+  // 상담 후 결제 상품은 가격 대신 배지 표시
+  let mainPrice, origPrice = '';
+  if (p.isConsultPrice === 1) {
+    mainPrice = `<span class="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full">상담 후 결제</span>`;
+  } else {
+    const priceLabel = isCustom
+      ? `~₩${(p.price || 0).toLocaleString()}`
+      : `₩${(p.price || 0).toLocaleString()}`;
+    const hasClubPrice = !isCustom && p.clubPrice && p.clubPrice < p.price;
+    mainPrice = hasClubPrice ? `₩${p.clubPrice.toLocaleString()}` : priceLabel;
+    origPrice = hasClubPrice ? `<span class="text-[10px] text-gray-400 line-through ml-1">₩${p.price.toLocaleString()}</span>` : '';
+  }
 
   return `
     <div class="group relative">

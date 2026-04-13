@@ -54,10 +54,23 @@ router.get('/products', (req, res) => {
     const conditions = ["p.status = 'active'"];
     const params = [];
 
-    // 카테고리 필터
+    // 카테고리 필터 — 대분류 선택 시 하위 카테고리 상품도 합집합으로 반환 (D-89)
+    // 비유: "농구" 매장에 들어가면 heritage/pro/reversible 선반 전부 보이는 것
     if (category) {
-      conditions.push('p.categoryId = ?');
-      params.push(parseInt(category));
+      const catId = parseInt(category);
+      // 해당 catId를 parentId로 가진 하위 카테고리가 있는지 확인
+      const hasChildren = db.prepare(
+        'SELECT COUNT(*) as cnt FROM product_categories WHERE parentId = ?'
+      ).get(catId);
+      if (hasChildren && hasChildren.cnt > 0) {
+        // 대분류: 본인 + 하위 카테고리 상품 합집합
+        conditions.push('(p.categoryId = ? OR p.categoryId IN (SELECT id FROM product_categories WHERE parentId = ?))');
+        params.push(catId, catId);
+      } else {
+        // 하위 카테고리 또는 하위 없는 대분류: 정확 매칭
+        conditions.push('p.categoryId = ?');
+        params.push(catId);
+      }
     }
 
     // 타입 필터 (기성품/커스텀)
@@ -96,6 +109,7 @@ router.get('/products', (req, res) => {
         p.id, p.type, p.categoryId, p.name, p.nameEn, p.sku,
         p.description, p.price, p.clubPrice, p.sizes, p.fabric,
         p.customMeta, p.status, p.sortOrder, p.createdAt,
+        p.isConsultPrice, p.brand,
         c.name AS categoryName, c.slug AS categorySlug,
         pi.url AS thumbnail
       FROM products p
