@@ -41,8 +41,7 @@
 
     <!-- 헤더 (header_render.js가 자동 삽입) -->
     <header></header>
-    <div class="h-20"></div>
-    <div class="h-20"></div>
+    <div class="h-20"></div> <!-- 헤더 높이만큼 여백 -->
 
     <!-- ===== 브레드크럼 ===== -->
     <nav class="max-w-5xl mx-auto px-4 pt-4 pb-2">
@@ -152,10 +151,15 @@
         </div>
     </section>
 
+    <!-- 푸터 (header_render.js가 자동 주입) -->
+    <footer></footer>
+
     <!-- 하단 스크립트 -->
-    <script src="js/header_render.js"></script>
     <script src="js/cart.js"></script>
-    <script src="js/cart-page.js"></script>
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/cart-page.js" defer></script>
 </body>
 
 </html>

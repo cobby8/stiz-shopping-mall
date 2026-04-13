@@ -212,7 +212,7 @@ router.get('/products/featured', (req, res) => {
     // 최신 상품 — 등록일 기준 정렬
     const newest = db.prepare(`
       SELECT p.id, p.type, p.name, p.nameEn, p.price, p.clubPrice,
-             p.description, p.categoryId, p.customMeta,
+             p.description, p.categoryId, p.customMeta, p.isConsultPrice,
              c.name AS categoryName,
              pi.url AS thumbnail
       FROM products p
@@ -226,7 +226,7 @@ router.get('/products/featured', (req, res) => {
     // 추천 상품 — sortOrder가 작을수록 우선 (관리자가 직접 순서 지정)
     const recommended = db.prepare(`
       SELECT p.id, p.type, p.name, p.nameEn, p.price, p.clubPrice,
-             p.description, p.categoryId, p.customMeta,
+             p.description, p.categoryId, p.customMeta, p.isConsultPrice,
              c.name AS categoryName,
              pi.url AS thumbnail
       FROM products p
@@ -644,14 +644,25 @@ router.post('/admin/products/:id/images', adminAuth, (req, res, next) => {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
+    // primaryIndex: 클라이언트가 지정한 대표 이미지 인덱스 (FormData에서 전달)
+    const primaryIndex = parseInt(req.body.primaryIndex);
+    // type: 'detail'이면 상세페이지 이미지 (alt에 'detail' 저장)
+    const imageType = req.body.type || '';
+
     const uploaded = [];
     req.files.forEach((file, idx) => {
       const url = `/uploads/products/${file.filename}`;
-      // 첫 이미지이고 기존 이미지가 없으면 대표로 지정
-      const isPrimary = (existingCount === 0 && idx === 0) ? 1 : 0;
+      // 대표 이미지 결정: primaryIndex가 있으면 해당 인덱스, 없으면 첫 이미지(기존 없을 때)
+      let isPrimary = 0;
+      if (!isNaN(primaryIndex)) {
+        isPrimary = (idx === primaryIndex) ? 1 : 0;
+      } else {
+        isPrimary = (existingCount === 0 && idx === 0) ? 1 : 0;
+      }
+      const alt = imageType === 'detail' ? 'detail' : '';
       const sortOrder = existingCount + idx;
 
-      const result = insertImg.run(parseInt(id), url, '', isPrimary, sortOrder, now);
+      const result = insertImg.run(parseInt(id), url, alt, isPrimary, sortOrder, now);
       uploaded.push({
         id: Number(result.lastInsertRowid),
         url,

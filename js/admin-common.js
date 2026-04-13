@@ -187,8 +187,10 @@ function checkAdminAuth() {
  */
 async function adminFetch(url, options = {}) {
     const token = getAdminToken();
+    // FormData 전송 시 Content-Type 헤더를 제거해야 브라우저가 boundary를 자동 설정
+    const isFormData = options.body instanceof FormData;
     const headers = {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         'Authorization': `Bearer ${token}`,
         ...(options.headers || {})
     };

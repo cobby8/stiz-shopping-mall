@@ -59,8 +59,7 @@
 
     <!-- 헤더 (header_render.js가 자동 삽입) -->
     <header></header>
-    <div class="h-20"></div>
-    <div class="h-20"></div>
+    <div class="h-20"></div> <!-- 헤더 높이만큼 여백 -->
 
     <!-- ===== 주문 폼 (기본 화면) ===== -->
     <div id="checkoutForm">
@@ -275,10 +274,15 @@
         </section>
     </div>
 
+    <!-- 푸터 (header_render.js가 자동 주입) -->
+    <footer></footer>
+
     <!-- 하단 스크립트 -->
-    <script src="js/header_render.js"></script>
     <script src="js/cart.js"></script>
-    <script src="js/checkout.js"></script>
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/checkout.js" defer></script>
 </body>
 
 </html>

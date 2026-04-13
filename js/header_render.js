@@ -366,7 +366,7 @@ function renderFooter() {
                 </div>
             </div>
             <div class="border-t border-gray-800 mt-12 pt-8 text-xs text-gray-500 text-center">
-                 &copy; 2024 STIZ Custom Teamwear.
+                 &copy; 2026 STIZ Custom Teamwear.
             </div>
         </div>
     `;

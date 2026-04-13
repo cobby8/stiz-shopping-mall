@@ -362,6 +362,9 @@ function openCreateModal() {
     document.getElementById('product-form').reset();
     document.getElementById('form-status').value = 'draft';
 
+    // 이미지 상태 초기화
+    resetImageState();
+
     // 모달 표시
     document.getElementById('modal-product').classList.remove('hidden');
 }
@@ -407,6 +410,10 @@ async function openEditModal(productId) {
         document.getElementById('form-keywords').value = product.keywords || '';
         document.getElementById('form-status').value = product.status || 'draft';
         document.getElementById('form-sortOrder').value = product.sortOrder || 0;
+
+        // 기존 이미지 로드 — 수정 모드에서 서버에 저장된 이미지를 미리보기로 표시
+        resetImageState();
+        await loadExistingImages(product.id);
 
         // 모달 표시
         document.getElementById('modal-product').classList.remove('hidden');
@@ -481,6 +488,11 @@ async function handleProductSubmit(event) {
         const data = await res.json();
 
         if (data.success) {
+            // 상품 저장 성공 후 새 이미지가 있으면 업로드
+            const savedId = isEdit ? productId : data.product?.id;
+            if (savedId) {
+                await uploadPendingImages(savedId);
+            }
             alert(isEdit ? '상품이 수정되었습니다.' : '상품이 등록되었습니다.');
             closeModal();
             loadProducts();  // 목록 새로고침
@@ -556,5 +568,367 @@ async function archiveProduct(productId, productName) {
     } catch (error) {
         console.error('상품 삭제 실패:', error);
         alert('서버 오류가 발생했습니다.');
+    }
+}
+
+// ============================================================
+// 이미지 업로드 관련
+// ============================================================
+
+// 이미지 상태: 새로 추가할 파일 + 서버에 이미 있는 이미지
+let pendingImages = [];       // 새로 선택한 File 객체 배열
+let existingImages = [];      // 서버에 있는 기존 이미지 [{id, url, isPrimary}]
+let pendingDetailImages = []; // 상세페이지용 새 파일
+let existingDetailImages = [];// 서버에 있는 상세페이지 이미지
+let primaryImageIndex = 0;    // 대표 이미지 인덱스 (기존+신규 통합)
+
+/**
+ * 이미지 상태 초기화 — 모달 열 때마다 호출
+ */
+function resetImageState() {
+    pendingImages = [];
+    existingImages = [];
+    pendingDetailImages = [];
+    existingDetailImages = [];
+    primaryImageIndex = 0;
+    renderImagePreviews();
+    renderDetailImagePreviews();
+}
+
+/**
+ * 수정 모드에서 기존 이미지 로드
+ * GET /api/products/:id 의 images 배열을 가져와서 미리보기에 표시
+ */
+async function loadExistingImages(productId) {
+    try {
+        const res = await fetch(`/api/products/${productId}`);
+        const data = await res.json();
+        if (!data.success || !data.product) return;
+
+        const allImages = data.product.images || [];
+        // type이 'detail'이면 상세페이지 이미지, 나머지는 일반 이미지
+        existingImages = allImages.filter(img => img.type !== 'detail');
+        existingDetailImages = allImages.filter(img => img.type === 'detail');
+
+        // 대표 이미지 인덱스 찾기
+        const primaryIdx = existingImages.findIndex(img => img.isPrimary === 1);
+        if (primaryIdx >= 0) primaryImageIndex = primaryIdx;
+
+        renderImagePreviews();
+        renderDetailImagePreviews();
+    } catch (err) {
+        console.error('기존 이미지 로드 실패:', err);
+    }
+}
+
+/**
+ * 이미지 미리보기 렌더링 — 기존 이미지 + 새로 선택한 파일을 합쳐서 표시
+ */
+function renderImagePreviews() {
+    const grid = document.getElementById('image-preview-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    // 기존 이미지 먼저
+    existingImages.forEach((img, i) => {
+        grid.appendChild(createImagePreviewCard(img.url, i, true, img.id, i === primaryImageIndex));
+    });
+
+    // 새로 선택한 파일
+    pendingImages.forEach((file, i) => {
+        const url = URL.createObjectURL(file);
+        const idx = existingImages.length + i;
+        grid.appendChild(createImagePreviewCard(url, idx, false, null, idx === primaryImageIndex));
+    });
+}
+
+/**
+ * 이미지 미리보기 카드 생성
+ * 라디오 버튼으로 대표 이미지 선택, X 버튼으로 삭제
+ */
+function createImagePreviewCard(src, index, isExisting, imageId, isPrimary) {
+    const card = document.createElement('div');
+    card.className = 'relative group rounded-lg overflow-hidden border border-gray-200';
+
+    card.innerHTML = `
+        <img src="${src}" alt="상품 이미지" class="w-full aspect-square object-cover">
+        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors"></div>
+        <!-- 삭제 버튼 -->
+        <button type="button" onclick="removeImage(${index}, ${isExisting}, ${imageId || 'null'})"
+                class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+        <!-- 대표 이미지 라디오 -->
+        <label class="absolute bottom-1 left-1 flex items-center gap-1 bg-white/90 rounded px-1.5 py-0.5 text-xs cursor-pointer">
+            <input type="radio" name="primary-image" ${isPrimary ? 'checked' : ''}
+                   onchange="setPrimaryImage(${index})" class="accent-brand-red">
+            <span>${isPrimary ? '대표' : '선택'}</span>
+        </label>
+    `;
+
+    return card;
+}
+
+/**
+ * 대표 이미지 설정
+ */
+function setPrimaryImage(index) {
+    primaryImageIndex = index;
+    renderImagePreviews();
+}
+
+/**
+ * 이미지 삭제 — 기존 이미지면 서버에서도 삭제, 새 파일이면 배열에서 제거
+ */
+async function removeImage(index, isExisting, imageId) {
+    if (isExisting && imageId) {
+        // 서버에서 삭제
+        const productId = document.getElementById('form-product-id').value;
+        if (productId && confirm('이 이미지를 삭제하시겠습니까?')) {
+            try {
+                const res = await adminFetch(`/api/admin/products/${productId}/images/${imageId}`, { method: 'DELETE' });
+                if (res) {
+                    existingImages = existingImages.filter(img => img.id !== imageId);
+                    if (primaryImageIndex >= existingImages.length + pendingImages.length) {
+                        primaryImageIndex = 0;
+                    }
+                    renderImagePreviews();
+                }
+            } catch (err) {
+                console.error('이미지 삭제 실패:', err);
+            }
+        }
+    } else {
+        // 새로 추가한 파일 제거
+        const pendingIdx = index - existingImages.length;
+        pendingImages.splice(pendingIdx, 1);
+        if (primaryImageIndex >= existingImages.length + pendingImages.length) {
+            primaryImageIndex = 0;
+        }
+        renderImagePreviews();
+    }
+}
+
+/**
+ * 상세페이지 이미지 미리보기 렌더링
+ */
+function renderDetailImagePreviews() {
+    const grid = document.getElementById('detail-image-preview-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    existingDetailImages.forEach((img, i) => {
+        const card = document.createElement('div');
+        card.className = 'relative group rounded-lg overflow-hidden border border-gray-200';
+        card.innerHTML = `
+            <img src="${img.url}" alt="상세 이미지" class="w-full aspect-square object-cover">
+            <button type="button" onclick="removeDetailImage(${i}, true, ${img.id})"
+                    class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        `;
+        grid.appendChild(card);
+    });
+
+    pendingDetailImages.forEach((file, i) => {
+        const card = document.createElement('div');
+        card.className = 'relative group rounded-lg overflow-hidden border border-gray-200';
+        card.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" alt="상세 이미지" class="w-full aspect-square object-cover">
+            <button type="button" onclick="removeDetailImage(${i}, false, null)"
+                    class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+/**
+ * 상세 이미지 삭제
+ */
+async function removeDetailImage(index, isExisting, imageId) {
+    if (isExisting && imageId) {
+        const productId = document.getElementById('form-product-id').value;
+        if (productId && confirm('이 상세 이미지를 삭제하시겠습니까?')) {
+            try {
+                const res = await adminFetch(`/api/admin/products/${productId}/images/${imageId}`, { method: 'DELETE' });
+                if (res) {
+                    existingDetailImages = existingDetailImages.filter(img => img.id !== imageId);
+                    renderDetailImagePreviews();
+                }
+            } catch (err) {
+                console.error('상세 이미지 삭제 실패:', err);
+            }
+        }
+    } else {
+        pendingDetailImages.splice(index, 1);
+        renderDetailImagePreviews();
+    }
+}
+
+/**
+ * 상품 저장 후 대기 중인 이미지 파일을 서버에 업로드
+ * POST /api/admin/products/:id/images (FormData)
+ */
+async function uploadPendingImages(productId) {
+    // 일반 상품 이미지 업로드
+    if (pendingImages.length > 0) {
+        const formData = new FormData();
+        pendingImages.forEach(file => formData.append('images', file));
+        // 대표 이미지 인덱스 — 새 파일 중에서의 상대 인덱스
+        const primaryInPending = primaryImageIndex - existingImages.length;
+        if (primaryInPending >= 0 && primaryInPending < pendingImages.length) {
+            formData.append('primaryIndex', primaryInPending);
+        }
+
+        try {
+            const res = await adminFetch(`/api/admin/products/${productId}/images`, {
+                method: 'POST',
+                body: formData
+            });
+            if (res) {
+                const data = await res.json();
+                if (!data.success) console.warn('이미지 업로드 부분 실패:', data.error);
+            }
+        } catch (err) {
+            console.error('상품 이미지 업로드 실패:', err);
+        }
+    }
+
+    // 기존 이미지 중 대표가 변경된 경우 — 서버에 대표 이미지 업데이트
+    if (existingImages.length > 0 && primaryImageIndex < existingImages.length) {
+        const primaryImg = existingImages[primaryImageIndex];
+        if (primaryImg && !primaryImg.isPrimary) {
+            try {
+                const productId2 = document.getElementById('form-product-id').value;
+                if (productId2) {
+                    // 순서 변경 API로 대표 이미지 설정
+                    const orderData = existingImages.map((img, i) => ({
+                        id: img.id,
+                        sortOrder: i,
+                        isPrimary: i === primaryImageIndex ? 1 : 0
+                    }));
+                    await adminFetch(`/api/admin/products/${productId2}/images/order`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ images: orderData })
+                    });
+                }
+            } catch (err) {
+                console.error('대표 이미지 설정 실패:', err);
+            }
+        }
+    }
+
+    // 상세페이지 이미지 업로드
+    if (pendingDetailImages.length > 0) {
+        const formData = new FormData();
+        pendingDetailImages.forEach(file => formData.append('images', file));
+        formData.append('type', 'detail');
+
+        try {
+            const res = await adminFetch(`/api/admin/products/${productId}/images`, {
+                method: 'POST',
+                body: formData
+            });
+            if (res) {
+                const data = await res.json();
+                if (!data.success) console.warn('상세 이미지 업로드 부분 실패:', data.error);
+            }
+        } catch (err) {
+            console.error('상세 이미지 업로드 실패:', err);
+        }
+    }
+}
+
+// ============================================================
+// 드래그앤드롭 / 파일 선택 이벤트 바인딩
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 일반 이미지 파일 선택
+    const fileInput = document.getElementById('image-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            addPendingImages(files, 'product');
+            e.target.value = ''; // 같은 파일 재선택 가능하도록 초기화
+        });
+    }
+
+    // 상세 이미지 파일 선택
+    const detailFileInput = document.getElementById('detail-image-file-input');
+    if (detailFileInput) {
+        detailFileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            addPendingImages(files, 'detail');
+            e.target.value = '';
+        });
+    }
+
+    // 드래그앤드롭 — 일반 이미지
+    const dropZone = document.getElementById('image-drop-zone');
+    if (dropZone) {
+        setupDropZone(dropZone, 'product');
+    }
+
+    // 드래그앤드롭 — 상세 이미지
+    const detailDropZone = document.getElementById('detail-image-drop-zone');
+    if (detailDropZone) {
+        setupDropZone(detailDropZone, 'detail');
+    }
+});
+
+/**
+ * 드래그앤드롭 영역 이벤트 바인딩
+ */
+function setupDropZone(zone, type) {
+    ['dragenter', 'dragover'].forEach(evt => {
+        zone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            zone.classList.add('border-brand-black', 'bg-gray-50');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+        zone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            zone.classList.remove('border-brand-black', 'bg-gray-50');
+        });
+    });
+
+    zone.addEventListener('drop', (e) => {
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        addPendingImages(files, type);
+    });
+}
+
+/**
+ * 파일 유효성 검사 후 대기열에 추가
+ */
+function addPendingImages(files, type) {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxCount = 10;
+
+    const targetArr = type === 'detail' ? pendingDetailImages : pendingImages;
+    const existingArr = type === 'detail' ? existingDetailImages : existingImages;
+    const currentTotal = existingArr.length + targetArr.length;
+
+    for (const file of files) {
+        if (currentTotal + targetArr.length - (type === 'detail' ? pendingDetailImages.length : pendingImages.length) + 1 > maxCount) {
+            alert(`최대 ${maxCount}장까지 업로드 가능합니다.`);
+            break;
+        }
+        if (file.size > maxSize) {
+            alert(`"${file.name}"이 5MB를 초과합니다. 건너뜁니다.`);
+            continue;
+        }
+        targetArr.push(file);
+    }
+
+    if (type === 'detail') {
+        renderDetailImagePreviews();
+    } else {
+        renderImagePreviews();
     }
 }

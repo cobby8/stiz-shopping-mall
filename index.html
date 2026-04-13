@@ -141,7 +141,7 @@
 
                 <!-- Card 3 -->
                 <div class="group relative overflow-hidden h-96 cursor-pointer"
-                    onclick="location.href='list.html?category=kogas'">
+                    onclick="location.href='list.html?category=md-products'">
                     <img src="https://images.unsplash.com/photo-1473042904451-00171c69419d?q=80&w=800&auto=format&fit=crop"
                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         alt="KOGAS" loading="lazy" width="800" height="384">
@@ -286,7 +286,7 @@
 
             <div
                 class="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between text-xs text-gray-500">
-                <p>&copy; 2024 STIZ Custom Teamwear. All rights reserved.</p>
+                <p>&copy; 2026 STIZ Custom Teamwear. All rights reserved.</p>
                 <p class="mt-2 md:mt-0">Seoul, Republic of Korea | Business License: 000-00-00000</p>
             </div>
         </div>
@@ -320,10 +320,16 @@
                 const thumb = p.thumbnail || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" font-size="20" fill="%239ca3af">STIZ</text></svg>';
                 const category = (p.categoryName || '').toUpperCase();
                 const isCustom = p.type === 'custom';
-                // 커스텀 상품은 "~가격" 접두사, 기성품은 일반 가격
-                const priceLabel = isCustom
-                    ? `~₩${(p.price || 0).toLocaleString()}`
-                    : `₩${(p.price || 0).toLocaleString()}`;
+                // 상담후결제 상품은 가격 대신 "상담 후 결제" 표시
+                const isConsult = p.isConsultPrice === 1;
+                let priceLabel;
+                if (isConsult) {
+                    priceLabel = '<span class="text-blue-600 font-semibold text-xs">상담 후 결제</span>';
+                } else if (isCustom) {
+                    priceLabel = `~&#8361;${(p.price || 0).toLocaleString()}`;
+                } else {
+                    priceLabel = `&#8361;${(p.price || 0).toLocaleString()}`;
+                }
 
                 // 배지 — 신상품 섹션이면 NEW, 베스트 섹션이면 BEST
                 const badges = [];
