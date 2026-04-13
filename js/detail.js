@@ -131,14 +131,15 @@ function renderProductInfo() {
       const totalArea = readyPanel.querySelector('.bg-gray-50');
       if (totalArea) totalArea.classList.add('hidden');
 
-      // 장바구니 버튼 → 커스텀 주문 버튼으로 교체
+      // 장바구니 버튼 → 무료 상담 신청 버튼으로 교체 (inquiry 페이지로 이동)
       const cartBtn = readyPanel.querySelector('button[onclick="addToCartFromDetail()"]');
       if (cartBtn) {
+        const inquirySubject = encodeURIComponent(`상품문의: ${p.name}`);
         cartBtn.outerHTML = `
-          <a href="custom_mockup.html"
+          <a href="inquiry.html?subject=${inquirySubject}"
              class="flex-1 py-3.5 bg-brand-red text-white font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined text-xl">design_services</span>
-            커스텀 주문하기
+            <span class="material-symbols-outlined text-xl">support_agent</span>
+            무료 상담 신청
           </a>`;
       }
     }
@@ -468,6 +469,41 @@ function shareProduct() {
 //       주문자 정보를 입력하면 시안 요청이 접수되는 시스템
 // ==========================================================
 
+// 한글 종목명 → 영문 키 매핑 (priceTable 키가 영문이므로 변환 필요)
+const SPORT_KO_EN = {
+  '농구': 'basketball',
+  '축구': 'soccer',
+  '배구': 'volleyball',
+  '팀웨어': 'teamwear',
+};
+
+/**
+ * 커스텀 상품의 종목(sport)을 영문으로 결정하는 헬퍼
+ * fallback 체인: customMeta.sport(한글→영문) → categorySlug → categoryName → 빈값
+ */
+function resolveCustomSport(product) {
+  const meta = product.customMeta || {};
+
+  // 1순위: customMeta.sport가 영문이면 그대로 사용
+  if (meta.sport && /^[a-z]+$/.test(meta.sport)) return meta.sport;
+
+  // 2순위: customMeta.sport가 한글이면 영문으로 변환
+  if (meta.sport && SPORT_KO_EN[meta.sport]) return SPORT_KO_EN[meta.sport];
+
+  // 3순위: 카테고리 slug에서 추출 (예: "basketball-heritage" → "basketball")
+  const slug = product.categorySlug || '';
+  const slugBase = slug.split('-')[0];
+  if (['basketball', 'soccer', 'volleyball', 'teamwear'].includes(slugBase)) return slugBase;
+
+  // 4순위: 카테고리 이름에서 한글 종목 검색
+  const catName = product.categoryName || '';
+  for (const [kr, en] of Object.entries(SPORT_KO_EN)) {
+    if (catName.includes(kr)) return en;
+  }
+
+  return '';
+}
+
 // 커스텀 전용 상태 — detailState와 별도로 관리
 const customState = {
   catalog: null,         // GET /api/catalog 응답 캐시
@@ -479,6 +515,7 @@ const customState = {
   unitPrice: 0,          // 단가
   totalEstimate: 0,      // 견적 총액
   isSubmitting: false,   // 중복 제출 방지
+  resolvedSport: '',     // 영문으로 변환된 종목명 (resolveCustomSport()로 결정)
 };
 
 /**
@@ -503,6 +540,9 @@ async function initCustomPanel() {
 
     // customMeta에서 이 상품이 지원하는 등급/패키지 목록 추출
     const meta = detailState.product.customMeta || {};
+
+    // 종목을 영문으로 결정하여 저장 (priceTable 키 매칭에 사용)
+    customState.resolvedSport = resolveCustomSport(detailState.product);
 
     // 등급 렌더링
     renderCustomGrades(meta);
@@ -543,10 +583,10 @@ function renderCustomGrades(meta) {
   const sportGradeMap = customState.catalog.sportGradeMap || {};
 
   // customMeta.grades가 있으면 그것으로 필터, 없으면 sport 기반 필터
-  // customMeta.sport: 이 상품이 속한 종목 (예: 'soccer', 'baseball')
+  // resolvedSport: 한글→영문 변환된 종목 (priceTable 키와 일치)
   let allowedIds = meta.grades || [];
-  if (allowedIds.length === 0 && meta.sport) {
-    allowedIds = sportGradeMap[meta.sport] || [];
+  if (allowedIds.length === 0 && customState.resolvedSport) {
+    allowedIds = sportGradeMap[customState.resolvedSport] || [];
   }
 
   // 필터된 등급만 표시
@@ -560,8 +600,8 @@ function renderCustomGrades(meta) {
   }
 
   container.innerHTML = filtered.map(g => {
-    // 세트 가격으로 대표 가격 배지 표시
-    const sport = meta.sport || '';
+    // 세트 가격으로 대표 가격 배지 표시 (영문 종목명으로 키 생성)
+    const sport = customState.resolvedSport;
     const setKey = `${sport}_${g.id}_set`;
     const topKey = `${sport}_${g.id}_top`;
     const price = customState.catalog.priceTable?.[setKey] || customState.catalog.priceTable?.[topKey];
@@ -626,9 +666,9 @@ function renderCustomPackages(meta) {
   }
   section.classList.remove('hidden');
 
-  const sport = meta.sport || '';
+  const sport = customState.resolvedSport;
   container.innerHTML = filtered.map(p => {
-    // 이 등급+패키지의 가격 조회
+    // 이 등급+패키지의 가격 조회 (영문 종목명으로 키 생성)
     const priceKey = `${sport}_${customState.selectedGrade}_${p.id}`;
     const price = customState.catalog.priceTable?.[priceKey];
     const badge = price ? `<span class="text-xs text-gray-400 ml-1">${price.toLocaleString()}원</span>` : '';
@@ -750,8 +790,8 @@ function changeCustomQty(delta) {
  */
 function updateCustomEstimate() {
   const catalog = customState.catalog;
-  const meta = detailState.product?.customMeta || {};
-  const sport = meta.sport || '';
+  // 영문으로 변환된 종목명 사용 (priceTable 키와 일치)
+  const sport = customState.resolvedSport;
   let unitPrice = 0;
 
   if (catalog && customState.selectedGrade && customState.selectedPackage) {
@@ -834,7 +874,7 @@ async function submitCustomOrder() {
     // 주문 아이템 구성 (order-custom.js와 동일 구조)
     const itemData = {
       name: p.name,
-      sport: meta.sport || '',
+      sport: customState.resolvedSport,  // 영문 종목명 사용
       category: 'uniform',
       quantity: customState.qty,
       unitPrice: customState.unitPrice,
@@ -849,6 +889,9 @@ async function submitCustomOrder() {
       finish: {
         top: customState.finishTop,
         bottom: customState.finishBottom,
+        // 마감 라벨도 저장 (관리자 표시용)
+        topLabel: (customState.catalog?.finishOptions?.top || []).find(o => o.id === customState.finishTop)?.label || customState.finishTop || '',
+        bottomLabel: (customState.catalog?.finishOptions?.bottom || []).find(o => o.id === customState.finishBottom)?.label || customState.finishBottom || '',
       },
       // 하위호환: composition 필드
       composition: {
@@ -857,6 +900,7 @@ async function submitCustomOrder() {
         type: 'single',
       },
       totalAmount: customState.totalEstimate,
+      subtotal: customState.totalEstimate,  // 관리자 페이지에서 소계 표시용
       // 상품 ID 참조 (어떤 상품에서 주문했는지 추적)
       productId: p.id,
     };

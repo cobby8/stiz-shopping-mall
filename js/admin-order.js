@@ -615,16 +615,24 @@ function renderItems() {
         if (methodLabel) specTags.push(methodLabel);
         if (item.fit) specTags.push(escapeHtml(item.fit));
         if (item.baseModel) specTags.push(escapeHtml(item.baseModel));
+        // 새 커스텀 주문 필드: 등급/패키지 라벨 (detail.js에서 생성된 주문)
+        if (item.gradeLabel) specTags.push(escapeHtml(item.gradeLabel));
+        if (item.packageLabel) specTags.push(escapeHtml(item.packageLabel));
 
         // 상의 정보 조합: 원단 + 구성을 한 줄로
         const topParts = [];
         if (item.fabricTop) topParts.push(escapeHtml(item.fabricTop));
+        else if (item.fabric) topParts.push(escapeHtml(item.fabric));  // 새 주문: fabric → fabricTop 대체
         if (item.topConfig) topParts.push(escapeHtml(item.topConfig));
+        // 새 커스텀 주문: 마감 옵션 (finish.topLabel)
+        if (item.finish?.topLabel) topParts.push(escapeHtml(item.finish.topLabel));
 
         // 하의 정보 조합
         const bottomParts = [];
         if (item.fabricBottom) bottomParts.push(escapeHtml(item.fabricBottom));
         if (item.bottomConfig) bottomParts.push(escapeHtml(item.bottomConfig));
+        // 새 커스텀 주문: 마감 옵션 (finish.bottomLabel)
+        if (item.finish?.bottomLabel) bottomParts.push(escapeHtml(item.finish.bottomLabel));
 
         return `
         <div class="item-card bg-gray-50 rounded-lg overflow-hidden ${hasMultiple && idx < items.length - 1 ? 'mb-3' : ''}">
