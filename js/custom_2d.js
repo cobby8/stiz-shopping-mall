@@ -818,5 +818,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Design Lab V3.0 초기화 완료
-    console.log('[STIZ] Design Lab V3.0 (SVG Templates) initialized');
+    // Design Lab V3.0 (SVG Templates) 초기화 완료
 });

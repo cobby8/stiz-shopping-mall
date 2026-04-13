@@ -164,7 +164,7 @@
             }
         } catch (e) {
             // API 호출 실패 → Mock으로 폴백
-            console.log('[Instagram] API 미설정 또는 호출 실패 → Mock 데이터 사용');
+            // Instagram API 미설정 또는 호출 실패 — Mock 데이터로 폴백
         }
         return null; // null이면 Mock 사용
     }

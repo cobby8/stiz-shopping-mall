@@ -362,7 +362,7 @@ async function processTossPayment(formData) {
 
     if (err.code === 'USER_CANCEL' || err.code === 'PAY_PROCESS_CANCELED') {
       // 사용자가 직접 취소한 경우 — 알림 없이 조용히 처리
-      console.log('[checkout] 사용자가 결제를 취소했습니다.');
+      // 사용자가 결제를 취소 — 조용히 처리
     } else if (err.message) {
       alert(`결제 처리 중 오류가 발생했습니다.\n${err.message}`);
     }

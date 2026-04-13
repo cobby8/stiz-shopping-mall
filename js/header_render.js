@@ -367,21 +367,24 @@ function renderFooter() {
                     <ul class="space-y-2 text-sm text-gray-400">
                         <li><a href="list.html?category=soccer" class="hover:text-white">축구</a></li>
                         <li><a href="list.html?category=basketball" class="hover:text-white">농구</a></li>
-
+                        <li><a href="list.html?category=volleyball" class="hover:text-white">배구</a></li>
+                        <li><a href="list.html?category=accessories" class="hover:text-white">악세서리</a></li>
                     </ul>
                 </div>
                 <div class="col-span-1">
                     <h3 class="font-bold text-lg mb-4 text-white">고객지원</h3>
                     <ul class="space-y-2 text-sm text-gray-400">
                         <li><a href="notice.html" class="hover:text-white">자주묻는질문</a></li>
-                        <li><a href="notice.html" class="hover:text-white">문의하기</a></li>
+                        <li><a href="inquiry.html" class="hover:text-white">문의하기</a></li>
+                        <li><a href="notice.html" class="hover:text-white">사이즈 가이드</a></li>
+                        <li><a href="notice.html" class="hover:text-white">개인정보처리방침</a></li>
                     </ul>
                 </div>
                 <div class="col-span-1">
                     <h3 class="font-bold text-lg mb-4 text-white">뉴스레터</h3>
                      <div class="flex">
-                        <input type="email" placeholder="이메일 주소" aria-label="이메일 주소" class="bg-gray-800 text-white px-4 py-2 text-sm w-full">
-                        <button class="bg-white text-black px-4 py-2 font-bold text-sm">구독</button>
+                        <input type="email" id="footerNewsletterEmail" placeholder="이메일 주소" aria-label="이메일 주소" class="bg-gray-800 text-white px-4 py-2 text-sm w-full">
+                        <button onclick="(async()=>{const e=document.getElementById('footerNewsletterEmail');if(!e.value){alert('이메일을 입력해주세요.');return;}try{const r=await fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e.value})});const d=await r.json();alert(d.message||'구독 완료!');e.value='';}catch(err){alert('구독 처리 중 오류가 발생했습니다.');}})()" class="bg-white text-black px-4 py-2 font-bold text-sm">구독</button>
                     </div>
                 </div>
             </div>
