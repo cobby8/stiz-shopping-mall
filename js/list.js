@@ -16,7 +16,7 @@ const listState = {
   categories: [],    // 네비게이션용 카테고리 (상단 탭) — 트리 구조 (children 포함)
   categoryMap: {},   // slug → { id, name, productCount, children? } 매핑 (빠른 조회용)
   page: 1,
-  limit: 20,
+  limit: 48,
   total: 0,
   totalPages: 0,
   categorySlug: '',  // 현재 선택된 카테고리 slug ('' = 전체)
@@ -367,6 +367,12 @@ async function loadProducts() {
   }
 }
 
+// ===== 더보기 =====
+function loadMoreProducts() {
+  listState.page++;
+  loadProducts();
+}
+
 // ===== 상품 그리드 렌더링 =====
 function renderProducts() {
   const grid = document.getElementById('product-grid');
@@ -378,6 +384,22 @@ function renderProducts() {
   }
 
   grid.innerHTML = listState.products.map(p => createCard(p)).join('');
+
+  // "더보기" 버튼 (다음 페이지가 있으면 표시)
+  const existingBtn = document.getElementById('loadMoreBtn');
+  if (existingBtn) existingBtn.remove();
+
+  if (listState.page < listState.totalPages) {
+    const btn = document.createElement('div');
+    btn.id = 'loadMoreBtn';
+    btn.className = 'col-span-full text-center py-8';
+    btn.innerHTML = `
+      <button onclick="loadMoreProducts()"
+              class="px-8 py-3 border-2 border-gray-900 text-gray-900 font-bold text-sm hover:bg-gray-900 hover:text-white transition-colors rounded-lg">
+        더보기 (${listState.products.length} / ${listState.total})
+      </button>`;
+    grid.parentElement.appendChild(btn);
+  }
 }
 
 /**
