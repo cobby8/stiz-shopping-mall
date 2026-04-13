@@ -733,6 +733,60 @@ const seedCategories = sqliteDb.transaction(() => {
 });
 seedCategories();
 
+// ============================================================
+// W-4: 게시판 초기 공지사항 시딩
+// 비유: 새 가게를 열 때 안내문을 미리 붙여두는 것
+// board_posts가 비어있을 때만 기본 공지 삽입 (중복 방지)
+// ============================================================
+{
+    const boardCount = sqliteDb.prepare('SELECT COUNT(*) as cnt FROM board_posts').get().cnt;
+    if (boardCount === 0) {
+        const defaultNotices = [
+            {
+                boardType: 'notice',
+                title: 'STIZ 쇼핑몰에 오신 것을 환영합니다',
+                content: 'STIZ는 프로급 스포츠 유니폼을 맞춤 제작하는 전문 브랜드입니다.\n\n커스텀 주문, 단체 주문, 기성품 구매까지 다양한 서비스를 제공합니다.\n\n문의사항은 1:1 문의를 이용해주세요.',
+                authorName: 'STIZ'
+            },
+            {
+                boardType: 'notice',
+                title: '배송 안내',
+                content: '• 주문 제작 상품: 디자인 확정 후 2~3주 소요\n• 기성품: 결제 확인 후 1~3일 이내 발송\n• 배송비: 5만원 이상 무료 (미만 3,000원)',
+                authorName: 'STIZ'
+            },
+            {
+                boardType: 'notice',
+                title: '교환/반품 안내',
+                content: '• 기성품: 수령 후 7일 이내 교환/반품 가능 (미착용, 택 부착 상태)\n• 커스텀 제작 상품: 주문 특성상 교환/반품 불가\n• 불량 상품: 수령 후 14일 이내 무조건 교환/환불',
+                authorName: 'STIZ'
+            }
+        ];
+
+        const insertNotice = sqliteDb.prepare(`
+            INSERT INTO board_posts (boardType, title, content, authorName, authorEmail, userId, isSecret, status, createdAt, updatedAt)
+            VALUES (@boardType, @title, @content, @authorName, 'admin@stiz.co.kr', NULL, 0, 'active', datetime('now'), datetime('now'))
+        `);
+
+        const seedNotices = sqliteDb.transaction(() => {
+            for (const notice of defaultNotices) {
+                insertNotice.run(notice);
+            }
+        });
+        seedNotices();
+        console.log(`[W-4] 기본 공지사항 ${defaultNotices.length}개 시딩 완료`);
+    }
+}
+
+// W-5: 인코딩 깨진 상품 정리
+// archived 상태라 고객에게 안 보이지만, DB 정리 차원에서 삭제
+{
+    const broken = sqliteDb.prepare("SELECT id, name FROM products WHERE id = 1775725936459379").get();
+    if (broken) {
+        sqliteDb.prepare("DELETE FROM products WHERE id = 1775725936459379").run();
+        console.log(`[W-5] 인코딩 깨진 상품 삭제: id=${broken.id}`);
+    }
+}
+
 // Start Server
 app.listen(port, () => {
     console.log(`\nSTIZ Server running at http://localhost:${port}`);

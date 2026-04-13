@@ -386,7 +386,8 @@ function renderFooter() {
                 </div>
             </div>
             <div class="border-t border-gray-800 mt-12 pt-8 text-xs text-gray-500 text-center">
-                 &copy; 2026 STIZ Custom Teamwear.
+                 &copy; 2026 소명엔비씨(주) STIZ. 사업자등록번호: 119-86-78811 | 대표: 김수빈<br>
+                 서울특별시 성동구 한림말길 33
             </div>
         </div>
     `;

@@ -265,27 +265,67 @@
 
     <script>
         /**
-         * 단체 주문 견적 요청 폼 제출 처리
-         * - 현재: 서버 API 없이 프론트에서 완료 메시지만 표시 (Phase 1)
-         * - 나중에: /api/bulk-order 엔드포인트 연결 + 알림톡 발송
+         * 단체 주문 견적 요청 폼 제출 처리 (W-2: 서버 전송 연동)
+         * 비유: 견적 요청서를 가게 의견함에 넣는 것 — 관리자가 확인 후 연락
+         * POST /api/board/public (비로그인 공개 게시글)으로 전송
          */
-        function submitBulkOrder(e) {
+        async function submitBulkOrder(e) {
             e.preventDefault();
 
-            // 폼 데이터 수집 (나중에 서버 전송용)
             const form = document.getElementById('bulk-order-form');
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
 
-            // 콘솔에 로그 (개발 확인용)
-            console.log('[bulk-order] 견적 요청 데이터:', data);
+            // 제출 버튼 비활성화 (중복 클릭 방지)
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '전송 중...';
 
-            // 폼 숨기고 완료 메시지 표시
-            form.classList.add('hidden');
-            document.getElementById('bulk-order-success').classList.remove('hidden');
+            try {
+                // 서버에 견적 요청 저장 (게시판 inquiry 타입으로)
+                const res = await fetch('/api/board/public', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        boardType: 'inquiry',
+                        title: '[단체주문] ' + data.teamName + ' - ' + data.sport + ' ' + data.quantity + '벌',
+                        content: [
+                            '== 단체 주문 견적 요청 ==',
+                            '',
+                            '담당자: ' + data.contactName,
+                            '연락처: ' + data.phone,
+                            '이메일: ' + data.email,
+                            '팀/단체명: ' + data.teamName,
+                            '종목: ' + data.sport,
+                            '수량: ' + data.quantity + '벌',
+                            '희망 납기일: ' + (data.deadline || '미정'),
+                            '',
+                            '요청 사항:',
+                            data.details || '(없음)'
+                        ].join('\n'),
+                        authorName: data.contactName,
+                        authorEmail: data.email,
+                        authorPhone: data.phone
+                    })
+                });
 
-            // 페이지 최상단으로 스크롤
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+                const result = await res.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || '전송 실패');
+                }
+
+                // 성공: 폼 숨기고 완료 메시지 표시
+                form.classList.add('hidden');
+                document.getElementById('bulk-order-success').classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            } catch (err) {
+                console.error('[bulk-order] 전송 실패:', err);
+                alert('견적 요청 전송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="material-symbols-outlined text-sm align-middle mr-1">send</span> 견적 요청 보내기';
+            }
 
             return false;
         }

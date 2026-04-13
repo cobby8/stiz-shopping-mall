@@ -128,6 +128,43 @@ router.get('/board/:id', (req, res) => {
 });
 
 // ============================================================
+// POST /api/board/public — 비로그인 견적/문의 접수 (W-2)
+// 단체주문 견적처럼 로그인 없이도 제출할 수 있는 공개 게시글 작성
+// 비유: 가게 앞 의견함 — 누구나 넣을 수 있지만, 관리자만 확인 가능
+// ============================================================
+router.post('/board/public', (req, res) => {
+    try {
+        const { boardType, title, content, authorName, authorEmail, authorPhone } = req.body;
+
+        if (!title || !content || !authorName) {
+            return res.status(400).json({ success: false, error: '제목, 내용, 이름은 필수입니다.' });
+        }
+
+        const result = database.prepare(`
+            INSERT INTO board_posts (boardType, title, content, authorName, authorEmail, userId, isSecret, createdAt, updatedAt)
+            VALUES (@boardType, @title, @content, @authorName, @authorEmail, @userId, @isSecret, datetime('now'), datetime('now'))
+        `).run({
+            boardType: boardType || 'inquiry',
+            title: title.trim(),
+            content: content.trim(),
+            authorName: authorName.trim(),
+            authorEmail: (authorEmail || '').trim(),
+            userId: null,           // 비로그인이므로 userId 없음
+            isSecret: 1             // 비로그인 문의는 기본 비밀글
+        });
+
+        console.log(`[Board] 비로그인 게시글 접수: type=${boardType}, name=${authorName}, id=${result.lastInsertRowid}`);
+        res.json({
+            success: true,
+            post: { id: result.lastInsertRowid, boardType, title }
+        });
+    } catch (error) {
+        console.error('[Board] 비로그인 게시글 작성 실패:', error);
+        res.status(500).json({ success: false, error: '게시글 작성 실패' });
+    }
+});
+
+// ============================================================
 // POST /api/board — 게시글 작성 (로그인 필요)
 // notice: 관리자만 작성 가능
 // inquiry: 로그인한 회원 누구나 작성 가능

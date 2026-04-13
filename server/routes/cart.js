@@ -47,6 +47,18 @@ router.post('/cart', requireAuth, (req, res) => {
       return res.status(400).json({ success: false, error: 'productId는 필수입니다.' });
     }
 
+    // W-1: 프론트가 name/price를 안 보내면 DB에서 자동 조회
+    // 비유: 바코드만 찍으면 이름/가격은 POS가 알아서 찾아주는 것
+    let resolvedName = name;
+    let resolvedPrice = price;
+    if (!resolvedName || resolvedPrice == null || resolvedPrice === '') {
+      const product = db.prepare('SELECT name, price FROM products WHERE id = ?').get(productId);
+      if (product) {
+        resolvedName = resolvedName || product.name;
+        resolvedPrice = (resolvedPrice != null && resolvedPrice !== '') ? resolvedPrice : product.price;
+      }
+    }
+
     const quantity = parseInt(qty) || 1;
 
     // 이미 같은 상품+사이즈가 있는지 확인
@@ -59,13 +71,13 @@ router.post('/cart', requireAuth, (req, res) => {
       db.prepare(
         `UPDATE cart_items SET qty = qty + ?, name = ?, price = ?, image = ?, updatedAt = datetime('now')
          WHERE id = ?`
-      ).run(quantity, name || existing.name, price ?? existing.price, image || existing.image, existing.id);
+      ).run(quantity, resolvedName || existing.name, resolvedPrice ?? existing.price, image || existing.image, existing.id);
     } else {
       // 없으면 새로 추가
       db.prepare(
         `INSERT INTO cart_items (userId, productId, name, price, size, qty, image)
          VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).run(userId, productId, name || '', price || 0, size || '', quantity, image || '');
+      ).run(userId, productId, resolvedName || '', resolvedPrice || 0, size || '', quantity, image || '');
     }
 
     // 변경된 장바구니 반환
