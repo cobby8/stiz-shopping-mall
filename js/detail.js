@@ -48,9 +48,11 @@ async function loadProductDetail(id) {
     }
 
     detailState.product = data.product;
-    detailState.images = data.images || [];
-    detailState.options = data.options || {};
-    detailState.related = data.related || [];
+    // images, options는 product 안에 포함되어 있음 (API 응답 구조)
+    detailState.images = data.product.images || [];
+    detailState.options = data.product.options || {};
+    // 관련 상품은 최상위 relatedProducts 키에 있음
+    detailState.related = data.relatedProducts || [];
 
     // 페이지 렌더링
     renderProductInfo();
@@ -355,8 +357,9 @@ function renderDescription() {
   const p = detailState.product;
 
   // detailHtml 우선 — 카페24에서 가져온 상세 HTML (이미지들 포함)
-  if (p.detailHtml) {
-    content.innerHTML = p.detailHtml;
+  if (p.detailHtml && p.detailHtml.length > 10) {
+    // ec-data-src → src 치환 (카페24 lazy-load 속성을 브라우저가 인식하도록)
+    content.innerHTML = p.detailHtml.replace(/ec-data-src=/g, 'src=');
     // 상세 HTML 내 이미지에 반응형 스타일 적용
     content.querySelectorAll('img').forEach(img => {
       img.style.maxWidth = '100%';
