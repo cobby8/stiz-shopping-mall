@@ -44,25 +44,25 @@
     <div class="h-20"></div>
 
     <main class="container mx-auto px-6 py-20 max-w-md">
-        <h1 class="text-3xl font-bold mb-2 text-center tracking-tight">CREATE ACCOUNT</h1>
-        <p class="text-center text-gray-500 mb-10 text-sm">Join STIZ for exclusive offers and faster checkout.</p>
+        <h1 class="text-3xl font-bold mb-2 text-center tracking-tight">회원가입</h1>
+        <p class="text-center text-gray-500 mb-10 text-sm">STIZ 회원이 되어 특별 혜택을 받으세요.</p>
 
         <form class="space-y-4" onsubmit="event.preventDefault(); handleRegister();">
             <!-- 이름 -->
             <div>
-                <input type="text" id="reg-name" placeholder="Name (이름) *" required aria-label="이름"
+                <input type="text" id="reg-name" placeholder="이름 *" required aria-label="이름"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
             <!-- 이메일 -->
             <div>
-                <input type="email" id="reg-email" placeholder="Email *" required aria-label="이메일 주소"
+                <input type="email" id="reg-email" placeholder="이메일 *" required aria-label="이메일 주소"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
             <!-- 전화번호: 주문 시 연락처로 사용 (선택 입력) -->
             <div>
-                <input type="tel" id="reg-phone" placeholder="Phone (전화번호)" aria-label="전화번호"
+                <input type="tel" id="reg-phone" placeholder="전화번호" aria-label="전화번호"
                     pattern="[0-9\-]+"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
                 <p class="text-xs text-gray-400 mt-1">선택 입력. 주문 시 연락처로 사용됩니다.</p>
@@ -70,14 +70,14 @@
 
             <!-- 비밀번호 -->
             <div>
-                <input type="password" id="reg-password" placeholder="Password *" required minlength="8" aria-label="비밀번호"
+                <input type="password" id="reg-password" placeholder="비밀번호 *" required minlength="8" aria-label="비밀번호"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
                 <p class="text-xs text-gray-400 mt-1">8자 이상 입력해주세요.</p>
             </div>
 
             <!-- 비밀번호 확인 -->
             <div>
-                <input type="password" id="reg-password-confirm" placeholder="Confirm Password *" required aria-label="비밀번호 확인"
+                <input type="password" id="reg-password-confirm" placeholder="비밀번호 확인 *" required aria-label="비밀번호 확인"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
 
@@ -119,13 +119,13 @@
 
             <button type="submit" id="reg-submit-btn"
                 class="w-full bg-black text-white py-4 font-bold rounded hover:bg-gray-800 transition-colors uppercase mt-6">
-                Create Account
+                회원가입
             </button>
         </form>
 
         <div class="mt-8 text-center text-sm text-gray-600">
-            Already have an account?
-            <a href="login.html" class="text-black font-bold underline">Sign In</a>
+            이미 계정이 있으신가요?
+            <a href="login.html" class="text-black font-bold underline">로그인하기</a>
         </div>
 
     </main>
@@ -196,7 +196,7 @@
 
             // 버튼 복구
             submitBtn.disabled = false;
-            submitBtn.innerText = 'Create Account';
+            submitBtn.innerText = '회원가입';
 
             if (result.success) {
                 alert('회원가입이 완료되었습니다! 로그인해주세요.');

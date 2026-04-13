@@ -171,7 +171,7 @@ function renderCategoryTabs() {
 
   // 대분류 탭 — "전체" + 상품 있는 대분류들
   const tabs = [
-    { slug: '', name: 'All Products', totalProductCount: null },
+    { slug: '', name: '전체 상품', totalProductCount: null },
     ...listState.categories
   ];
 
@@ -282,11 +282,11 @@ function updatePageTitle() {
   if (listState.categorySlug && listState.categoryMap[listState.categorySlug]) {
     titleEl.textContent = listState.categoryMap[listState.categorySlug].name.toUpperCase();
   } else if (listState.type === 'custom') {
-    titleEl.textContent = 'CUSTOM TEAMWEAR';
+    titleEl.textContent = '커스텀 팀웨어';
   } else if (listState.type === 'ready') {
-    titleEl.textContent = 'READY TO WEAR';
+    titleEl.textContent = '기성 상품';
   } else {
-    titleEl.textContent = 'ALL PRODUCTS';
+    titleEl.textContent = '전체 상품';
   }
 }
 
@@ -379,7 +379,7 @@ function renderProducts() {
   if (!grid) return;
 
   if (!listState.products.length) {
-    grid.innerHTML = '<div class="col-span-full text-center py-20 text-gray-400">No products found in this category.</div>';
+    grid.innerHTML = '<div class="col-span-full text-center py-20 text-gray-400">이 카테고리에 상품이 없습니다.</div>';
     return;
   }
 
@@ -438,7 +438,7 @@ function createCard(p) {
         <div class="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur-sm p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
           <button onclick="event.stopPropagation(); location.href='detail.html?id=${p.id}'"
                   class="w-full ${isCustom ? 'bg-blue-600' : 'bg-black'} text-white text-xs font-bold py-3 uppercase tracking-wider hover:opacity-90">
-            ${isCustom ? 'Get Estimate' : 'View Detail'}
+            ${isCustom ? '견적받기' : '상세보기'}
           </button>
         </div>
 

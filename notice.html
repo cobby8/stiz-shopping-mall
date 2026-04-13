@@ -50,11 +50,11 @@
         <!-- 상단: 타이틀 + 검색 -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8 border-b-2 border-black pb-4">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight mb-2">NOTICE</h1>
-                <p class="text-gray-500 text-sm">STIZ News & Announcements</p>
+                <h1 class="text-3xl font-bold tracking-tight mb-2">공지사항</h1>
+                <p class="text-gray-500 text-sm">STIZ 소식 및 공지</p>
             </div>
             <div class="flex space-x-2">
-                <input type="text" id="searchInput" placeholder="Search..."
+                <input type="text" id="searchInput" placeholder="검색..."
                     class="border border-gray-300 rounded px-3 py-2 text-sm focus:border-black outline-none"
                     onkeypress="if(event.key==='Enter') loadNotices()">
                 <button onclick="loadNotices()" class="px-3 py-2 bg-black text-white text-sm rounded hover:bg-gray-800">
@@ -72,10 +72,10 @@
         <div class="w-full text-sm">
             <!-- 헤더 -->
             <div class="grid grid-cols-12 gap-4 py-3 border-b border-black font-bold text-center">
-                <div class="col-span-1 hidden md:block">No.</div>
-                <div class="col-span-9 md:col-span-8 text-left pl-4">Subject</div>
-                <div class="col-span-2 hidden md:block">Views</div>
-                <div class="col-span-3 md:col-span-1">Date</div>
+                <div class="col-span-1 hidden md:block">번호</div>
+                <div class="col-span-9 md:col-span-8 text-left pl-4">제목</div>
+                <div class="col-span-2 hidden md:block">조회수</div>
+                <div class="col-span-3 md:col-span-1">날짜</div>
             </div>
 
             <!-- 목록 (JS에서 동적 생성) -->

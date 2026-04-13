@@ -54,21 +54,21 @@
         <div class="w-full mb-8 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide">
             <div class="flex space-x-2">
                 <!-- 로딩 중 자리표시자 -->
-                <button class="px-4 py-2 rounded-full text-xs font-bold bg-black text-white border border-black">All Products</button>
+                <button class="px-4 py-2 rounded-full text-xs font-bold bg-black text-white border border-black">전체 상품</button>
             </div>
         </div>
 
         <!-- Product Grid -->
         <section class="flex-1">
             <div class="flex justify-between items-center mb-8">
-                <h2 class="text-2xl font-bold uppercase" id="page-title">All Products</h2>
+                <h2 class="text-2xl font-bold uppercase" id="page-title">전체 상품</h2>
                 <!-- 정렬 select — 이벤트 바인딩은 js/list.js의 bindEvents()에서 수행 -->
                 <select id="sort-select"
                     class="border border-gray-300 rounded px-3 py-1 text-sm bg-white focus:outline-none focus:border-black">
-                    <option value="newest">Sort by: Newest</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                    <option value="name">Name: A to Z</option>
+                    <option value="newest">정렬: 최신순</option>
+                    <option value="price_asc">가격 낮은순</option>
+                    <option value="price_desc">가격 높은순</option>
+                    <option value="name">상품명 순</option>
                 </select>
             </div>
 

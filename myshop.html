@@ -85,17 +85,17 @@
 
             <!-- Sidebar Nav -->
             <aside class="w-full md:w-64 space-y-2">
-                <h2 class="text-xl font-bold mb-6">MY SHOP</h2>
+                <h2 class="text-xl font-bold mb-6">마이 쇼핑</h2>
                 <button onclick="showTab('dashboard')" id="tab-dashboard"
-                    class="block w-full text-left px-4 py-2 bg-black text-white rounded font-bold">Dashboard</button>
+                    class="block w-full text-left px-4 py-2 bg-black text-white rounded font-bold">대시보드</button>
                 <button onclick="showTab('orders')" id="tab-orders"
-                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Order History</button>
+                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">주문 내역</button>
                 <button onclick="showTab('wishlist')" id="tab-wishlist"
-                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Wishlist</button>
+                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">찜 목록</button>
                 <button onclick="showTab('profile')" id="tab-profile"
-                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Profile</button>
+                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">프로필</button>
                 <button onclick="logout()"
-                    class="block w-full text-left px-4 py-2 hover:bg-red-50 rounded text-red-500 mt-4">Logout</button>
+                    class="block w-full text-left px-4 py-2 hover:bg-red-50 rounded text-red-500 mt-4">로그아웃</button>
             </aside>
 
             <!-- Content -->
@@ -133,7 +133,7 @@
 
                     <!-- Recent Orders (preview) -->
                     <div>
-                        <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Recent Orders</h3>
+                        <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">최근 주문</h3>
                         <div id="recent-orders" class="space-y-4">
                             <p class="text-gray-400 text-sm py-8 text-center">Loading...</p>
                         </div>
@@ -142,7 +142,7 @@
 
                 <!-- Orders Tab -->
                 <div id="content-orders" class="hidden space-y-6">
-                    <h3 class="text-2xl font-bold mb-4">Order History</h3>
+                    <h3 class="text-2xl font-bold mb-4">주문 내역</h3>
                     <div id="all-orders" class="space-y-4">
                         <p class="text-gray-400 text-sm py-8 text-center">Loading...</p>
                     </div>
@@ -150,7 +150,7 @@
 
                 <!-- Wishlist Tab -->
                 <div id="content-wishlist" class="hidden space-y-6">
-                    <h3 class="text-2xl font-bold mb-4">Wishlist</h3>
+                    <h3 class="text-2xl font-bold mb-4">찜 목록</h3>
                     <div id="wishlist-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         <p class="col-span-full text-gray-400 text-sm py-8 text-center">Loading...</p>
                     </div>
@@ -158,32 +158,32 @@
 
                 <!-- Profile Tab -->
                 <div id="content-profile" class="hidden space-y-6">
-                    <h3 class="text-2xl font-bold mb-4">Profile Settings</h3>
+                    <h3 class="text-2xl font-bold mb-4">프로필 설정</h3>
                     <div class="bg-white border border-gray-200 rounded-lg p-6 space-y-4 max-w-lg">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Name</label>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">이름</label>
                             <input type="text" id="profile-name"
                                 class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Email</label>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">이메일</label>
                             <input type="email" id="profile-email" readonly
                                 class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Phone</label>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">전화번호</label>
                             <input type="tel" id="profile-phone"
                                 class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none"
                                 placeholder="010-0000-0000">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Member Since</label>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">가입일</label>
                             <input type="text" id="profile-joined" readonly
                                 class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
                         </div>
                         <button onclick="saveProfile()"
                             class="w-full bg-black text-white py-3 font-bold text-sm hover:bg-gray-800 transition-colors rounded mt-2">
-                            Save Changes
+                            변경사항 저장
                         </button>
                         <p id="profile-message" class="text-sm text-green-600 hidden"></p>
                     </div>
@@ -254,9 +254,9 @@
             if (!user) return;
 
             // 환영 메시지
-            document.getElementById('welcome-name').innerText = `Hello, ${user.name}!`;
+            document.getElementById('welcome-name').innerText = `안녕하세요, ${user.name}님!`;
             const joinDate = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ko-KR') : '';
-            document.getElementById('welcome-date').innerText = `Member since ${joinDate}`;
+            document.getElementById('welcome-date').innerText = `가입일: ${joinDate}`;
 
             // 프로필 정보 (이제 수정 가능)
             document.getElementById('profile-name').value = user.name;
@@ -326,9 +326,9 @@
 
         function renderEmptyOrders() {
             document.getElementById('recent-orders').innerHTML =
-                '<p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>';
+                '<p class="text-gray-400 text-sm py-8 text-center">주문 내역이 없습니다.</p>';
             document.getElementById('all-orders').innerHTML =
-                '<p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>';
+                '<p class="text-gray-400 text-sm py-8 text-center">주문 내역이 없습니다.</p>';
         }
 
         // ============================================================
@@ -434,10 +434,10 @@
                 }
 
                 // 환영 메시지도 즉시 업데이트
-                document.getElementById('welcome-name').innerText = `Hello, ${data.user.name}!`;
+                document.getElementById('welcome-name').innerText = `안녕하세요, ${data.user.name}님!`;
 
                 const msg = document.getElementById('profile-message');
-                msg.textContent = 'Changes saved successfully!';
+                msg.textContent = '변경사항이 저장되었습니다!';
                 msg.classList.remove('hidden');
                 setTimeout(() => msg.classList.add('hidden'), 3000);
             } catch (err) {

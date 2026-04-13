@@ -44,16 +44,16 @@
     <div class="h-20"></div>
 
     <main class="container mx-auto px-6 py-20 max-w-md">
-        <h1 class="text-3xl font-bold mb-10 text-center tracking-tight">LOGIN</h1>
+        <h1 class="text-3xl font-bold mb-10 text-center tracking-tight">로그인</h1>
 
         <div class="space-y-4">
             <div>
                 <!-- aria-label: 스크린리더가 이 입력란의 용도를 읽어줌 -->
-                <input type="email" id="email" placeholder="Email" aria-label="이메일 주소"
+                <input type="email" id="email" placeholder="이메일" aria-label="이메일 주소"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors">
             </div>
             <div>
-                <input type="password" id="password" placeholder="Password" aria-label="비밀번호"
+                <input type="password" id="password" placeholder="비밀번호" aria-label="비밀번호"
                     class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black focus:ring-black outline-none transition-colors"
                     onkeydown="if(event.key==='Enter') handleLogin()">
             </div>
@@ -63,15 +63,14 @@
 
             <div class="flex justify-between items-center text-xs text-gray-500">
                 <label class="flex items-center">
-                    <input type="checkbox" class="mr-2 rounded border-gray-300 text-black focus:ring-black"> Keep me
-                    signed in
+                    <input type="checkbox" class="mr-2 rounded border-gray-300 text-black focus:ring-black"> 로그인 유지
                 </label>
-                <a href="notice.html" class="underline">Forgot password?</a>
+                <a href="notice.html" class="underline">비밀번호 찾기</a>
             </div>
 
             <button onclick="handleLogin()" id="login-btn"
                 class="w-full bg-black text-white py-4 font-bold rounded hover:bg-gray-800 transition-colors uppercase">
-                Sign In
+                로그인
             </button>
         </div>
 
@@ -80,7 +79,7 @@
                 <div class="w-full border-t border-gray-200"></div>
             </div>
             <div class="relative flex justify-center text-xs">
-                <span class="bg-white px-2 text-gray-500 uppercase">Or continue with</span>
+                <span class="bg-white px-2 text-gray-500 uppercase">또는</span>
             </div>
         </div>
 
@@ -97,8 +96,8 @@
         </div>
 
         <div class="mt-8 text-center text-sm text-gray-600">
-            Not a member?
-            <a href="join.html" class="text-black font-bold underline">Create an account</a>
+            아직 회원이 아니신가요?
+            <a href="join.html" class="text-black font-bold underline">회원가입하기</a>
         </div>
 
     </main>
@@ -134,7 +133,7 @@
 
             // 버튼 복구
             loginBtn.disabled = false;
-            loginBtn.innerText = 'Sign In';
+            loginBtn.innerText = '로그인';
 
             if (result.success) {
                 // 관리자이면 관리자 페이지로, 일반 고객이면 마이페이지로

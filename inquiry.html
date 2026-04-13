@@ -48,7 +48,7 @@
 
     <main class="container mx-auto px-6 py-12 max-w-5xl">
 
-        <h1 class="text-4xl font-bold mb-4 tracking-tighter">INQUIRY</h1>
+        <h1 class="text-4xl font-bold mb-4 tracking-tighter">1:1 문의</h1>
         <p class="text-gray-500 mb-12">1:1 문의 게시판</p>
 
         <!-- 검색 + 필터 -->
@@ -57,7 +57,7 @@
                 Total <span class="font-bold text-black" id="post-count">0</span> posts
             </div>
             <div class="relative">
-                <input type="text" id="searchInput" placeholder="Search..." aria-label="문의 검색"
+                <input type="text" id="searchInput" placeholder="검색..." aria-label="문의 검색"
                     class="border border-gray-300 pl-4 pr-10 py-2 text-sm rounded-none focus:border-black outline-none transition-colors"
                     onkeypress="if(event.key==='Enter') loadInquiries()">
                 <button onclick="loadInquiries()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black">
@@ -70,10 +70,10 @@
         <div class="w-full text-sm">
             <!-- 헤더 -->
             <div class="grid grid-cols-12 gap-4 py-3 border-b border-black font-bold text-center">
-                <div class="col-span-1 hidden md:block">No.</div>
-                <div class="col-span-10 md:col-span-8 text-left pl-4">Subject</div>
-                <div class="col-span-2 md:col-span-2">Status</div>
-                <div class="col-span-1 hidden md:block">Date</div>
+                <div class="col-span-1 hidden md:block">번호</div>
+                <div class="col-span-10 md:col-span-8 text-left pl-4">제목</div>
+                <div class="col-span-2 md:col-span-2">상태</div>
+                <div class="col-span-1 hidden md:block">날짜</div>
             </div>
 
             <!-- 목록 (JS에서 동적 생성) -->
@@ -86,7 +86,7 @@
         <div class="flex justify-end mt-8">
             <button onclick="openWriteModal()"
                 class="bg-black text-white px-6 py-3 font-bold text-sm tracking-wide hover:bg-gray-800 transition-colors">
-                WRITE INQUIRY
+                문의 작성
             </button>
         </div>
 
@@ -220,8 +220,8 @@
                 const num = startNum - i;
                 // 답변 상태 배지
                 const statusBadge = post.isAnswered
-                    ? '<span class="bg-black text-white text-[10px] px-2 py-0.5 rounded font-bold">Answered</span>'
-                    : '<span class="bg-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded font-bold">Waiting</span>';
+                    ? '<span class="bg-black text-white text-[10px] px-2 py-0.5 rounded font-bold">답변완료</span>'
+                    : '<span class="bg-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded font-bold">대기중</span>';
                 // 비밀글 아이콘
                 const lockIcon = post.isSecret
                     ? '<span class="material-symbols-outlined text-gray-400 text-base mr-1" style="font-size:16px">lock</span>'

@@ -358,30 +358,30 @@ function renderFooter() {
                 <div class="col-span-1 md:col-span-1">
                     <h2 class="text-2xl font-bold tracking-tighter mb-4">STIZ</h2>
                     <p class="text-gray-400 text-sm leading-relaxed mb-6">
-                        We create the best teamwear for your victory. <br>
-                        Design your identity with our premium quality gears.
+                        최고의 팀웨어로 승리를 함께합니다. <br>
+                        프리미엄 품질의 장비로 팀의 정체성을 디자인하세요.
                     </p>
                 </div>
                 <div class="col-span-1">
-                    <h3 class="font-bold text-lg mb-4 text-white">SHOP</h3>
+                    <h3 class="font-bold text-lg mb-4 text-white">쇼핑</h3>
                     <ul class="space-y-2 text-sm text-gray-400">
-                        <li><a href="list.html?category=soccer" class="hover:text-white">Soccer</a></li>
-                        <li><a href="list.html?category=basketball" class="hover:text-white">Basketball</a></li>
- 
+                        <li><a href="list.html?category=soccer" class="hover:text-white">축구</a></li>
+                        <li><a href="list.html?category=basketball" class="hover:text-white">농구</a></li>
+
                     </ul>
                 </div>
                 <div class="col-span-1">
-                    <h3 class="font-bold text-lg mb-4 text-white">SUPPORT</h3>
+                    <h3 class="font-bold text-lg mb-4 text-white">고객지원</h3>
                     <ul class="space-y-2 text-sm text-gray-400">
-                        <li><a href="notice.html" class="hover:text-white">FAQ</a></li>
-                        <li><a href="notice.html" class="hover:text-white">Contact Us</a></li>
+                        <li><a href="notice.html" class="hover:text-white">자주묻는질문</a></li>
+                        <li><a href="notice.html" class="hover:text-white">문의하기</a></li>
                     </ul>
                 </div>
                 <div class="col-span-1">
-                    <h3 class="font-bold text-lg mb-4 text-white">NEWSLETTER</h3>
+                    <h3 class="font-bold text-lg mb-4 text-white">뉴스레터</h3>
                      <div class="flex">
-                        <input type="email" placeholder="Your email" aria-label="이메일 주소" class="bg-gray-800 text-white px-4 py-2 text-sm w-full">
-                        <button class="bg-white text-black px-4 py-2 font-bold text-sm">JOIN</button>
+                        <input type="email" placeholder="이메일 주소" aria-label="이메일 주소" class="bg-gray-800 text-white px-4 py-2 text-sm w-full">
+                        <button class="bg-white text-black px-4 py-2 font-bold text-sm">구독</button>
                     </div>
                 </div>
             </div>
@@ -405,7 +405,7 @@ function initSearchUI() {
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <input type="text" id="search-input" placeholder="Search products..." class="flex-1 text-lg font-medium border-none outline-none bg-transparent" autocomplete="off">
+                    <input type="text" id="search-input" placeholder="상품 검색..." class="flex-1 text-lg font-medium border-none outline-none bg-transparent" autocomplete="off">
                     <button id="search-close" class="text-gray-400 hover:text-black">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
