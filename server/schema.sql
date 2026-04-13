@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT,
   email TEXT UNIQUE,
   password TEXT,
+  phone TEXT DEFAULT '',           -- 전화번호 (회원가입 시 선택 입력)
   role TEXT DEFAULT 'customer',
   scopes TEXT DEFAULT '',          -- 관리자 권한 범위 (쉼표 구분: 'all', 'design', 'cs', 'production', 'shipping')
   joinedAt TEXT
@@ -242,3 +243,43 @@ CREATE TABLE IF NOT EXISTS cart_items (
   UNIQUE(userId, productId, size)       -- 같은 사용자+상품+사이즈 조합은 1건만 (수량으로 관리)
 );
 CREATE INDEX IF NOT EXISTS idx_cart_items_userId ON cart_items(userId);
+
+-- =============================================
+-- 게시판 테이블 (공지사항 + 1:1문의 통합)
+-- boardType으로 구분: 'notice' = 공지사항(관리자만 작성), 'inquiry' = 1:1문의(회원 작성)
+-- 비유: 학교 게시판 — 한쪽은 학교 공지, 한쪽은 학생 질문 코너
+-- =============================================
+CREATE TABLE IF NOT EXISTS board_posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  boardType TEXT NOT NULL,          -- 'notice' 또는 'inquiry'
+  title TEXT NOT NULL,              -- 제목
+  content TEXT NOT NULL,            -- 본문 내용
+  authorName TEXT,                  -- 작성자 이름 (표시용)
+  authorEmail TEXT,                 -- 작성자 이메일
+  userId INTEGER,                   -- 작성자 users.id (로그인 사용자)
+  isSecret INTEGER DEFAULT 0,      -- 비밀글 여부 (1=비밀, 문의에서 사용)
+  isAnswered INTEGER DEFAULT 0,    -- 답변 완료 여부 (1=답변됨)
+  answer TEXT,                      -- 관리자 답변 내용
+  answeredAt TEXT,                  -- 답변 일시
+  status TEXT DEFAULT 'active',    -- 상태: active/deleted
+  viewCount INTEGER DEFAULT 0,     -- 조회수
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_board_posts_boardType ON board_posts(boardType);
+CREATE INDEX IF NOT EXISTS idx_board_posts_userId ON board_posts(userId);
+
+-- =============================================
+-- 위시리스트(찜) 테이블
+-- 비유: 쇼핑몰에서 하트 누르면 "관심상품"에 저장되는 것
+-- UNIQUE 제약: 같은 사용자가 같은 상품을 중복 찜 불가
+-- =============================================
+CREATE TABLE IF NOT EXISTS wishlists (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  userId INTEGER NOT NULL,          -- 누가 찜했는지 (users.id)
+  productId INTEGER NOT NULL,       -- 어떤 상품을 찜했는지 (products.id)
+  createdAt TEXT DEFAULT (datetime('now')),
+  UNIQUE(userId, productId)         -- 중복 찜 방지
+);
+CREATE INDEX IF NOT EXISTS idx_wishlists_userId ON wishlists(userId);
+CREATE INDEX IF NOT EXISTS idx_wishlists_productId ON wishlists(productId);

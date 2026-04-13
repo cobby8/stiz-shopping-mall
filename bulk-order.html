@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ - 단체 주문</title>
+    <!-- SEO 메타 태그 -->
+    <meta name="description" content="STIZ 단체 주문. 10벌 이상 대량 주문 시 특별 할인과 맞춤 견적을 제공합니다.">
+    <meta property="og:title" content="STIZ - 단체 주문 (Bulk Order)">
+    <meta property="og:description" content="10벌 이상 대량 주문 시 특별 할인과 맞춤 견적을 제공합니다.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/bulk-order.html">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘 폰트) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white">
+
+    <header></header>
+    <div class="h-20"></div>
+    <div class="h-20"></div>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- 히어로 섹션: 단체 주문의 핵심 가치를 한 눈에 전달 -->
+        <div class="text-center mb-16">
+            <span class="inline-block bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-full mb-6 tracking-wider">BULK ORDER</span>
+            <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">단체 주문</h1>
+            <p class="text-gray-500 max-w-2xl mx-auto text-lg">
+                10벌 이상 대량 주문 시 수량별 할인 + 전담 디자이너 배정.<br>
+                팀, 학교, 기업 행사까지 맞춤 견적을 드립니다.
+            </p>
+        </div>
+
+        <!-- 수량별 할인 안내 카드 -->
+        <section class="mb-20">
+            <h2 class="text-2xl font-bold text-center mb-10">수량별 할인 혜택</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <!-- 10~29벌 -->
+                <div class="border border-gray-200 rounded-xl p-8 text-center hover:shadow-lg transition-shadow">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="material-symbols-outlined text-3xl text-gray-600">group</span>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">10 ~ 29벌</h3>
+                    <p class="text-3xl font-bold text-brand-red mb-2">5% 할인</p>
+                    <p class="text-sm text-gray-500">동호회, 소규모 팀에 적합</p>
+                </div>
+                <!-- 30~99벌 -->
+                <div class="border-2 border-black rounded-xl p-8 text-center relative hover:shadow-lg transition-shadow">
+                    <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold px-3 py-1 rounded-full">BEST</span>
+                    <div class="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="material-symbols-outlined text-3xl text-white">groups</span>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">30 ~ 99벌</h3>
+                    <p class="text-3xl font-bold text-brand-red mb-2">10% 할인</p>
+                    <p class="text-sm text-gray-500">학교, 동아리, 중소 기업</p>
+                </div>
+                <!-- 100벌 이상 -->
+                <div class="border border-gray-200 rounded-xl p-8 text-center hover:shadow-lg transition-shadow">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="material-symbols-outlined text-3xl text-gray-600">corporate_fare</span>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">100벌 이상</h3>
+                    <p class="text-3xl font-bold text-brand-red mb-2">별도 협의</p>
+                    <p class="text-sm text-gray-500">대기업, 스포츠 연맹, 대회</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 단체 주문 프로세스 안내 -->
+        <section class="mb-20 bg-gray-50 -mx-6 px-6 py-16">
+            <h2 class="text-2xl font-bold text-center mb-10">주문 프로세스</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-5xl mx-auto">
+                <!-- 스텝 1 -->
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-lg">1</div>
+                    <h3 class="font-bold mb-2">견적 요청</h3>
+                    <p class="text-sm text-gray-500">아래 폼으로 종목, 수량, 원하는 디자인을 알려주세요</p>
+                </div>
+                <!-- 스텝 2 -->
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-lg">2</div>
+                    <h3 class="font-bold mb-2">견적서 발송</h3>
+                    <p class="text-sm text-gray-500">영업일 1일 이내 맞춤 견적서를 보내드립니다</p>
+                </div>
+                <!-- 스텝 3 -->
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-lg">3</div>
+                    <h3 class="font-bold mb-2">시안 확인</h3>
+                    <p class="text-sm text-gray-500">전담 디자이너가 무료 시안을 작업합니다</p>
+                </div>
+                <!-- 스텝 4 -->
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-lg">4</div>
+                    <h3 class="font-bold mb-2">제작 & 배송</h3>
+                    <p class="text-sm text-gray-500">확정 후 2~3주 내 제작, 전국 무료 배송</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 견적 요청 폼 -->
+        <section class="max-w-2xl mx-auto mb-20">
+            <h2 class="text-2xl font-bold text-center mb-2">견적 요청하기</h2>
+            <p class="text-center text-gray-500 mb-10">아래 정보를 입력하시면 영업일 1일 이내 견적서를 보내드립니다.</p>
+
+            <form id="bulk-order-form" class="space-y-6" onsubmit="return submitBulkOrder(event)">
+                <!-- 담당자 정보 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">담당자 이름 <span class="text-red-500">*</span></label>
+                        <input type="text" name="contactName" required placeholder="홍길동"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">연락처 <span class="text-red-500">*</span></label>
+                        <input type="tel" name="phone" required placeholder="010-1234-5678"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold mb-1">이메일 <span class="text-red-500">*</span></label>
+                    <input type="email" name="email" required placeholder="team@example.com"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold mb-1">팀/단체명 <span class="text-red-500">*</span></label>
+                    <input type="text" name="teamName" required placeholder="OO고등학교 축구부"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                </div>
+
+                <!-- 종목 선택 -->
+                <div>
+                    <label class="block text-sm font-bold mb-1">종목 <span class="text-red-500">*</span></label>
+                    <select name="sport" required
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black bg-white">
+                        <option value="">선택해주세요</option>
+                        <option value="soccer">축구</option>
+                        <option value="basketball">농구</option>
+                        <option value="volleyball">배구</option>
+                        <option value="baseball">야구</option>
+                        <option value="teamwear">팀웨어/트레이닝</option>
+                        <option value="etc">기타</option>
+                    </select>
+                </div>
+
+                <!-- 수량 + 희망 납기 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">예상 수량 (벌) <span class="text-red-500">*</span></label>
+                        <input type="number" name="quantity" required min="10" placeholder="최소 10벌"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">희망 납기일</label>
+                        <input type="date" name="deadline"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                    </div>
+                </div>
+
+                <!-- 상세 요청 사항 -->
+                <div>
+                    <label class="block text-sm font-bold mb-1">요청 사항</label>
+                    <textarea name="details" rows="5" placeholder="디자인 참고 이미지, 색상 선호도, 특수 요청 등을 자유롭게 적어주세요."
+                        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black resize-none"></textarea>
+                </div>
+
+                <!-- 제출 버튼 -->
+                <button type="submit"
+                    class="w-full bg-black text-white py-4 font-bold tracking-widest hover:bg-gray-800 transition-colors uppercase text-sm">
+                    <span class="material-symbols-outlined text-sm align-middle mr-1">send</span>
+                    견적 요청 보내기
+                </button>
+            </form>
+
+            <!-- 제출 완료 메시지 (기본 숨김) -->
+            <div id="bulk-order-success" class="hidden text-center py-16">
+                <span class="material-symbols-outlined text-6xl text-green-500 mb-4">check_circle</span>
+                <h3 class="text-2xl font-bold mb-2">견적 요청이 접수되었습니다!</h3>
+                <p class="text-gray-500 mb-6">영업일 1일 이내 입력하신 연락처로 견적서를 보내드리겠습니다.</p>
+                <a href="index.html" class="inline-block bg-black text-white px-8 py-3 font-bold text-sm tracking-widest hover:bg-gray-800 transition-colors uppercase">
+                    홈으로 돌아가기
+                </a>
+            </div>
+        </section>
+
+        <!-- 자주 묻는 질문 -->
+        <section class="max-w-3xl mx-auto mb-20">
+            <h2 class="text-2xl font-bold text-center mb-10">자주 묻는 질문</h2>
+            <div class="space-y-4">
+                <!-- FAQ 아이템들 -->
+                <details class="border border-gray-200 rounded-lg">
+                    <summary class="px-6 py-4 font-bold cursor-pointer hover:bg-gray-50 text-sm">최소 주문 수량이 있나요?</summary>
+                    <p class="px-6 pb-4 text-sm text-gray-600">단체 주문 할인은 10벌 이상부터 적용됩니다. 10벌 미만은 일반 주문으로 진행해주세요.</p>
+                </details>
+                <details class="border border-gray-200 rounded-lg">
+                    <summary class="px-6 py-4 font-bold cursor-pointer hover:bg-gray-50 text-sm">제작 기간은 얼마나 걸리나요?</summary>
+                    <p class="px-6 pb-4 text-sm text-gray-600">시안 확정 후 일반 제작은 2~3주, 대량 주문(100벌 이상)은 3~4주 소요됩니다. 긴급 제작도 상담 가능합니다.</p>
+                </details>
+                <details class="border border-gray-200 rounded-lg">
+                    <summary class="px-6 py-4 font-bold cursor-pointer hover:bg-gray-50 text-sm">디자인 시안은 무료인가요?</summary>
+                    <p class="px-6 pb-4 text-sm text-gray-600">네, 단체 주문 고객에게는 전담 디자이너가 배정되어 무료 시안을 제공합니다. 수정도 2회까지 무료입니다.</p>
+                </details>
+                <details class="border border-gray-200 rounded-lg">
+                    <summary class="px-6 py-4 font-bold cursor-pointer hover:bg-gray-50 text-sm">개별 사이즈 지정이 가능한가요?</summary>
+                    <p class="px-6 pb-4 text-sm text-gray-600">물론입니다. 주문 시 선수별 사이즈와 이름/번호를 엑셀로 보내주시면 개별 맞춤 제작합니다.</p>
+                </details>
+                <details class="border border-gray-200 rounded-lg">
+                    <summary class="px-6 py-4 font-bold cursor-pointer hover:bg-gray-50 text-sm">배송비는 어떻게 되나요?</summary>
+                    <p class="px-6 pb-4 text-sm text-gray-600">단체 주문은 전국 무료 배송입니다. 제주/도서산간 지역도 추가 비용 없습니다.</p>
+                </details>
+            </div>
+        </section>
+
+        <!-- 하단 CTA -->
+        <section class="text-center bg-black text-white -mx-6 px-6 py-16 mb-0">
+            <h2 class="text-3xl font-bold mb-4">지금 바로 상담하세요</h2>
+            <p class="text-gray-400 mb-8">전화 상담도 가능합니다. 평일 09:00~18:00</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="tel:02-000-0000" class="inline-flex items-center justify-center bg-white text-black px-8 py-3 font-bold text-sm tracking-widest hover:bg-gray-200 transition-colors">
+                    <span class="material-symbols-outlined text-sm mr-2">call</span>
+                    전화 상담
+                </a>
+                <a href="https://pf.kakao.com/_xjxjxj" target="_blank" class="inline-flex items-center justify-center border border-white text-white px-8 py-3 font-bold text-sm tracking-widest hover:bg-white hover:text-black transition-colors">
+                    <span class="material-symbols-outlined text-sm mr-2">chat</span>
+                    카카오톡 상담
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
+
+    <!-- 스크립트 -->
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/auth.js" defer></script>
+
+    <script>
+        /**
+         * 단체 주문 견적 요청 폼 제출 처리
+         * - 현재: 서버 API 없이 프론트에서 완료 메시지만 표시 (Phase 1)
+         * - 나중에: /api/bulk-order 엔드포인트 연결 + 알림톡 발송
+         */
+        function submitBulkOrder(e) {
+            e.preventDefault();
+
+            // 폼 데이터 수집 (나중에 서버 전송용)
+            const form = document.getElementById('bulk-order-form');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            // 콘솔에 로그 (개발 확인용)
+            console.log('[bulk-order] 견적 요청 데이터:', data);
+
+            // 폼 숨기고 완료 메시지 표시
+            form.classList.add('hidden');
+            document.getElementById('bulk-order-success').classList.remove('hidden');
+
+            // 페이지 최상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            return false;
+        }
+    </script>
+</body>
+
+</html>

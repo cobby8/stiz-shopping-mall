@@ -121,8 +121,16 @@
                     <span id="typeBadge" class="hidden text-xs px-2 py-0.5 rounded-full font-medium"></span>
                 </div>
 
-                <!-- 상품명 -->
-                <h1 class="text-2xl md:text-3xl font-bold leading-tight mb-1" id="productName"></h1>
+                <!-- 상품명 + 찜 버튼 -->
+                <div class="flex items-start gap-3">
+                    <h1 class="text-2xl md:text-3xl font-bold leading-tight mb-1 flex-1" id="productName"></h1>
+                    <!-- 찜(하트) 버튼: 클릭 시 토글 (빈 하트 ↔ 채운 하트) -->
+                    <button id="wishlistBtn" onclick="toggleWishlist()"
+                        class="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 hover:border-brand-red hover:bg-red-50 transition-colors"
+                        title="찜하기">
+                        <span class="material-symbols-outlined text-gray-400" id="wishlistIcon" style="font-size:24px">favorite</span>
+                    </button>
+                </div>
                 <p class="text-sm text-gray-400 mb-4" id="productNameEn"></p>
 
                 <!-- 가격 -->
@@ -437,6 +445,84 @@
     <script src="js/auth.js"></script>
     <!-- js/detail.js: 상품 상세 + 이미지 갤러리 + 사이즈/수량 + 커스텀 패널 -->
     <script src="js/detail.js?v=20260406r"></script>
+
+    <!-- 찜(위시리스트) 토글 스크립트 -->
+    <script>
+        // 현재 상품의 찜 상태를 추적
+        let isWishlisted = false;
+
+        // 페이지 로드 후 찜 상태 확인
+        document.addEventListener('DOMContentLoaded', () => {
+            checkWishlistStatus();
+        });
+
+        // 찜 상태 확인: 내 찜 목록에 이 상품이 있는지 서버에 물어봄
+        async function checkWishlistStatus() {
+            const token = typeof getToken === 'function' ? getToken() : null;
+            if (!token) return; // 비로그인 시 체크 불필요
+
+            try {
+                const res = await fetch('/api/wishlist', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!data.success) return;
+
+                const productId = parseInt(new URLSearchParams(location.search).get('id'));
+                // 내 찜 목록에서 현재 상품 ID가 있는지 확인
+                isWishlisted = data.items.some(item => item.productId === productId);
+                updateWishlistUI();
+            } catch (e) {
+                // 실패 시 무시 (비로그인 등)
+            }
+        }
+
+        // 찜 아이콘 UI 업데이트 (채운 하트 / 빈 하트)
+        function updateWishlistUI() {
+            const icon = document.getElementById('wishlistIcon');
+            if (!icon) return;
+            if (isWishlisted) {
+                // 채운 하트 (빨간색)
+                icon.style.fontVariationSettings = "'FILL' 1";
+                icon.classList.remove('text-gray-400');
+                icon.classList.add('text-brand-red');
+            } else {
+                // 빈 하트 (회색)
+                icon.style.fontVariationSettings = "'FILL' 0";
+                icon.classList.remove('text-brand-red');
+                icon.classList.add('text-gray-400');
+            }
+        }
+
+        // 찜 토글: 서버에 POST 요청 (있으면 삭제, 없으면 추가)
+        async function toggleWishlist() {
+            const token = typeof getToken === 'function' ? getToken() : null;
+            if (!token) {
+                alert('로그인 후 이용해주세요.');
+                location.href = 'login.html';
+                return;
+            }
+
+            const productId = parseInt(new URLSearchParams(location.search).get('id'));
+            try {
+                const res = await fetch('/api/wishlist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ productId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    isWishlisted = data.wishlisted;
+                    updateWishlistUI();
+                }
+            } catch (e) {
+                console.error('[Wishlist] 토글 실패:', e);
+            }
+        }
+    </script>
 </body>
 
 </html>

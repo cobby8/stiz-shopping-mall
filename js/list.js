@@ -448,6 +448,13 @@ function createCard(p) {
             ${isCustom ? 'CUSTOM' : 'STORE'}
           </span>
         </div>
+
+        <!-- 찜 아이콘: 호버 시 나타남 -->
+        <button onclick="event.stopPropagation(); toggleListWishlist(${p.id}, this)"
+                class="absolute top-2 right-2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                data-product-id="${p.id}" title="찜하기">
+          <span class="material-symbols-outlined text-gray-400" style="font-size:18px">favorite</span>
+        </button>
       </div>
       <div class="pt-3">
         <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${categoryLabel}</p>
@@ -479,3 +486,103 @@ function renderSkeletons(count) {
     </div>
   `).join('');
 }
+
+// ===== 찜(위시리스트) 기능 =====
+
+// 내 찜 목록 productId 세트 (빠른 조회용)
+let myWishlistSet = new Set();
+
+// 페이지 로드 시 내 찜 목록 가져오기 — 이미 찜한 상품의 하트를 채워서 표시
+async function loadMyWishlist() {
+  const token = typeof getToken === 'function' ? getToken() : null;
+  if (!token) return;
+
+  try {
+    const res = await fetch('/api/wishlist', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      myWishlistSet = new Set(data.items.map(i => i.productId));
+      updateWishlistIcons();
+    }
+  } catch (e) {
+    // 비로그인이면 무시
+  }
+}
+
+// 카드의 찜 아이콘을 현재 찜 상태에 맞게 업데이트
+function updateWishlistIcons() {
+  document.querySelectorAll('[data-product-id]').forEach(btn => {
+    const pid = parseInt(btn.dataset.productId);
+    const icon = btn.querySelector('.material-symbols-outlined');
+    if (!icon) return;
+    if (myWishlistSet.has(pid)) {
+      icon.style.fontVariationSettings = "'FILL' 1";
+      icon.classList.remove('text-gray-400');
+      icon.classList.add('text-red-500');
+    } else {
+      icon.style.fontVariationSettings = "'FILL' 0";
+      icon.classList.remove('text-red-500');
+      icon.classList.add('text-gray-400');
+    }
+  });
+}
+
+// 목록에서 찜 토글
+async function toggleListWishlist(productId, btnEl) {
+  const token = typeof getToken === 'function' ? getToken() : null;
+  if (!token) {
+    alert('로그인 후 이용해주세요.');
+    location.href = 'login.html';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/wishlist', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ productId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (data.wishlisted) {
+        myWishlistSet.add(productId);
+      } else {
+        myWishlistSet.delete(productId);
+      }
+      // 해당 버튼의 아이콘만 업데이트
+      const icon = btnEl.querySelector('.material-symbols-outlined');
+      if (icon) {
+        if (data.wishlisted) {
+          icon.style.fontVariationSettings = "'FILL' 1";
+          icon.classList.remove('text-gray-400');
+          icon.classList.add('text-red-500');
+        } else {
+          icon.style.fontVariationSettings = "'FILL' 0";
+          icon.classList.remove('text-red-500');
+          icon.classList.add('text-gray-400');
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[Wishlist] 토글 실패:', e);
+  }
+}
+
+// 상품 목록 로드 후 찜 아이콘 동기화
+// renderProducts() 이후 호출되어야 하므로 loadProducts 완료 시 실행
+const _origLoadProducts = loadProducts;
+loadProducts = async function(...args) {
+  await _origLoadProducts.apply(this, args);
+  // 상품 렌더 후 찜 아이콘 업데이트
+  updateWishlistIcons();
+};
+
+// 첫 로드 시 내 찜 목록 가져오기
+document.addEventListener('DOMContentLoaded', () => {
+  loadMyWishlist();
+});

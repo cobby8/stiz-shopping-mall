@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ - Community</title>
+    <!-- SEO 메타 태그 -->
+    <meta name="description" content="STIZ 커뮤니티. 매거진, 셀럽 착용, 제작 과정, 이벤트 소식을 확인하세요.">
+    <meta property="og:title" content="STIZ Community">
+    <meta property="og:description" content="매거진, 셀럽 착용, 제작 과정, 이벤트 소식을 확인하세요.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/hero_bg.jpg">
+    <link rel="canonical" href="https://stiz.co.kr/community.html">
+    <link rel="icon" type="image/png" href="images/logo_black.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols (아이콘 폰트) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="font-sans antialiased text-gray-900 bg-white">
+
+    <header></header>
+    <div class="h-20"></div>
+    <div class="h-20"></div>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- 페이지 타이틀 -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold tracking-tight mb-4">COMMUNITY</h1>
+            <p class="text-gray-500 max-w-2xl mx-auto">
+                STIZ의 이야기를 만나보세요. 매거진, 셀럽, 제작 과정, 이벤트까지.
+            </p>
+        </div>
+
+        <!-- 탭 네비게이션: stiz.kr의 MAGAZINE/CELEB/THE PROCESS/EVENT 4개 카테고리 재현 -->
+        <div id="community-tabs" class="flex flex-wrap justify-center gap-2 mb-12 border-b border-gray-200 pb-4">
+            <button onclick="switchTab('magazine')" data-tab="magazine"
+                class="community-tab px-6 py-2.5 text-sm font-bold border-b-2 border-black text-black transition-colors">
+                MAGAZINE
+            </button>
+            <button onclick="switchTab('celeb')" data-tab="celeb"
+                class="community-tab px-6 py-2.5 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-black transition-colors">
+                CELEB
+            </button>
+            <button onclick="switchTab('process')" data-tab="process"
+                class="community-tab px-6 py-2.5 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-black transition-colors">
+                THE PROCESS
+            </button>
+            <button onclick="switchTab('event')" data-tab="event"
+                class="community-tab px-6 py-2.5 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-black transition-colors">
+                EVENT
+            </button>
+        </div>
+
+        <!-- 콘텐츠 영역: 각 탭의 내용 (JS로 전환) -->
+        <div id="community-content">
+            <!-- JS가 동적으로 채움 -->
+        </div>
+
+    </main>
+
+    <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
+
+    <!-- 스크립트 -->
+    <script src="js/main.js" defer></script>
+    <script src="js/header_render.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="js/auth.js" defer></script>
+
+    <script>
+        /**
+         * 커뮤니티 페이지 로직 (#12)
+         * - stiz.kr의 MAGAZINE/CELEB/THE PROCESS/EVENT 4개 게시판을 재현
+         * - 현재: Mock 데이터로 UI만 구현 (Phase 1)
+         * - 나중에: /api/community 엔드포인트 연결 + 관리자 CMS로 글 작성
+         */
+
+        // Mock 데이터: 나중에 DB 연동 시 이 부분만 API 호출로 교체
+        const communityData = {
+            magazine: [
+                {
+                    id: 1,
+                    title: '2026 SS 시즌 트렌드 리포트',
+                    summary: '올해 봄여름 스포츠웨어 트렌드를 분석합니다. 네온 컬러와 레트로 패턴이 돌아왔습니다.',
+                    image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-03-15',
+                    category: 'MAGAZINE'
+                },
+                {
+                    id: 2,
+                    title: '농구 유니폼의 진화: 70년대부터 현재까지',
+                    summary: 'NBA에서 동호회까지, 농구 유니폼이 어떻게 변화해왔는지 시대별로 정리했습니다.',
+                    image: 'https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-02-28',
+                    category: 'MAGAZINE'
+                },
+                {
+                    id: 3,
+                    title: '승화전사 vs 자수: 어떤 마감이 좋을까?',
+                    summary: '커스텀 유니폼 마감 방식의 장단점을 비교합니다. 팀 특성에 맞는 선택 가이드.',
+                    image: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-02-10',
+                    category: 'MAGAZINE'
+                },
+                {
+                    id: 4,
+                    title: 'STIZ가 만드는 지속 가능한 스포츠웨어',
+                    summary: '친환경 원단과 생산 공정으로 환경을 생각하는 팀웨어를 만들고 있습니다.',
+                    image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-01-20',
+                    category: 'MAGAZINE'
+                }
+            ],
+            celeb: [
+                {
+                    id: 10,
+                    title: '프로농구 선수 K 시즌 착용 인터뷰',
+                    summary: '"STIZ 유니폼은 경기 중 움직임이 자유롭고 통기성이 뛰어나요."',
+                    image: 'https://images.unsplash.com/photo-1628779238951-be2c9f255902?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-03-01',
+                    category: 'CELEB'
+                },
+                {
+                    id: 11,
+                    title: '유명 유튜버의 축구 동호회 유니폼 후기',
+                    summary: '구독자 50만 유튜버가 직접 착용하고 리뷰한 STIZ 축구 유니폼.',
+                    image: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-02-15',
+                    category: 'CELEB'
+                },
+                {
+                    id: 12,
+                    title: '대학 농구 MVP가 선택한 팀웨어',
+                    summary: '2025 대학농구리그 MVP 수상자의 STIZ 착용 스토리.',
+                    image: 'https://images.unsplash.com/photo-1519861531473-9200262188bf?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-01-10',
+                    category: 'CELEB'
+                }
+            ],
+            process: [
+                {
+                    id: 20,
+                    title: '커스텀 유니폼이 만들어지기까지: 전 과정 공개',
+                    summary: '시안 요청부터 최종 배송까지, STIZ의 제작 프로세스를 처음으로 공개합니다.',
+                    image: 'https://images.unsplash.com/photo-1473042904451-00171c69419d?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-03-10',
+                    category: 'THE PROCESS'
+                },
+                {
+                    id: 21,
+                    title: '디자이너의 하루: 팀 시안 작업 비하인드',
+                    summary: 'STIZ 디자인팀이 하루에 처리하는 시안 수와 작업 과정을 들여다봅니다.',
+                    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-02-20',
+                    category: 'THE PROCESS'
+                },
+                {
+                    id: 22,
+                    title: '원단 테스트: 100번의 세탁 후에도 선명한 색상',
+                    summary: '승화전사 인쇄의 내구성을 실제 테스트한 결과를 공유합니다.',
+                    image: 'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-01-25',
+                    category: 'THE PROCESS'
+                }
+            ],
+            event: [
+                {
+                    id: 30,
+                    title: '2026 봄맞이 단체 주문 할인 이벤트',
+                    summary: '3월 한 달간 30벌 이상 단체 주문 시 15% 특별 할인! 놓치지 마세요.',
+                    image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-03-01',
+                    category: 'EVENT'
+                },
+                {
+                    id: 31,
+                    title: 'STIZ x 서울마라톤 공식 파트너 이벤트',
+                    summary: '서울마라톤 참가자 대상 기념 티셔츠 제작 이벤트에 참여하세요.',
+                    image: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-04-01',
+                    category: 'EVENT'
+                },
+                {
+                    id: 32,
+                    title: '인스타그램 포토 콘테스트: #MySTIZ',
+                    summary: 'STIZ 유니폼 착용 사진을 올리고 경품에 응모하세요! 최우수상 30만원 상당 상품.',
+                    image: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=600&auto=format&fit=crop',
+                    date: '2026-03-20',
+                    category: 'EVENT'
+                }
+            ]
+        };
+
+        let currentTab = 'magazine';
+
+        /**
+         * 탭 전환 함수
+         * - 해당 탭의 Mock 데이터를 카드 그리드로 렌더링
+         */
+        function switchTab(tab) {
+            currentTab = tab;
+
+            // 탭 버튼 스타일 전환
+            document.querySelectorAll('.community-tab').forEach(btn => {
+                btn.classList.remove('border-black', 'text-black');
+                btn.classList.add('border-transparent', 'text-gray-400');
+            });
+            const activeBtn = document.querySelector(`[data-tab="${tab}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-gray-400');
+                activeBtn.classList.add('border-black', 'text-black');
+            }
+
+            renderCommunityContent();
+        }
+
+        /**
+         * 콘텐츠 렌더링
+         * - 카드 형태로 제목/요약/이미지/날짜 표시
+         */
+        function renderCommunityContent() {
+            const container = document.getElementById('community-content');
+            const items = communityData[currentTab] || [];
+
+            if (items.length === 0) {
+                container.innerHTML = '<p class="text-center py-20 text-gray-400">콘텐츠가 준비 중입니다.</p>';
+                return;
+            }
+
+            // 첫 번째 아이템은 대형 카드(featured), 나머지는 2열 그리드
+            const [featured, ...rest] = items;
+
+            let html = `
+                <!-- 피처드 (대형 카드) -->
+                <div class="mb-10 group cursor-pointer" onclick="openCommunityPost(${featured.id})">
+                    <div class="relative overflow-hidden rounded-xl aspect-[16/7] bg-gray-100">
+                        <img src="${featured.image}" alt="${featured.title}"
+                            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            loading="lazy">
+                        <!-- 오버레이 그라디언트 -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                        <!-- 텍스트 -->
+                        <div class="absolute bottom-0 left-0 p-8 md:p-12 text-white">
+                            <span class="inline-block bg-brand-red text-white text-[10px] font-bold px-3 py-1 rounded-full mb-3">${featured.category}</span>
+                            <h2 class="text-2xl md:text-3xl font-bold mb-2 leading-tight">${featured.title}</h2>
+                            <p class="text-gray-300 text-sm max-w-lg">${featured.summary}</p>
+                            <span class="text-gray-400 text-xs mt-3 block">${formatDate(featured.date)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 나머지 아이템 2~3열 그리드
+            if (rest.length > 0) {
+                html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
+                rest.forEach(item => {
+                    html += `
+                        <div class="group cursor-pointer" onclick="openCommunityPost(${item.id})">
+                            <div class="overflow-hidden rounded-lg aspect-[4/3] bg-gray-100 mb-4">
+                                <img src="${item.image}" alt="${item.title}"
+                                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    loading="lazy">
+                            </div>
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">${item.category} · ${formatDate(item.date)}</span>
+                            <h3 class="font-bold text-lg mt-1 mb-1 group-hover:text-brand-red transition-colors leading-snug">${item.title}</h3>
+                            <p class="text-sm text-gray-500 line-clamp-2">${item.summary}</p>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        /**
+         * 날짜 포맷: YYYY-MM-DD → YYYY.MM.DD
+         */
+        function formatDate(dateStr) {
+            return dateStr.replace(/-/g, '.');
+        }
+
+        /**
+         * 게시글 클릭 핸들러
+         * - 현재: 준비 중 알림 (Phase 1)
+         * - 나중에: 상세 페이지 이동 또는 모달 표시
+         */
+        function openCommunityPost(id) {
+            alert('상세 콘텐츠 페이지는 준비 중입니다. 곧 만나보실 수 있어요!');
+        }
+
+        // URL 파라미터로 탭 지정 지원 (예: community.html?tab=event)
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            if (tab && communityData[tab]) {
+                switchTab(tab);
+            } else {
+                renderCommunityContent();
+            }
+        });
+    </script>
+</body>
+
+</html>

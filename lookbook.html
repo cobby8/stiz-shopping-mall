@@ -56,7 +56,31 @@
             </p>
         </div>
 
-        <!-- 필터 바: 종목별 탭 버튼 -->
+        <!-- 시즌 필터: stiz.kr처럼 SS/FW/B1/B2 시즌별 분류 (#8 룩북 시즌 분류) -->
+        <div id="season-bar" class="flex flex-wrap justify-center gap-2 mb-6">
+            <button id="season-all" onclick="filterBySeason('all')"
+                class="px-5 py-2 rounded-full text-xs font-bold bg-black text-white border border-black transition-colors">
+                ALL SEASON
+            </button>
+            <button id="season-SS" onclick="filterBySeason('SS')"
+                class="px-5 py-2 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:border-black hover:text-black transition-colors">
+                SS (Spring/Summer)
+            </button>
+            <button id="season-FW" onclick="filterBySeason('FW')"
+                class="px-5 py-2 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:border-black hover:text-black transition-colors">
+                FW (Fall/Winter)
+            </button>
+            <button id="season-B1" onclick="filterBySeason('B1')"
+                class="px-5 py-2 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:border-black hover:text-black transition-colors">
+                B1 Collection
+            </button>
+            <button id="season-B2" onclick="filterBySeason('B2')"
+                class="px-5 py-2 rounded-full text-xs font-bold bg-white text-gray-500 border border-gray-200 hover:border-black hover:text-black transition-colors">
+                B2 Collection
+            </button>
+        </div>
+
+        <!-- 종목 필터: 종목별 탭 버튼 -->
         <div id="filter-bar" class="flex flex-wrap justify-center gap-2 mb-12">
             <button id="filter-all" onclick="filterBySport('all')"
                 class="px-5 py-2 rounded-full text-xs font-bold bg-black text-white border border-black transition-colors">

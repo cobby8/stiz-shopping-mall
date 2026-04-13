@@ -8,8 +8,9 @@
 
     // 초기 표시 개수 (8개까지 보이고, 나머지는 "더보기"로)
     const INITIAL_SHOW_COUNT = 8;
-    let currentFilter = 'all';  // 현재 선택된 필터
-    let showAll = false;         // "더보기" 클릭 여부
+    let currentFilter = 'all';   // 현재 선택된 종목 필터
+    let currentSeason = 'all';   // 현재 선택된 시즌 필터 (#8 시즌 분류)
+    let showAll = false;          // "더보기" 클릭 여부
 
     // --- 갤러리 렌더링 ---
     // 데이터 배열을 받아서 카드 그리드를 생성
@@ -17,10 +18,14 @@
         const container = document.getElementById('gallery-container');
         if (!container || typeof lookbookItems === 'undefined') return;
 
-        // 필터 적용: 'all'이면 전부, 아니면 해당 종목만
-        const filtered = currentFilter === 'all'
-            ? lookbookItems
-            : lookbookItems.filter(item => item.sport === currentFilter);
+        // 필터 적용: 종목 + 시즌 두 가지 필터를 AND 조건으로 적용
+        let filtered = lookbookItems;
+        if (currentFilter !== 'all') {
+            filtered = filtered.filter(item => item.sport === currentFilter);
+        }
+        if (currentSeason !== 'all') {
+            filtered = filtered.filter(item => item.season === currentSeason);
+        }
 
         // 표시할 아이템 수 결정
         const itemsToShow = showAll ? filtered : filtered.slice(0, INITIAL_SHOW_COUNT);
@@ -50,7 +55,7 @@
                 <!-- 호버 오버레이: 팀명 + 종목 -->
                 <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
                     <span class="text-white font-bold text-lg">${item.teamName}</span>
-                    <span class="text-gray-300 text-xs uppercase tracking-wider">${item.sportLabel} · ${item.year}</span>
+                    <span class="text-gray-300 text-xs uppercase tracking-wider">${item.sportLabel} · ${item.seasonLabel || item.year}</span>
                 </div>
                 <!-- 종목 배지 (항상 표시) -->
                 <div class="absolute top-3 left-3">
@@ -79,7 +84,28 @@
         }
     }
 
-    // --- 필터 기능 ---
+    // --- 시즌 필터 기능 (#8) ---
+    // 시즌 버튼 클릭 시 해당 시즌만 필터링 (SS/FW/B1/B2)
+    function filterBySeason(season) {
+        currentSeason = season;
+        showAll = false;  // 필터 변경 시 "더보기" 초기화
+
+        // 시즌 버튼 활성/비활성 스타일 전환
+        const buttons = document.querySelectorAll('#season-bar button');
+        buttons.forEach(btn => {
+            btn.classList.remove('bg-black', 'text-white', 'border-black');
+            btn.classList.add('bg-white', 'text-gray-500', 'border-gray-200');
+        });
+        const activeBtn = document.getElementById(`season-${season}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200');
+            activeBtn.classList.add('bg-black', 'text-white', 'border-black');
+        }
+
+        renderGallery();
+    }
+
+    // --- 종목 필터 기능 ---
     // 종목 버튼 클릭 시 해당 종목만 필터링
     function filterBySport(sport) {
         currentFilter = sport;
@@ -113,7 +139,9 @@
         document.getElementById('modal-image').src = item.image;
         document.getElementById('modal-image').alt = item.teamName;
         document.getElementById('modal-team').textContent = item.teamName;
-        document.getElementById('modal-sport').textContent = `${item.sportLabel} · ${item.year}`;
+        // 시즌 라벨이 있으면 시즌도 함께 표시 (#8)
+        const seasonText = item.seasonLabel ? ` · ${item.seasonLabel}` : '';
+        document.getElementById('modal-sport').textContent = `${item.sportLabel}${seasonText}`;
         document.getElementById('modal-desc').textContent = item.description;
 
         // 사용 제품 목록을 태그 형태로 렌더링
@@ -147,6 +175,7 @@
     // --- 전역 함수 등록 ---
     // HTML onclick에서 호출할 수 있도록 window에 등록
     window.filterBySport = filterBySport;
+    window.filterBySeason = filterBySeason;  // #8 시즌 필터 전역 등록
     window.openDetailModal = openDetailModal;
     window.closeDetailModal = closeDetailModal;
     window.loadMoreLookbook = loadMore;

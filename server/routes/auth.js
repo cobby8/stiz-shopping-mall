@@ -155,6 +155,100 @@ router.get('/me', (req, res) => {
 });
 
 // ============================================================
+// GET /api/auth/me/orders — 내 주문 내역 조회
+// JWT 토큰의 사용자 이메일로 orders 테이블에서 검색
+// 비유: 마이페이지에서 "내 주문 이력"을 서버에서 가져오는 것
+// (기존에는 localStorage에서 읽었으나, 이제 서버 DB 기반으로 전환)
+// ============================================================
+router.get('/me/orders', (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'No token provided' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // 사용자 이메일로 주문 검색 — orders.data JSON 안의 customer.email과 매칭
+        const user = db.findById('users', decoded.id);
+        if (!user) {
+            return res.status(401).json({ success: false, error: 'User not found' });
+        }
+
+        // orders 테이블에서 customer.email이 일치하는 주문을 JSON_EXTRACT로 검색
+        const rows = database.prepare(`
+            SELECT data FROM orders
+            WHERE json_extract(data, '$.customer.email') = ?
+            ORDER BY createdAt DESC
+        `).all(user.email);
+
+        // JSON blob을 파싱하여 고객에게 필요한 필드만 추출
+        const orders = rows.map(row => {
+            const order = JSON.parse(row.data);
+            return {
+                id: order.id,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                items: order.items || [],
+                total: order.payment?.totalAmount || order.totalAmount || 0,
+                customer: order.customer || {},
+                createdAt: order.createdAt
+            };
+        });
+
+        res.json({ success: true, orders });
+    } catch (error) {
+        console.error('[Auth] 내 주문 조회 실패:', error);
+        return res.status(401).json({ success: false, error: 'Invalid token' });
+    }
+});
+
+// ============================================================
+// PUT /api/auth/me/profile — 내 프로필 수정 (이름, 전화번호)
+// 비유: 마이페이지에서 "내 정보 수정" 버튼을 눌렀을 때
+// ============================================================
+router.put('/me/profile', (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'No token provided' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        const user = db.findById('users', decoded.id);
+        if (!user) {
+            return res.status(401).json({ success: false, error: 'User not found' });
+        }
+
+        const { name, phone } = req.body;
+        const updates = {};
+        if (name !== undefined) updates.name = name.trim();
+        if (phone !== undefined) updates.phone = phone.trim();
+
+        const updated = db.updateById('users', decoded.id, updates);
+
+        // localStorage와 동기화할 수 있도록 최신 정보 반환
+        res.json({
+            success: true,
+            user: {
+                id: updated.id,
+                name: updated.name,
+                email: updated.email,
+                phone: updated.phone || '',
+                role: updated.role,
+                joinedAt: updated.joinedAt
+            }
+        });
+    } catch (error) {
+        console.error('[Auth] 프로필 수정 실패:', error);
+        return res.status(401).json({ success: false, error: 'Invalid token' });
+    }
+});
+
+// ============================================================
 // 관리자 계정 관리 API (adminAuth 필요)
 // 비유: "인사팀 전용 시스템" — 관리자만 접근 가능한 계정 CRUD
 // ============================================================

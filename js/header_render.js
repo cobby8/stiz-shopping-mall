@@ -215,13 +215,20 @@ function renderHeader() {
                 </div>
             </div>
 
-            <!-- 4. COMMUNITY -->
+            <!-- 4. COMMUNITY — #13: 커뮤니티/룩북/단체주문 등 서브메뉴 확장 -->
             <div class="group h-full flex items-center relative">
-                <a href="notice.html" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase">COMMUNITY</a>
-                <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-48 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
+                <a href="community.html" class="font-bold text-sm tracking-widest hover:text-gray-500 transition-colors py-8 uppercase">COMMUNITY</a>
+                <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-52 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
+                    <a href="community.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">매거진 (Magazine)</a>
+                    <a href="community.html?tab=celeb" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">셀럽 (Celeb)</a>
+                    <a href="community.html?tab=process" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">제작 과정 (Process)</a>
+                    <a href="community.html?tab=event" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">이벤트 (Event)</a>
+                    <div class="border-t border-gray-100 my-2"></div>
+                    <a href="lookbook.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">포트폴리오 (Lookbook)</a>
+                    <a href="bulk-order.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">단체 주문 (Bulk Order)</a>
+                    <div class="border-t border-gray-100 my-2"></div>
                     <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">공지사항</a>
                     <a href="inquiry.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">문의하기 (Q&A)</a>
-                    <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">구매 후기 (Review)</a>
                 </div>
             </div>
 
@@ -283,6 +290,19 @@ function renderHeader() {
                     <a href="list.html?category=accessories" class="block">악세서리&용품</a>
                     <a href="list.html?category=md-picks" class="block">MD제품</a>
                     <a href="list.html?category=sale" class="block">시즌오프</a>
+                </div>
+            </div>
+            <!-- 모바일: COMMUNITY 메뉴 (#13) -->
+            <div class="border-t pt-4">
+                <h3 class="font-bold text-gray-400 text-xs mb-2">COMMUNITY</h3>
+                <a href="community.html" class="block text-xl font-bold mb-2">커뮤니티</a>
+                <div class="pl-4 space-y-2 text-sm text-gray-600">
+                    <a href="community.html" class="block">매거진</a>
+                    <a href="community.html?tab=celeb" class="block">셀럽</a>
+                    <a href="community.html?tab=event" class="block">이벤트</a>
+                    <a href="lookbook.html" class="block">포트폴리오</a>
+                    <a href="bulk-order.html" class="block">단체 주문</a>
+                    <a href="notice.html" class="block">공지사항</a>
                 </div>
             </div>
             <div class="border-t pt-4 flex justify-between items-center">

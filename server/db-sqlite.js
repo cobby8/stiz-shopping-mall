@@ -49,6 +49,19 @@ try {
     // 이미 존재하면 무시
 }
 
+// --- 마이그레이션: users 테이블에 phone 컬럼 추가 ---
+// 회원가입 시 전화번호를 저장하기 위해 필요
+try {
+    const cols2 = db.pragma('table_info(users)');
+    const hasPhone = cols2.some(c => c.name === 'phone');
+    if (!hasPhone) {
+        db.exec("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''");
+        console.log('[DB] users 테이블에 phone 컬럼 추가 완료');
+    }
+} catch (e) {
+    // 이미 존재하면 무시
+}
+
 // --- ID 생성 헬퍼 ---
 // Date.now()만 쓰면 같은 밀리초에 2건이 들어올 때 ID 충돌 가능
 // 타임스탬프 + 랜덤 3자리를 조합하여 충돌 방지
@@ -65,7 +78,9 @@ const ALLOWED_TABLES = [
     // Phase E-1: 상품 시스템 테이블 4개 추가
     'product_categories', 'products', 'product_options', 'product_images',
     'product_reviews',
-    'cart_items'
+    'cart_items',
+    'board_posts',
+    'wishlists'
 ];
 
 // 테이블명 검증 함수 — 화이트리스트에 없으면 즉시 에러
@@ -274,8 +289,8 @@ export function saveAll(collection, data) {
             }
         } else if (tbl === 'users') {
             const stmt = db.prepare(`
-                INSERT INTO users (id, name, email, password, role, joinedAt)
-                VALUES (@id, @name, @email, @password, @role, @joinedAt)
+                INSERT INTO users (id, name, email, password, phone, role, joinedAt)
+                VALUES (@id, @name, @email, @password, @phone, @role, @joinedAt)
             `);
             for (const record of records) {
                 stmt.run({
@@ -283,6 +298,7 @@ export function saveAll(collection, data) {
                     name: record.name || null,
                     email: record.email || null,
                     password: record.password || null,
+                    phone: record.phone || '',
                     role: record.role || 'customer',
                     joinedAt: record.joinedAt || null,
                 });
@@ -373,13 +389,14 @@ export function insert(collection, record) {
         });
     } else if (tbl === 'users') {
         db.prepare(`
-            INSERT INTO users (id, name, email, password, role, joinedAt)
-            VALUES (@id, @name, @email, @password, @role, @joinedAt)
+            INSERT INTO users (id, name, email, password, phone, role, joinedAt)
+            VALUES (@id, @name, @email, @password, @phone, @role, @joinedAt)
         `).run({
             id: record.id,
             name: record.name || null,
             email: record.email || null,
             password: record.password || null,
+            phone: record.phone || '',
             role: record.role || 'customer',
             joinedAt: record.joinedAt || null,
         });
@@ -551,13 +568,14 @@ export function updateById(collection, id, updates) {
     } else if (tbl === 'users') {
         db.prepare(`
             UPDATE users SET
-                name = @name, email = @email, password = @password, role = @role, joinedAt = @joinedAt
+                name = @name, email = @email, password = @password, phone = @phone, role = @role, joinedAt = @joinedAt
             WHERE id = @id
         `).run({
             id: merged.id,
             name: merged.name || null,
             email: merged.email || null,
             password: merged.password || null,
+            phone: merged.phone || '',
             role: merged.role || 'customer',
             joinedAt: merged.joinedAt || null,
         });

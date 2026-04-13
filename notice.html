@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STIZ - Notice & FAQ</title>
+    <title>STIZ - Notice</title>
     <!-- SEO 메타 태그 -->
-    <meta name="description" content="STIZ 공지사항 및 자주 묻는 질문.">
+    <meta name="description" content="STIZ 공지사항. 새로운 소식과 업데이트를 확인하세요.">
     <meta property="og:title" content="STIZ Notice">
-    <meta property="og:description" content="STIZ 공지사항 및 자주 묻는 질문.">
+    <meta property="og:description" content="STIZ 공지사항. 새로운 소식과 업데이트를 확인하세요.">
     <meta property="og:type" content="website">
     <meta property="og:image" content="images/hero_bg.jpg">
     <link rel="canonical" href="https://stiz.co.kr/notice.html">
@@ -34,6 +34,9 @@
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="css/style.css">
+    <!-- Material Symbols (아이콘) -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-white">
@@ -43,107 +46,62 @@
     <div class="h-20"></div>
 
     <main class="container mx-auto px-6 py-12 max-w-5xl">
-        <!-- 모바일: 세로 배치 + gap으로 겹침 방지 / md 이상: 가로 배치 -->
+        <!-- 상단: 타이틀 + 검색 -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8 border-b-2 border-black pb-4">
             <div>
                 <h1 class="text-3xl font-bold tracking-tight mb-2">NOTICE</h1>
                 <p class="text-gray-500 text-sm">STIZ News & Announcements</p>
             </div>
             <div class="flex space-x-2">
-                <input type="text" placeholder="Search..." class="border border-gray-300 rounded px-3 py-2 text-sm">
+                <input type="text" id="searchInput" placeholder="Search..."
+                    class="border border-gray-300 rounded px-3 py-2 text-sm focus:border-black outline-none"
+                    onkeypress="if(event.key==='Enter') loadNotices()">
+                <button onclick="loadNotices()" class="px-3 py-2 bg-black text-white text-sm rounded hover:bg-gray-800">
+                    <span class="material-symbols-outlined text-base" style="vertical-align:middle">search</span>
+                </button>
             </div>
         </div>
 
-        <!-- Instagram Section -->
-        <div class="mb-12">
-            <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center space-x-4">
-                    <div
-                        class="w-16 h-16 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[2px]">
-                        <div class="w-full h-full bg-white rounded-full p-[2px]">
-                            <img src="https://images.unsplash.com/photo-1546519638-68e109498ee2?q=80&w=1790&auto=format&fit=crop"
-                                class="w-full h-full rounded-full object-cover">
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold">official_stiz</h2>
-                        <a href="https://instagram.com" target="_blank" class="text-sm text-blue-500 font-medium">Follow
-                            on Instagram</a>
-                    </div>
-                </div>
-                <!-- Embed Widget Placeholder -->
+        <!-- 게시글 수 표시 -->
+        <div class="text-sm text-gray-500 mb-4">
+            Total <span class="font-bold text-black" id="post-count">0</span> posts
+        </div>
+
+        <!-- 공지 목록 테이블 -->
+        <div class="w-full text-sm">
+            <!-- 헤더 -->
+            <div class="grid grid-cols-12 gap-4 py-3 border-b border-black font-bold text-center">
+                <div class="col-span-1 hidden md:block">No.</div>
+                <div class="col-span-9 md:col-span-8 text-left pl-4">Subject</div>
+                <div class="col-span-2 hidden md:block">Views</div>
+                <div class="col-span-3 md:col-span-1">Date</div>
             </div>
 
-            <!-- Instagram Grid Mock (Simulating Feed) -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <!-- Feed 1 -->
-                <div class="aspect-square relative group overflow-hidden bg-gray-100 cursor-pointer">
-                    <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=1000&auto=format&fit=crop"
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                    <div
-                        class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white space-x-4">
-                        <span class="flex items-center"><svg class="w-5 h-5 mr-1" fill="currentColor"
-                                viewBox="0 0 24 24">
-                                <path
-                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                            </svg> 124</span>
-                    </div>
-                </div>
-                <!-- Feed 2 -->
-                <div class="aspect-square relative group overflow-hidden bg-gray-100 cursor-pointer">
-                    <img src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1000&auto=format&fit=crop"
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                    <div
-                        class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white space-x-4">
-                        <span class="flex items-center"><svg class="w-5 h-5 mr-1" fill="currentColor"
-                                viewBox="0 0 24 24">
-                                <path
-                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                            </svg> 89</span>
-                    </div>
-                </div>
-                <!-- Feed 3 -->
-                <div class="aspect-square relative group overflow-hidden bg-gray-100 cursor-pointer">
-                    <img src="https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=1000&auto=format&fit=crop"
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                    <div
-                        class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white space-x-4">
-                        <span class="flex items-center"><svg class="w-5 h-5 mr-1" fill="currentColor"
-                                viewBox="0 0 24 24">
-                                <path
-                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                            </svg> 201</span>
-                    </div>
-                </div>
-                <!-- Feed 4 (Pinned/Notice) -->
-                <div
-                    class="aspect-square relative group overflow-hidden bg-gray-100 cursor-pointer border-2 border-red-500">
-                    <div class="absolute top-2 right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 font-bold z-10">
-                        NOTICE</div>
-                    <img src="https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=1000&auto=format&fit=crop"
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                    <div
-                        class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white space-x-4">
-                        <span class="flex items-center"><svg class="w-5 h-5 mr-1" fill="currentColor"
-                                viewBox="0 0 24 24">
-                                <path
-                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                            </svg> 542</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-8 text-center text-gray-500 text-sm">
-                <p>Follow <span class="font-bold text-black">@official_stiz</span> to catch up with our latest drops.
-                </p>
-                <div class="mt-4 p-4 bg-gray-50 rounded border border-gray-200 inline-block text-xs text-gray-400">
-                    * Actual Instagram Feed Embed Script (e.g. SnapWidget, Elfsight) will be placed here. <br>
-                    * Currently using Mock Grid for demo purposes.
-                </div>
+            <!-- 목록 (JS에서 동적 생성) -->
+            <div id="notice-list">
+                <div class="text-center py-12 text-gray-400">Loading...</div>
             </div>
         </div>
 
+        <!-- 페이지네이션 -->
+        <div class="flex justify-center mt-12 space-x-2" id="pagination"></div>
     </main>
+
+    <!-- 상세 모달 -->
+    <div id="detailModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <h2 class="text-xl font-bold" id="modalTitle"></h2>
+                    <button onclick="closeDetailModal()" class="text-gray-400 hover:text-black">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div class="text-xs text-gray-400 mb-4" id="modalMeta"></div>
+                <div class="prose prose-sm max-w-none whitespace-pre-wrap" id="modalContent"></div>
+            </div>
+        </div>
+    </div>
 
     <footer class="bg-black text-white" data-include="layout/footer.html"></footer>
 
@@ -151,6 +109,127 @@
     <script src="js/header_render.js" defer></script>
     <script src="js/chatbot.js" defer></script>
     <script src="js/auth.js" defer></script>
+    <script>
+        // 공지사항 상태
+        let currentPage = 1;
+        const PAGE_LIMIT = 10;
+
+        // 페이지 로드 시 공지 목록 가져오기
+        document.addEventListener('DOMContentLoaded', () => {
+            loadNotices();
+        });
+
+        // 공지사항 목록 API 호출
+        async function loadNotices(page = 1) {
+            currentPage = page;
+            const search = document.getElementById('searchInput')?.value || '';
+            const params = new URLSearchParams({ type: 'notice', page, limit: PAGE_LIMIT });
+            if (search) params.set('search', search);
+
+            try {
+                const res = await fetch(`/api/board?${params}`);
+                const data = await res.json();
+
+                if (!data.success) throw new Error(data.error);
+
+                document.getElementById('post-count').textContent = data.total;
+                renderNoticeList(data.posts, data.total, page);
+                renderPagination(data.page, data.totalPages);
+            } catch (err) {
+                console.error('[Notice] 목록 로드 실패:', err);
+                document.getElementById('notice-list').innerHTML =
+                    '<div class="text-center py-12 text-gray-400">공지사항을 불러올 수 없습니다.</div>';
+            }
+        }
+
+        // 공지 목록 렌더링
+        function renderNoticeList(posts, total, page) {
+            const container = document.getElementById('notice-list');
+
+            if (!posts.length) {
+                container.innerHTML = '<div class="text-center py-12 text-gray-400">등록된 공지사항이 없습니다.</div>';
+                return;
+            }
+
+            // 역순 번호 계산 (최신글이 높은 번호)
+            const startNum = total - (page - 1) * PAGE_LIMIT;
+
+            container.innerHTML = posts.map((post, i) => {
+                const date = new Date(post.createdAt).toLocaleDateString('ko-KR');
+                const num = startNum - i;
+                return `
+                <div class="grid grid-cols-12 gap-4 py-4 border-b border-gray-100 items-center text-center hover:bg-gray-50 transition-colors cursor-pointer"
+                     onclick="viewNotice(${post.id})">
+                    <div class="col-span-1 hidden md:block text-gray-500">${num}</div>
+                    <div class="col-span-9 md:col-span-8 text-left pl-4">
+                        <span class="font-medium text-gray-900">${escapeHtml(post.title)}</span>
+                    </div>
+                    <div class="col-span-2 hidden md:block text-gray-400">${post.viewCount || 0}</div>
+                    <div class="col-span-3 md:col-span-1 text-gray-400 text-xs">${date}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // 페이지네이션 렌더링
+        function renderPagination(current, totalPages) {
+            const container = document.getElementById('pagination');
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+            let html = '';
+            // 이전 버튼
+            html += `<button onclick="loadNotices(${Math.max(1, current - 1)})"
+                class="w-8 h-8 flex items-center justify-center border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-colors">&lt;</button>`;
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === current) {
+                    html += `<button class="w-8 h-8 flex items-center justify-center bg-black text-white font-bold">${i}</button>`;
+                } else {
+                    html += `<button onclick="loadNotices(${i})"
+                        class="w-8 h-8 flex items-center justify-center border border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors">${i}</button>`;
+                }
+            }
+
+            // 다음 버튼
+            html += `<button onclick="loadNotices(${Math.min(totalPages, current + 1)})"
+                class="w-8 h-8 flex items-center justify-center border border-gray-200 text-gray-400 hover:text-black hover:border-black transition-colors">&gt;</button>`;
+
+            container.innerHTML = html;
+        }
+
+        // 공지 상세 보기 (모달)
+        async function viewNotice(id) {
+            try {
+                const res = await fetch(`/api/board/${id}`);
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+
+                const post = data.post;
+                document.getElementById('modalTitle').textContent = post.title;
+                document.getElementById('modalMeta').textContent =
+                    `${new Date(post.createdAt).toLocaleDateString('ko-KR')} | 조회 ${post.viewCount}`;
+                document.getElementById('modalContent').textContent = post.content;
+                document.getElementById('detailModal').classList.remove('hidden');
+            } catch (err) {
+                alert('게시글을 불러올 수 없습니다.');
+            }
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        // XSS 방지용 HTML 이스케이프
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // 모달 바깥 클릭 시 닫기
+        document.getElementById('detailModal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeDetailModal();
+        });
+    </script>
 </body>
 
 </html>

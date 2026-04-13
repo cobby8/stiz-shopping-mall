@@ -32,6 +32,8 @@ import productRoutes from './routes/products.js';       // 상품 CRUD API (E-2)
 import reviewRoutes from './routes/reviews.js';         // 상품 리뷰 API (F-4)
 import cartRoutes from './routes/cart.js';               // 장바구니 서버 동기화 API (#3)
 import paymentRoutes from './routes/payment.js';         // PG 결제 인프라 API (#1)
+import boardRoutes from './routes/board.js';               // 게시판 API (공지+문의)
+import wishlistRoutes from './routes/wishlist.js';         // 위시리스트(찜) API
 import { adminAuth } from './middleware/adminAuth.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
 import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
@@ -73,6 +75,17 @@ app.get('/', (req, res) => {
             'POST /api/payment/prepare',
             'POST /api/payment/complete',
             'POST /api/generate',
+            'GET  /api/auth/me/orders    (login required)',
+            'PUT  /api/auth/me/profile   (login required)',
+            'GET  /api/board?type=notice',
+            'GET  /api/board?type=inquiry (login required)',
+            'GET  /api/board/:id',
+            'POST /api/board             (login required)',
+            'PUT  /api/admin/board/:id/answer (admin only)',
+            'DELETE /api/admin/board/:id  (admin only)',
+            'GET  /api/wishlist          (login required)',
+            'POST /api/wishlist          (login required)',
+            'DELETE /api/wishlist/:productId (login required)',
         ]
     });
 });
@@ -112,6 +125,14 @@ app.use('/api', cartRoutes);
 // 결제 라우트 — PortOne PG 결제 인프라 (#1)
 // config 엔드포인트는 공개, prepare/complete는 공개 (주문 시 호출)
 app.use('/api', paymentRoutes);
+
+// 게시판 라우트 — 공개(공지 목록) + 로그인(문의 작성) + 관리자(답변/삭제)
+// boardRoutes 내부에서 requireAuth, adminAuth를 개별 적용
+app.use('/api', boardRoutes);
+
+// 위시리스트 라우트 — 로그인 사용자 전용
+// wishlistRoutes 내부에서 requireAuth를 개별 적용
+app.use('/api', wishlistRoutes);
 
 // --- settings 테이블 초기 시딩 (A-1) ---
 // 비유: 식당 오픈 전에 기본 메뉴판을 세팅하는 것. 이미 메뉴판이 있으면 건드리지 않음

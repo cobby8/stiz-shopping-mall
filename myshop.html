@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STIZ - My Page</title>
     <!-- SEO 메타 태그 -->
-    <meta name="description" content="STIZ 마이페이지. 주문 내역, 배송 조회, 디자인 관리.">
+    <meta name="description" content="STIZ 마이페이지. 주문 내역, 배송 조회, 찜 목록, 프로필 관리.">
     <meta property="og:title" content="STIZ My Page">
-    <meta property="og:description" content="STIZ 마이페이지. 주문 내역, 배송 조회, 디자인 관리.">
+    <meta property="og:description" content="STIZ 마이페이지. 주문 내역, 배송 조회, 찜 목록, 프로필 관리.">
     <meta property="og:type" content="website">
     <meta property="og:image" content="images/hero_bg.jpg">
     <link rel="canonical" href="https://stiz.co.kr/myshop.html">
@@ -89,6 +89,8 @@
                     class="block w-full text-left px-4 py-2 bg-black text-white rounded font-bold">Dashboard</button>
                 <button onclick="showTab('orders')" id="tab-orders"
                     class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Order History</button>
+                <button onclick="showTab('wishlist')" id="tab-wishlist"
+                    class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Wishlist</button>
                 <button onclick="showTab('profile')" id="tab-profile"
                     class="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-gray-600">Profile</button>
                 <button onclick="logout()"
@@ -132,7 +134,7 @@
                     <div>
                         <h3 class="text-lg font-bold mb-4 border-b border-black pb-2">Recent Orders</h3>
                         <div id="recent-orders" class="space-y-4">
-                            <p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>
+                            <p class="text-gray-400 text-sm py-8 text-center">Loading...</p>
                         </div>
                     </div>
                 </div>
@@ -141,7 +143,15 @@
                 <div id="content-orders" class="hidden space-y-6">
                     <h3 class="text-2xl font-bold mb-4">Order History</h3>
                     <div id="all-orders" class="space-y-4">
-                        <p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>
+                        <p class="text-gray-400 text-sm py-8 text-center">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Wishlist Tab -->
+                <div id="content-wishlist" class="hidden space-y-6">
+                    <h3 class="text-2xl font-bold mb-4">Wishlist</h3>
+                    <div id="wishlist-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <p class="col-span-full text-gray-400 text-sm py-8 text-center">Loading...</p>
                     </div>
                 </div>
 
@@ -151,8 +161,8 @@
                     <div class="bg-white border border-gray-200 rounded-lg p-6 space-y-4 max-w-lg">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Name</label>
-                            <input type="text" id="profile-name" readonly
-                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
+                            <input type="text" id="profile-name"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Email</label>
@@ -160,10 +170,21 @@
                                 class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
                         </div>
                         <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Phone</label>
+                            <input type="tel" id="profile-phone"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none"
+                                placeholder="010-0000-0000">
+                        </div>
+                        <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Member Since</label>
                             <input type="text" id="profile-joined" readonly
                                 class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50">
                         </div>
+                        <button onclick="saveProfile()"
+                            class="w-full bg-black text-white py-3 font-bold text-sm hover:bg-gray-800 transition-colors rounded mt-2">
+                            Save Changes
+                        </button>
+                        <p id="profile-message" class="text-sm text-green-600 hidden"></p>
                     </div>
                 </div>
 
@@ -187,13 +208,9 @@
 
         /**
          * 상태 매핑 함수 (서버의 getCustomerStatus와 동일한 로직)
-         * 서버의 19단계 상태를 고객용 4단계로 변환한다.
-         * 비유: 공장 내부 공정(19단계)을 고객 안내판(4단계)으로 변환
-         *
-         * [2026-04-06] 새 상태 체계 반영 — 서버 orders.js의 getCustomerStatus와 일관성 유지
+         * 서버의 19단계 상태를 고객용 4단계로 변환
          */
         function getCustomerStep(status) {
-            // 레거시 상태코드를 새 코드로 변환 (서버의 LEGACY_STATUS_MAP과 동일)
             const legacyMap = {
                 payment_pending: 'order_received',
                 payment_done: 'payment_completed',
@@ -204,11 +221,8 @@
             };
             const normalized = legacyMap[status] || status;
 
-            // 1단계: 상담/시안 관련 상태
             const design = ['consult_started', 'design_requested', 'draft_done', 'revision', 'design_confirmed'];
-            // 2단계: 결제/제작 관련 상태
             const production = ['order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent', 'work_instruction_received', 'in_production', 'production_done', 'factory_released'];
-            // 3단계: 출고/배송 관련 상태
             const shipping = ['warehouse_received', 'released', 'shipped'];
 
             if (design.includes(normalized)) return { step: 1, label: '상담/시안 진행중' };
@@ -218,9 +232,9 @@
             return { step: 0, label: '확인중' };
         }
 
-        // 탭 전환 함수
+        // 탭 전환 함수 (wishlist 탭 추가)
         function showTab(tab) {
-            ['dashboard', 'orders', 'profile'].forEach(t => {
+            ['dashboard', 'orders', 'wishlist', 'profile'].forEach(t => {
                 document.getElementById('content-' + t).classList.add('hidden');
                 document.getElementById('tab-' + t).classList.remove('bg-black', 'text-white', 'font-bold');
                 document.getElementById('tab-' + t).classList.add('text-gray-600');
@@ -229,6 +243,9 @@
             const btn = document.getElementById('tab-' + tab);
             btn.classList.add('bg-black', 'text-white', 'font-bold');
             btn.classList.remove('text-gray-600');
+
+            // 찜 탭 진입 시 데이터 로드
+            if (tab === 'wishlist') loadWishlist();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -240,53 +257,203 @@
             const joinDate = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ko-KR') : '';
             document.getElementById('welcome-date').innerText = `Member since ${joinDate}`;
 
-            // 프로필 정보
+            // 프로필 정보 (이제 수정 가능)
             document.getElementById('profile-name').value = user.name;
             document.getElementById('profile-email').value = user.email;
+            document.getElementById('profile-phone').value = user.phone || '';
             document.getElementById('profile-joined').value = joinDate;
 
-            // 주문 데이터 로드 + 4단계 통계 계산
-            const orders = getUserOrders();
+            // 서버에서 주문 데이터 로드
+            loadOrders();
 
-            // 각 주문의 상태를 4단계로 매핑하여 통계 계산
-            let designCount = 0, productionCount = 0, shippingCount = 0, deliveredCount = 0;
-            orders.forEach(o => {
-                const { step } = getCustomerStep(o.status);
-                if (step === 1) designCount++;
-                else if (step === 2) productionCount++;
-                else if (step === 3) shippingCount++;
-                else if (step === 4) deliveredCount++;
-            });
-
-            document.getElementById('stat-design').innerText = designCount;
-            document.getElementById('stat-production').innerText = productionCount;
-            document.getElementById('stat-shipping').innerText = shippingCount;
-            document.getElementById('stat-delivered').innerText = deliveredCount;
-
-            // 주문 목록 렌더링
-            if (orders.length > 0) {
-                renderOrders(orders.slice(0, 3), 'recent-orders');
-                renderOrders(orders, 'all-orders');
+            // URL 파라미터로 탭 선택 지원 (?tab=wishlist)
+            const urlTab = new URLSearchParams(location.search).get('tab');
+            if (urlTab && ['dashboard', 'orders', 'wishlist', 'profile'].includes(urlTab)) {
+                showTab(urlTab);
             }
         });
 
+        // ============================================================
+        // 주문 이력: 서버 API에서 가져오기 (/api/auth/me/orders)
+        // 기존 localStorage 기반에서 서버 DB 기반으로 전환
+        // ============================================================
+        async function loadOrders() {
+            const token = getToken();
+            if (!token) return;
+
+            try {
+                const res = await fetch('/api/auth/me/orders', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    console.warn('[MyShop] 주문 조회 실패:', data.error);
+                    renderEmptyOrders();
+                    return;
+                }
+
+                const orders = data.orders;
+
+                // 4단계 통계 계산
+                let designCount = 0, productionCount = 0, shippingCount = 0, deliveredCount = 0;
+                orders.forEach(o => {
+                    const { step } = getCustomerStep(o.status);
+                    if (step === 1) designCount++;
+                    else if (step === 2) productionCount++;
+                    else if (step === 3) shippingCount++;
+                    else if (step === 4) deliveredCount++;
+                });
+
+                document.getElementById('stat-design').innerText = designCount;
+                document.getElementById('stat-production').innerText = productionCount;
+                document.getElementById('stat-shipping').innerText = shippingCount;
+                document.getElementById('stat-delivered').innerText = deliveredCount;
+
+                // 주문 목록 렌더링
+                if (orders.length > 0) {
+                    renderOrders(orders.slice(0, 3), 'recent-orders');
+                    renderOrders(orders, 'all-orders');
+                } else {
+                    renderEmptyOrders();
+                }
+            } catch (err) {
+                console.error('[MyShop] 주문 로드 실패:', err);
+                renderEmptyOrders();
+            }
+        }
+
+        function renderEmptyOrders() {
+            document.getElementById('recent-orders').innerHTML =
+                '<p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>';
+            document.getElementById('all-orders').innerHTML =
+                '<p class="text-gray-400 text-sm py-8 text-center">No orders yet.</p>';
+        }
+
+        // ============================================================
+        // 찜 목록 로드 (/api/wishlist)
+        // ============================================================
+        async function loadWishlist() {
+            const token = getToken();
+            if (!token) return;
+
+            const grid = document.getElementById('wishlist-grid');
+            try {
+                const res = await fetch('/api/wishlist', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+
+                if (!data.items.length) {
+                    grid.innerHTML = '<p class="col-span-full text-gray-400 text-sm py-8 text-center">찜한 상품이 없습니다.</p>';
+                    return;
+                }
+
+                grid.innerHTML = data.items.map(item => {
+                    const thumb = item.thumbnail || '/img/no-image.svg';
+                    const price = item.price ? `&#8361;${item.price.toLocaleString()}` : '';
+                    return `
+                    <div class="group relative border border-gray-100 rounded-lg overflow-hidden">
+                        <div class="aspect-[3/4] bg-gray-50 cursor-pointer" onclick="location.href='detail.html?id=${item.productId}'">
+                            <img src="${thumb}" alt="${item.name || ''}" class="w-full h-full object-cover" onerror="this.src='/img/no-image.svg'">
+                        </div>
+                        <div class="p-3">
+                            <p class="text-sm font-medium truncate">${item.name || 'Unknown'}</p>
+                            <p class="text-sm font-bold">${price}</p>
+                        </div>
+                        <!-- 찜 해제 버튼 -->
+                        <button onclick="removeWishlistItem(${item.productId}, this)"
+                            class="absolute top-2 right-2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center hover:bg-red-50 transition-colors">
+                            <span class="material-symbols-outlined text-brand-red" style="font-size:20px;font-variation-settings:'FILL' 1">favorite</span>
+                        </button>
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                console.error('[MyShop] 찜 로드 실패:', err);
+                grid.innerHTML = '<p class="col-span-full text-gray-400 text-sm py-8 text-center">찜 목록을 불러올 수 없습니다.</p>';
+            }
+        }
+
+        // 찜 해제
+        async function removeWishlistItem(productId, btnEl) {
+            const token = getToken();
+            try {
+                await fetch(`/api/wishlist/${productId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                // 카드 제거 애니메이션
+                const card = btnEl.closest('.group');
+                card.style.transition = 'opacity 0.3s';
+                card.style.opacity = '0';
+                setTimeout(() => { card.remove(); checkEmptyWishlist(); }, 300);
+            } catch (err) {
+                console.error('[MyShop] 찜 해제 실패:', err);
+            }
+        }
+
+        function checkEmptyWishlist() {
+            const grid = document.getElementById('wishlist-grid');
+            if (!grid.children.length) {
+                grid.innerHTML = '<p class="col-span-full text-gray-400 text-sm py-8 text-center">찜한 상품이 없습니다.</p>';
+            }
+        }
+
+        // ============================================================
+        // 프로필 저장 (/api/auth/me/profile)
+        // ============================================================
+        async function saveProfile() {
+            const token = getToken();
+            if (!token) return;
+
+            const name = document.getElementById('profile-name').value.trim();
+            const phone = document.getElementById('profile-phone').value.trim();
+
+            if (!name) { alert('이름을 입력해주세요.'); return; }
+
+            try {
+                const res = await fetch('/api/auth/me/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, phone })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+
+                // localStorage의 사용자 정보도 업데이트 (헤더 등에 반영)
+                const stored = getUser();
+                if (stored) {
+                    stored.name = data.user.name;
+                    stored.phone = data.user.phone;
+                    localStorage.setItem('stiz_user', JSON.stringify(stored));
+                }
+
+                // 환영 메시지도 즉시 업데이트
+                document.getElementById('welcome-name').innerText = `Hello, ${data.user.name}!`;
+
+                const msg = document.getElementById('profile-message');
+                msg.textContent = 'Changes saved successfully!';
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            } catch (err) {
+                alert(err.message || '프로필 저장에 실패했습니다.');
+            }
+        }
+
         /**
-         * 미니 프로그레스 바 HTML을 생성하는 함수
-         * 4개의 점(step)과 3개의 연결선(line)으로 구성된다.
-         * 비유: 지하철 노선도의 축소판 - 현재 역이 어디인지 표시
-         * @param {number} currentStep - 현재 단계 (1~4)
-         * @returns {string} HTML 문자열
+         * 미니 프로그레스 바 HTML 생성
          */
         function createMiniProgress(currentStep) {
             let html = '<div class="mini-progress">';
             for (let i = 1; i <= 4; i++) {
-                // 단계 점 (dot): 완료=검정, 진행중=검정+그림자, 대기=회색
                 let dotClass = 'mini-step';
                 if (i < currentStep) dotClass += ' done';
                 else if (i === currentStep) dotClass += ' current';
                 html += `<div class="${dotClass}"></div>`;
-
-                // 연결선 (line): 마지막 단계 뒤에는 없음
                 if (i < 4) {
                     let lineClass = 'mini-line';
                     if (i < currentStep) lineClass += ' done';
@@ -298,18 +465,14 @@
         }
 
         /**
-         * 주문 카드를 렌더링하는 함수 (프로그레스 바 + 추적 버튼 포함)
-         * 기존 renderOrders를 확장하여 4단계 상태 표시 + 추적 페이지 링크를 추가
+         * 주문 카드 렌더링 (프로그레스 바 + 추적 버튼)
          */
         function renderOrders(orders, containerId) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
 
             orders.forEach(order => {
-                // 4단계 상태 매핑
                 const { step, label } = getCustomerStep(order.status);
-
-                // 상태 배지 색상 (4단계별)
                 const badgeColors = {
                     1: 'bg-yellow-100 text-yellow-800',
                     2: 'bg-blue-100 text-blue-800',
@@ -346,11 +509,9 @@
                                 </div>
                                 <span class="inline-block px-2.5 py-1 ${statusClass} text-[11px] font-bold rounded-full whitespace-nowrap">${label}</span>
                             </div>
-                            <!-- 미니 프로그레스 바: 4단계 진행상황을 점과 선으로 표시 -->
                             ${createMiniProgress(step)}
                             <div class="flex items-center justify-between mt-3">
-                                <div class="text-sm font-bold">₩${(order.total || 0).toLocaleString()}</div>
-                                <!-- 주문 추적 버튼: 클릭 시 order-track.html로 이동 (연락처 포함하여 본인 확인 자동) -->
+                                <div class="text-sm font-bold">&#8361;${(order.total || 0).toLocaleString()}</div>
                                 ${order.orderNumber ? `
                                 <a href="order-track.html?orderNumber=${encodeURIComponent(order.orderNumber)}${order.customer?.phone ? '&phone=' + encodeURIComponent(order.customer.phone) : ''}"
                                    class="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black transition border border-gray-300 hover:border-black rounded-full px-3 py-1.5">
