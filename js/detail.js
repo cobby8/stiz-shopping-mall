@@ -17,7 +17,7 @@ const detailState = {
   qty: 1               // 수량
 };
 
-const API_BASE = '/api';
+const DETAIL_API_BASE = '/api';
 
 // ===== 페이지 초기화 =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== 상품 상세 로드 =====
 async function loadProductDetail(id) {
   try {
-    const res = await fetch(`${API_BASE}/products/${id}`);
+    const res = await fetch(`${DETAIL_API_BASE}/products/${id}`);
     const data = await res.json();
 
     if (!data.success) {
@@ -493,7 +493,7 @@ async function initCustomPanel() {
 
   try {
     // 카탈로그 데이터 로드 (priceTable, grades, packages 등)
-    const res = await fetch(`${API_BASE}/catalog`);
+    const res = await fetch(`${DETAIL_API_BASE}/catalog`);
     const json = await res.json();
     if (!json.success || !json.data) throw new Error('카탈로그 로드 실패');
     customState.catalog = json.data;
@@ -876,7 +876,7 @@ async function submitCustomOrder() {
     };
 
     // POST /api/orders로 시안 요청 전송
-    const res = await fetch(`${API_BASE}/orders`, {
+    const res = await fetch(`${DETAIL_API_BASE}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

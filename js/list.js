@@ -29,7 +29,7 @@ const listState = {
   loading: false
 };
 
-const API_BASE = '/api';
+const LIST_API_BASE = '/api';
 
 // ===== URL 하위호환 맵 =====
 // 기존 list.html에서 쓰던 오래된 slug → 새 카테고리 slug로 매핑
@@ -108,7 +108,7 @@ function syncToURL() {
 // ===== 카테고리 로드 =====
 async function loadCategories() {
   try {
-    const res = await fetch(`${API_BASE}/products/categories`);
+    const res = await fetch(`${LIST_API_BASE}/products/categories`);
     const data = await res.json();
     if (!data.success) return;
 
@@ -341,7 +341,7 @@ async function loadProducts() {
     if (listState.type) params.set('type', listState.type);
     if (listState.search) params.set('search', listState.search);
 
-    const res = await fetch(`${API_BASE}/products?${params}`);
+    const res = await fetch(`${LIST_API_BASE}/products?${params}`);
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '상품 로드 실패');
 
