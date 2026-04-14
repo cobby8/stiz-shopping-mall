@@ -6,3 +6,22 @@ node_modules/
 # 업로드 파일은 Git에 포함하지 않되, 폴더 구조(.gitkeep)는 유지
 server/uploads/**
 !server/uploads/**/.gitkeep
+
+# 백업 파일
+server/data/*.bak
+server/data/*.bak-*
+server/data/*.pre-*
+server/data/stiz.db-shm
+server/data/stiz.db-wal
+
+# 로그 파일
+dev/*.log
+
+# 디자인 원본
+dev/design/
+
+# Agent worktrees
+.claude/worktrees/
+
+# 테스트 스크립트
+test-*.js
