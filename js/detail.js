@@ -516,6 +516,7 @@ const customState = {
   totalEstimate: 0,      // 견적 총액
   isSubmitting: false,   // 중복 제출 방지
   resolvedSport: '',     // 영문으로 변환된 종목명 (resolveCustomSport()로 결정)
+  referenceFiles: [],    // 업로드된 참고 파일 URL 배열
 };
 
 /**
@@ -563,6 +564,9 @@ async function initCustomPanel() {
         updateCustomEstimate();
       });
     }
+
+    // 참고 파일 드래그앤드롭 초기화
+    initCustomFileUpload();
   } catch (err) {
     console.error('[custom] 카탈로그 로드 실패:', err);
     // 카탈로그 없어도 기본 안내는 보여줌
@@ -833,6 +837,135 @@ function updateCustomEstimate() {
   }
 }
 
+// ===== 색상 프리셋 선택 =====
+// 프리셋 버튼 클릭 시 메인 컬러 입력칸에 해당 색상값을 채워줌
+function selectColor(btnEl, colorCode) {
+  const mainInput = document.getElementById('customColorMain');
+  if (mainInput) {
+    // 이미 메인에 값이 있으면 서브에 넣기 (두 번째 색상 선택)
+    if (mainInput.value && mainInput.value !== colorCode) {
+      const subInput = document.getElementById('customColorSub');
+      if (subInput && !subInput.value) {
+        subInput.value = colorCode;
+      } else {
+        mainInput.value = colorCode;
+      }
+    } else {
+      mainInput.value = colorCode;
+    }
+  }
+  // 선택된 버튼 시각 표시: 테두리 강조
+  const allBtns = btnEl.parentElement.querySelectorAll('button');
+  allBtns.forEach(b => b.classList.remove('ring-2', 'ring-brand-black', 'ring-offset-1'));
+  btnEl.classList.add('ring-2', 'ring-brand-black', 'ring-offset-1');
+}
+
+// ===== 참고 파일 업로드 =====
+// 파일을 서버에 올리고, 미리보기 썸네일을 표시하는 로직
+function initCustomFileUpload() {
+  const dropzone = document.getElementById('customFileDropzone');
+  const fileInput = document.getElementById('customFileInput');
+  if (!dropzone || !fileInput) return;
+
+  // 드래그앤드롭 이벤트 연결
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('border-blue-400', 'bg-blue-50');
+  });
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('border-blue-400', 'bg-blue-50');
+  });
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('border-blue-400', 'bg-blue-50');
+    if (e.dataTransfer.files.length) handleCustomFiles(e.dataTransfer.files);
+  });
+
+  // 클릭으로 파일 선택 시
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) handleCustomFiles(fileInput.files);
+    fileInput.value = ''; // 같은 파일 재선택 가능하도록 초기화
+  });
+}
+
+// 선택된 파일들을 서버에 업로드하는 함수
+async function handleCustomFiles(fileList) {
+  const maxFiles = 5;
+  const maxSize = 10 * 1024 * 1024; // 10MB
+
+  // 현재 업로드된 파일 수 체크
+  if (customState.referenceFiles.length >= maxFiles) {
+    alert(`최대 ${maxFiles}개까지 첨부할 수 있습니다.`);
+    return;
+  }
+
+  for (const file of fileList) {
+    if (customState.referenceFiles.length >= maxFiles) break;
+
+    // 파일 크기 체크
+    if (file.size > maxSize) {
+      alert(`"${file.name}" 파일이 10MB를 초과합니다.`);
+      continue;
+    }
+
+    // FormData로 서버에 업로드
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${DETAIL_API_BASE}/upload/reference`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success && data.url) {
+        // 업로드 성공: URL을 상태에 저장하고 미리보기 표시
+        customState.referenceFiles.push({
+          url: data.url,
+          name: file.name,
+          type: file.type,
+        });
+        renderCustomFilePreviews();
+      } else {
+        alert(`"${file.name}" 업로드 실패: ${data.error || '알 수 없는 오류'}`);
+      }
+    } catch (err) {
+      console.error('[custom] 파일 업로드 오류:', err);
+      alert(`"${file.name}" 업로드 중 오류가 발생했습니다.`);
+    }
+  }
+}
+
+// 업로드된 파일 미리보기 렌더링
+function renderCustomFilePreviews() {
+  const container = document.getElementById('customFilePreview');
+  if (!container) return;
+
+  container.innerHTML = customState.referenceFiles.map((f, idx) => {
+    // 이미지 파일이면 썸네일 표시, 아니면 파일 아이콘
+    const isImage = f.type && f.type.startsWith('image/');
+    const preview = isImage
+      ? `<img src="${f.url}" alt="${f.name}" class="w-16 h-16 object-cover rounded">`
+      : `<div class="w-16 h-16 bg-gray-100 rounded flex items-center justify-center"><span class="material-symbols-outlined text-gray-400">description</span></div>`;
+
+    return `
+      <div class="relative group">
+        ${preview}
+        <p class="text-xs text-gray-500 truncate w-16 mt-1">${f.name}</p>
+        <button type="button" onclick="removeCustomFile(${idx})"
+                class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                title="삭제">x</button>
+      </div>`;
+  }).join('');
+}
+
+// 첨부 파일 삭제
+function removeCustomFile(index) {
+  customState.referenceFiles.splice(index, 1);
+  renderCustomFilePreviews();
+}
+
 /**
  * 시안 요청 제출
  * POST /api/orders에 커스텀 주문 데이터를 전송
@@ -914,8 +1047,17 @@ async function submitCustomOrder() {
         teamName: document.getElementById('customTeam')?.value?.trim() || undefined,
       },
       items: [itemData],
-      shipping: { address: '', desiredDate: '' },
-      referenceFiles: [],
+      shipping: { address: '', desiredDate: document.getElementById('customDesiredDate')?.value || '' },
+      referenceFiles: customState.referenceFiles.map(f => f.url),  // URL 배열로 전송
+      // 디자인 요청 상세: 색상/마킹/납기 등 구조화된 정보
+      designRequest: {
+        mainColor: document.getElementById('customColorMain')?.value?.trim() || '',
+        subColor: document.getElementById('customColorSub')?.value?.trim() || '',
+        teamNameOnJersey: document.getElementById('customTeamNameOnJersey')?.value?.trim() || '',
+        numberStyle: document.getElementById('customNumberStyle')?.value || '',
+        logoPosition: document.getElementById('customLogoPosition')?.value || '',
+        desiredDate: document.getElementById('customDesiredDate')?.value || '',
+      },
       customerMemo: document.getElementById('customMemo')?.value?.trim() || '',
       estimate: {
         totalAmount: customState.totalEstimate,

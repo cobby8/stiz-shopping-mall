@@ -288,8 +288,72 @@
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">요청사항</label>
-                                <textarea id="customMemo" rows="2" placeholder="디자인 참고사항, 마킹 요청 등"
+                                <textarea id="customMemo" rows="2" placeholder="디자인 참고사항, 특이사항 등"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black focus:border-brand-black outline-none resize-none"></textarea>
+                            </div>
+
+                            <!-- 색상 요청: 프리셋 버튼 + 직접 입력 -->
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">원하는 색상 <span class="text-gray-400">(선택)</span></label>
+                                <div class="flex flex-wrap gap-2 mb-2">
+                                    <button type="button" onclick="selectColor(this, '#111111')" class="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#111111" title="블랙"></button>
+                                    <button type="button" onclick="selectColor(this, '#FFFFFF')" class="w-8 h-8 rounded-full border-2 border-gray-300 hover:scale-110 transition-transform" style="background:#FFFFFF" title="화이트"></button>
+                                    <button type="button" onclick="selectColor(this, '#1E40AF')" class="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#1E40AF" title="네이비"></button>
+                                    <button type="button" onclick="selectColor(this, '#DC2626')" class="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#DC2626" title="레드"></button>
+                                    <button type="button" onclick="selectColor(this, '#F59E0B')" class="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#F59E0B" title="옐로우"></button>
+                                    <button type="button" onclick="selectColor(this, '#10B981')" class="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#10B981" title="그린"></button>
+                                    <button type="button" onclick="selectColor(this, '#8B5CF6')" class="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#8B5CF6" title="퍼플"></button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input type="text" id="customColorMain" placeholder="메인 컬러 (예: #1E40AF 또는 네이비)" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black outline-none">
+                                    <input type="text" id="customColorSub" placeholder="서브 컬러 (선택)" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black outline-none">
+                                </div>
+                            </div>
+
+                            <!-- 마킹 요청: 팀명/배번/로고 구조화 입력 -->
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">마킹 요청 <span class="text-gray-400">(선택)</span></label>
+                                <div class="space-y-2">
+                                    <input type="text" id="customTeamNameOnJersey" placeholder="유니폼에 넣을 팀명 (예: WARRIORS)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black outline-none">
+                                    <div class="flex gap-2">
+                                        <select id="customNumberStyle" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black outline-none bg-white">
+                                            <option value="">배번 스타일 선택</option>
+                                            <option value="front-back">앞뒤 모두</option>
+                                            <option value="back-only">뒷면만</option>
+                                            <option value="front-only">앞면만</option>
+                                            <option value="none">배번 없음</option>
+                                        </select>
+                                        <select id="customLogoPosition" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black outline-none bg-white">
+                                            <option value="">로고 위치 선택</option>
+                                            <option value="left-chest">왼쪽 가슴</option>
+                                            <option value="right-chest">오른쪽 가슴</option>
+                                            <option value="center">중앙</option>
+                                            <option value="back-neck">뒷목</option>
+                                            <option value="none">로고 없음</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 희망 납기일 -->
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">희망 납기일 <span class="text-gray-400">(선택)</span></label>
+                                <input type="date" id="customDesiredDate" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-black outline-none">
+                                <p class="text-xs text-gray-400 mt-1">시안 확정 후 약 2~3주 소요됩니다</p>
+                            </div>
+
+                            <!-- 참고 파일 첨부: 드래그앤드롭 + 미리보기 -->
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">참고 파일 <span class="text-gray-400">(선택)</span></label>
+                                <p class="text-xs text-gray-400 mb-2">팀 로고, 참고 디자인, 원하는 색상 등을 첨부해주세요 (최대 5개, 각 10MB)</p>
+                                <div id="customFileDropzone"
+                                     class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                                     onclick="document.getElementById('customFileInput').click()">
+                                    <span class="material-symbols-outlined text-2xl text-gray-400">cloud_upload</span>
+                                    <p class="text-sm text-gray-500 mt-1">클릭 또는 드래그하여 업로드</p>
+                                    <input type="file" id="customFileInput" multiple accept="image/*,.pdf,.ai,.psd" class="hidden">
+                                </div>
+                                <div id="customFilePreview" class="flex flex-wrap gap-2 mt-2"></div>
                             </div>
                         </div>
                     </details>
