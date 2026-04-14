@@ -1,6 +1,7 @@
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
+import { database as db } from '../db-sqlite.js';
 
 const router = express.Router();
 
@@ -135,12 +136,73 @@ router.post('/', async (req, res) => {
 });
 
 // ============================================================
-// POST /api/chat - AI 챗봇 대화 (Gemini 연동)
-// 규칙 기반 응답에 매칭되지 않는 질문을 AI가 자연어로 답변
+// POST /api/chat - 챗봇 "티즈" 대화 (Gemini 연동)
+// 클라이언트의 규칙 기반 1차 분류를 통과한 질문만 여기 도달합니다.
+// 요청 body:
+//   - message: 사용자 현재 메시지
+//   - history: 최근 4턴 전후(최대 8개) [{role:'user'|'model', text}]
+//   - context: (선택) 추가 컨텍스트
+// 응답 body: { reply, source }
 // ============================================================
+
+// 상품 문의로 보이는 키워드 — 감지되면 DB에서 관련 상품 3개를 프롬프트에 주입
+// 비유: 손님이 "농구 유니폼" 얘기 꺼내면 티즈가 실제 매장 선반 확인하고 답하는 것
+const PRODUCT_KEYWORDS = /(상품|제품|유니폼|저지|jersey|uniform|바지|반팔|반바지|농구|축구|배구|야구|basketball|soccer|volleyball|baseball|추천|인기|신상|가격|얼마|싼|저렴|비싼)/i;
+
+// DB에서 관련 상품 상위 N개를 간단 요약 문자열로 반환 (없으면 빈 문자열)
+function buildProductContext(message, limit = 3) {
+    try {
+        const term = `%${message}%`;
+        // 이름/영문명/키워드/설명에 조금이라도 매칭되는 active 상품 우선 조회
+        let rows = db.prepare(`
+            SELECT p.id, p.name, p.price, c.name AS categoryName
+            FROM products p
+            LEFT JOIN product_categories c ON p.categoryId = c.id
+            WHERE p.status = 'active'
+              AND (p.name LIKE ? OR p.nameEn LIKE ? OR p.keywords LIKE ? OR p.description LIKE ?)
+            ORDER BY p.sortOrder ASC, p.createdAt DESC
+            LIMIT ?
+        `).all(term, term, term, term, limit);
+
+        // 키워드 매칭 결과가 없으면 sortOrder 기반 대표 상품으로 폴백
+        if (!rows || rows.length === 0) {
+            rows = db.prepare(`
+                SELECT p.id, p.name, p.price, c.name AS categoryName
+                FROM products p
+                LEFT JOIN product_categories c ON p.categoryId = c.id
+                WHERE p.status = 'active' AND p.sortOrder > 0
+                ORDER BY p.sortOrder ASC
+                LIMIT ?
+            `).all(limit);
+        }
+
+        if (!rows || rows.length === 0) return '';
+
+        const lines = rows.map(r => {
+            const priceStr = typeof r.price === 'number' ? `${r.price.toLocaleString()}원` : '가격문의';
+            return `- [${r.categoryName || '기타'}] ${r.name} / ${priceStr} (상품ID: ${r.id})`;
+        }).join('\n');
+        return `\n\n현재 판매중인 관련 상품(참고용):\n${lines}`;
+    } catch (e) {
+        console.error('[chat] product context 조회 실패:', e.message);
+        return '';
+    }
+}
+
+// 클라이언트 history 배열을 Gemini startChat 포맷으로 변환
+// role은 'user' | 'model' 만 허용
+function toGeminiHistory(history) {
+    if (!Array.isArray(history)) return [];
+    // 최대 4턴(= 8개 메시지) 제한: 토큰 낭비 방지
+    const sliced = history.slice(-8);
+    return sliced
+        .filter(h => h && typeof h.text === 'string' && (h.role === 'user' || h.role === 'model'))
+        .map(h => ({ role: h.role, parts: [{ text: h.text }] }));
+}
+
 router.post('/chat', async (req, res) => {
     try {
-        const { message, history } = req.body;
+        const { message, history, context } = req.body;
 
         // 메시지 검증
         if (!message) {
@@ -150,56 +212,66 @@ router.post('/chat', async (req, res) => {
         // API 키 없으면 안내 메시지로 폴백
         if (!process.env.GOOGLE_API_KEY) {
             return res.json({
-                reply: '죄송합니다. 현재 AI 상담 서비스가 준비 중입니다. 카카오톡(@stiz) 또는 이메일(info@stiz.co.kr)로 문의해주세요.',
+                reply: '지금은 AI 상담이 준비 중이에요. 카카오톡(@stiz) 또는 이메일(info@stiz.co.kr)로 문의해주세요.',
                 source: 'fallback'
             });
         }
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        // 1) 상품 관련 질문이면 DB에서 실시간 상품 컨텍스트 주입
+        let productContext = '';
+        if (PRODUCT_KEYWORDS.test(message)) {
+            productContext = buildProductContext(message, 3);
+        }
 
-        // STIZ 쇼핑몰 컨텍스트를 시스템 프롬프트로 제공
-        const systemPrompt = `당신은 STIZ(스티즈) 스포츠 유니폼 전문 쇼핑몰의 AI 상담사입니다.
+        // 2) 시스템 프롬프트 — "티즈" 페르소나
+        const systemPrompt = `당신은 STIZ(스티즈) 스포츠 유니폼 전문 쇼핑몰의 상담봇 "티즈"입니다.
+이름은 "티즈"이고, 친근하지만 전문적인 매장 직원처럼 답변합니다.
 
 회사 정보:
 - STIZ는 축구, 농구, 배구, 야구 등 팀 유니폼 커스텀 제작 전문
-- 최소 주문: 10벌부터 (20벌 이상 10% 할인, 50벌 이상 15% 할인)
+- 최소 주문: 10벌부터 (10벌 5% / 20벌 10% / 50벌 15% 할인)
 - 커스텀 제작 기간: 2~3주
-- 기성품 배송: 2~3 영업일 (5만원 이상 무료배송)
+- 기성품 배송: 2~3 영업일 (5만원 이상 무료배송, 미만 3,000원)
 - Design Lab에서 2D/3D 디자인 가능 (custom.html)
-- 반품/교환: 수령 후 7일 이내
-
-상품 카테고리:
-- 축구 유니폼 (홈/어웨이/GK): 45,000~55,000원
-- 농구 저지: 39,000~49,000원
-- 배구 유니폼: 42,000~48,000원
-- 야구 유니폼: 55,000~65,000원
-- 스포츠웨어(기성품): 25,000~89,000원
-- KOGAS MD 상품: 15,000~45,000원
+- 반품/교환: 수령 후 7일 이내, 커스텀은 반품 불가
 
 응답 규칙:
-- 한국어로 친절하게 답변
-- 2~3문장으로 간결하게
-- 구체적 가격이나 기간을 포함
-- 디자인 관련 질문은 Design Lab(custom.html) 안내
-- 모르는 것은 "카카오톡 @stiz 또는 이메일 info@stiz.co.kr로 문의해주세요"로 안내`;
+- 한국어로 2~3문장 이내 간결하게
+- 자신을 "티즈"라고 소개할 수 있지만 매번 반복하지 않음
+- 확신 없는 상품/가격은 지어내지 말고 "상담원에게 연결해드릴까요?"로 유도
+- 디자인/커스텀 질문은 custom.html 안내
+- 주문 조회는 order-track.html(비회원) 또는 myshop.html(회원) 안내
+- 모르는 것은 "카카오톡 @stiz 또는 이메일 info@stiz.co.kr로 문의해주세요"로 안내${productContext}${context ? `\n\n추가 컨텍스트: ${context}` : ''}`;
 
-        // 시스템 프롬프트를 대화 히스토리의 첫 턴으로 주입
-        const chat = model.startChat({
-            history: [
-                { role: 'user', parts: [{ text: systemPrompt }] },
-                { role: 'model', parts: [{ text: '네, STIZ AI 상담사로서 도움을 드리겠습니다.' }] }
-            ]
-        });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
+        // 3) 대화 히스토리 구성 — 시스템 프롬프트를 첫 턴으로 주입 + 클라이언트 history 이어붙이기
+        const clientHistory = toGeminiHistory(history);
+        const startHistory = [
+            { role: 'user', parts: [{ text: systemPrompt }] },
+            { role: 'model', parts: [{ text: '네, 티즈가 도와드릴게요!' }] },
+            ...clientHistory
+        ];
+
+        // 주의: history의 마지막 메시지는 지금 보낼 message와 동일할 수 있으므로 제거
+        // (클라이언트가 방금 user 턴을 push한 후 호출하기 때문)
+        if (startHistory.length > 2) {
+            const last = startHistory[startHistory.length - 1];
+            if (last.role === 'user' && last.parts?.[0]?.text === message) {
+                startHistory.pop();
+            }
+        }
+
+        const chat = model.startChat({ history: startHistory });
         const result = await chat.sendMessage(message);
         const reply = result.response.text();
 
         res.json({ reply, source: 'gemini' });
     } catch (error) {
         console.error('Chat API Error:', error.message);
-        // 에러 시에도 사용자에게 친절한 안내 메시지 반환 (500이 아닌 200)
+        // 에러 시에도 사용자에게 친절한 안내 메시지 반환 (500 대신 200)
         res.json({
-            reply: '일시적으로 AI 상담이 어렵습니다. 카카오톡(@stiz) 또는 이메일(info@stiz.co.kr)로 문의해주세요.',
+            reply: '지금은 답변을 준비하지 못했어요. 카카오톡(@stiz) 또는 이메일(info@stiz.co.kr)로 문의해주세요.',
             source: 'error'
         });
     }
