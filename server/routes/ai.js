@@ -2,6 +2,8 @@ import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import { database as db } from '../db-sqlite.js';
+// K1 지식베이스 로더: 회사상수/정책/FAQ를 메모리에서 가져와 시스템 프롬프트에 주입
+import { buildSystemPrompt, classifyIntent, getCompany } from '../services/knowledge.js';
 
 const router = express.Router();
 
@@ -209,39 +211,29 @@ router.post('/chat', async (req, res) => {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        // API 키 없으면 안내 메시지로 폴백
+        // API 키 없으면 안내 메시지로 폴백 (지식베이스의 공식 연락처 사용)
         if (!process.env.GOOGLE_API_KEY) {
+            const c = getCompany();
             return res.json({
-                reply: '지금은 AI 상담이 준비 중이에요. 카카오톡(@stiz) 또는 이메일(info@stiz.co.kr)로 문의해주세요.',
+                reply: `지금은 AI 상담이 준비 중이에요. 카카오톡(${c.kakao || '@stiz'}) 또는 이메일(${c.email || 'order@stiz.kr'})로 문의해주세요.`,
                 source: 'fallback'
             });
         }
 
         // 1) 상품 관련 질문이면 DB에서 실시간 상품 컨텍스트 주입
+        //    (가격은 반드시 실시간 DB 조회 — JSON 캐시 금지)
         let productContext = '';
         if (PRODUCT_KEYWORDS.test(message)) {
             productContext = buildProductContext(message, 3);
         }
 
-        // 2) 시스템 프롬프트 — "티즈" 페르소나
-        const systemPrompt = `당신은 STIZ(스티즈) 스포츠 유니폼 전문 쇼핑몰의 상담봇 "티즈"입니다.
-이름은 "티즈"이고, 친근하지만 전문적인 매장 직원처럼 답변합니다.
-
-회사 정보:
-- STIZ는 축구, 농구, 배구, 야구 등 팀 유니폼 커스텀 제작 전문
-- 최소 주문: 10벌부터 (10벌 5% / 20벌 10% / 50벌 15% 할인)
-- 커스텀 제작 기간: 2~3주
-- 기성품 배송: 2~3 영업일 (5만원 이상 무료배송, 미만 3,000원)
-- Design Lab에서 2D/3D 디자인 가능 (custom.html)
-- 반품/교환: 수령 후 7일 이내, 커스텀은 반품 불가
-
-응답 규칙:
-- 한국어로 2~3문장 이내 간결하게
-- 자신을 "티즈"라고 소개할 수 있지만 매번 반복하지 않음
-- 확신 없는 상품/가격은 지어내지 말고 "상담원에게 연결해드릴까요?"로 유도
-- 디자인/커스텀 질문은 custom.html 안내
-- 주문 조회는 order-track.html(비회원) 또는 myshop.html(회원) 안내
-- 모르는 것은 "카카오톡 @stiz 또는 이메일 info@stiz.co.kr로 문의해주세요"로 안내${productContext}${context ? `\n\n추가 컨텍스트: ${context}` : ''}`;
+        // 2) 지식베이스 기반 동적 시스템 프롬프트 생성
+        //    - intent 분류기로 메시지 카테고리를 먼저 추정
+        //    - knowledge.buildSystemPrompt()가 회사 상수 + 정책 + 관련 FAQ top3 을 주입
+        //    - 기존 하드코딩된 할인율("50벌 15%")·이메일("info@stiz.co.kr")은 전부 JSON 단일 소스로 이관
+        const intent = classifyIntent(message);
+        const kbPrompt = buildSystemPrompt(intent, productContext);
+        const systemPrompt = `${kbPrompt}${context ? `\n\n추가 컨텍스트: ${context}` : ''}`;
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -270,8 +262,10 @@ router.post('/chat', async (req, res) => {
     } catch (error) {
         console.error('Chat API Error:', error.message);
         // 에러 시에도 사용자에게 친절한 안내 메시지 반환 (500 대신 200)
+        // 연락처는 knowledge.company 단일 소스에서 조회
+        const c = getCompany();
         res.json({
-            reply: '지금은 답변을 준비하지 못했어요. 카카오톡(@stiz) 또는 이메일(info@stiz.co.kr)로 문의해주세요.',
+            reply: `지금은 답변을 준비하지 못했어요. 카카오톡(${c.kakao || '@stiz'}) 또는 이메일(${c.email || 'order@stiz.kr'})로 문의해주세요.`,
             source: 'error'
         });
     }

@@ -321,14 +321,15 @@ function handleShippingPayment() {
 }
 
 // 상담원 연결
+// 연락처·영업시간은 server/data/knowledge/company.json 과 동일 값으로 유지 (K1 통일)
 function handleContact() {
     addBotMessage(`
         <p class="mb-2"><strong>상담원 연결</strong></p>
         <div class="text-xs text-gray-600 space-y-1 mb-3">
             <p>• 카카오톡: <strong>@stiz</strong></p>
-            <p>• 이메일: info@stiz.co.kr</p>
-            <p>• 전화: 02-1234-5678</p>
-            <p>• 운영시간: 평일 10:00~18:00</p>
+            <p>• 이메일: order@stiz.kr</p>
+            <p>• 전화: 070-4337-3000</p>
+            <p>• 운영시간: 평일 09:00~18:00</p>
         </div>
         <a href="inquiry.html" class="block bg-black text-white text-center py-2 rounded text-xs font-bold hover:bg-gray-800 transition-colors">1:1 문의 작성하기 →</a>
     `);
@@ -342,7 +343,7 @@ function handleCustom() {
         <ul class="text-xs text-gray-600 space-y-1 mb-3">
             <li>• 최소 주문: 10벌부터</li>
             <li>• 제작 기간: 2~3주</li>
-            <li>• 10벌 이상 5% / 20벌 이상 10% / 50벌 이상 15% 할인</li>
+            <li>• 10~29벌 5% / 30~99벌 10% / 100벌 이상 협의</li>
         </ul>
         <a href="custom.html" class="block bg-black text-white text-center py-2 rounded text-xs font-bold hover:bg-gray-800 transition-colors">Design Lab 바로가기 →</a>
         ${renderChips(['배송·결제', '상담원 연결'])}
@@ -429,8 +430,8 @@ async function handleAIFallback(userInput) {
             <div class="mt-2 text-xs text-gray-500">아래 창구로 연락 주세요:</div>
             <div class="text-xs text-gray-600 space-y-0.5 mb-2">
                 <p>• 카카오톡: @stiz</p>
-                <p>• 이메일: info@stiz.co.kr</p>
-                <p>• 전화: 02-1234-5678</p>
+                <p>• 이메일: order@stiz.kr</p>
+                <p>• 전화: 070-4337-3000</p>
             </div>
             ${renderChips(['인기 상품', '배송·결제', '상담원 연결'])}
         `, 0);

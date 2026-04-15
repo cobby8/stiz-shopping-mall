@@ -1,0 +1,62 @@
+{
+  "shipping": {
+    "freeThreshold": 50000,
+    "baseFee": 3000,
+    "jejuSurcharge": 3000,
+    "bulkFreeShipping": true,
+    "bulkMinQty": 10,
+    "internationalShipping": false,
+    "leadTime": {
+      "ready": "2~3 영업일",
+      "custom": "시안 확정 후 2~3주",
+      "bulk100plus": "3~4주"
+    }
+  },
+  "refund": {
+    "periodDays": 7,
+    "customRefundable": false,
+    "shippingFeeBearer": {
+      "change": "customer",
+      "defect": "stiz"
+    },
+    "processingDays": "3~5 영업일"
+  },
+  "bulk": {
+    "minQty": 10,
+    "discountTiers": [
+      { "min": 10, "max": 29, "rate": 0.05, "label": "5%" },
+      { "min": 30, "max": 99, "rate": 0.10, "label": "10%" },
+      { "min": 100, "max": null, "rate": null, "label": "협의" }
+    ],
+    "freeDraft": true,
+    "freeRevisionCount": 2,
+    "individualSize": true,
+    "markingSurcharge": 0,
+    "acceptedFileFormats": ["AI", "PSD", "PNG", "JPG"],
+    "recommendedResolution": "벡터 또는 300dpi 이상",
+    "printMethod": "승화전사"
+  },
+  "payment": {
+    "methods": ["card", "tossPay", "bankTransfer"],
+    "taxInvoiceAuto": false,
+    "taxInvoicePolicy": "요청 시 발행",
+    "cashReceiptAuto": false,
+    "customCancellation": [
+      { "stage": "beforeDraft", "refundRate": 1.00, "label": "시안 전" },
+      { "stage": "afterDraftConfirm", "refundRate": 0.70, "label": "시안 확정 후" },
+      { "stage": "afterProductionStart", "refundRate": 0.00, "label": "제작 시작 후" }
+    ],
+    "readyMadeCancellation": { "beforeShipping": 1.00 }
+  },
+  "coupon": {
+    "stackable": false,
+    "maxPerOrder": 1,
+    "scheduleType": "부정기",
+    "announceChannel": "instagram:@stiz_official"
+  },
+  "member": {
+    "tierSystem": false,
+    "pointSystem": false,
+    "withdrawalRetainYears": 5
+  }
+}
