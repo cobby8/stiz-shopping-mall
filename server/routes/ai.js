@@ -3,7 +3,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import { database as db } from '../db-sqlite.js';
 // K1 지식베이스 로더: 회사상수/정책/FAQ를 메모리에서 가져와 시스템 프롬프트에 주입
-import { buildSystemPrompt, classifyIntent, getCompany } from '../services/knowledge.js';
+// K2 확장: 상품 요약 JSON 기반 구조 검색 (sport/가격 필터)
+import {
+    buildSystemPrompt,
+    classifyIntent,
+    getCompany,
+    searchProducts,
+    parseProductQuery,
+    formatProductContext
+} from '../services/knowledge.js';
 
 const router = express.Router();
 
@@ -220,11 +228,27 @@ router.post('/chat', async (req, res) => {
             });
         }
 
-        // 1) 상품 관련 질문이면 DB에서 실시간 상품 컨텍스트 주입
-        //    (가격은 반드시 실시간 DB 조회 — JSON 캐시 금지)
+        // 1) 상품 관련 질문이면 컨텍스트 주입
+        //    통합 전략(Q1=A): K2 우선 → LIKE 폴백
+        //    - K2: parseProductQuery로 구조 조건(종목/가격/타입) 추출 가능하면 메모리 필터로 즉답
+        //    - LIKE 폴백: K2 조건이 없거나 0건이면 기존 buildProductContext(DB LIKE 쿼리) 사용
+        //    - K1 원칙 유지: products.json은 "참고가" 용도, 최종 가격 답변은 여전히 DB 경유
         let productContext = '';
         if (PRODUCT_KEYWORDS.test(message)) {
-            productContext = buildProductContext(message, 3);
+            // K2 구조 쿼리 추출 — sport/priceMin/priceMax/type 중 하나라도 있으면 "구조 필터 가능"
+            const q = parseProductQuery(message);
+            const hasStructural = Boolean(q.sport || q.priceMin != null || q.priceMax != null || q.type);
+            if (hasStructural) {
+                const hits = searchProducts({ ...q, limit: 3 });
+                if (hits.length > 0) {
+                    // K2 히트 — 포맷된 컨텍스트로 세팅 (참고가 / 가격문의 구분 표기)
+                    productContext = formatProductContext(hits);
+                }
+            }
+            // K2가 비었으면(또는 구조 조건 추출 실패) 기존 LIKE 폴백 유지 (기능 회귀 방지)
+            if (!productContext) {
+                productContext = buildProductContext(message, 3);
+            }
         }
 
         // 2) 지식베이스 기반 동적 시스템 프롬프트 생성

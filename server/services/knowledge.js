@@ -24,6 +24,8 @@ const KNOWLEDGE_DIR = join(__dirname, '..', 'data', 'knowledge');
 let _company = null;
 let _policies = null;
 let _faq = null;
+// K2: 상품 요약 JSON (scripts/build-knowledge.js가 생성)
+let _products = null;
 
 // 안전 로딩: 파일이 깨져도 서버가 죽지 않도록 try/catch로 감싼다
 function _load() {
@@ -41,8 +43,23 @@ function _load() {
     }
 }
 
-// 모듈 import 즉시 1회 로드
+// K2: 상품 요약 JSON 로더 (products.json 없어도 서버는 동작해야 함 = fail-safe)
+// 비유: 상품 카드 묶음이 없으면 "카드 없이 근무하는 점원"으로 폴백
+function _loadProducts() {
+    try {
+        _products = JSON.parse(readFileSync(join(KNOWLEDGE_DIR, 'products.json'), 'utf-8'));
+        const cnt = Array.isArray(_products.items) ? _products.items.length : 0;
+        console.log(`[knowledge] 상품 요약 로드 — ${cnt}개 (v${_products.version || 'unknown'})`);
+    } catch (e) {
+        // ENOENT(파일 없음) 또는 파싱 실패 — 서버는 계속 동작, K2 검색만 비활성
+        console.warn('[knowledge] products.json 로드 실패(폴백 사용):', e.message);
+        _products = { items: [], stats: {}, categoryTree: [], version: 'fallback' };
+    }
+}
+
+// 모듈 import 즉시 1회 로드 (K1 + K2)
 _load();
+_loadProducts();
 
 // ------------------------------------------------------------
 // API 1. getCompany() — 회사 상수 반환
@@ -178,6 +195,126 @@ export function getKnowledgeInfo() {
         version: _faq?.version || 'unknown',
         faqCount: _faq?.items?.length || 0,
         intents: Object.keys(_faq?.intentIndex || {}),
+        // K2 추가: 상품 요약 JSON 상태
+        productsVersion: _products?.version || 'unknown',
+        productsCount: _products?.items?.length || 0,
         loadedAt: new Date().toISOString()
     };
+}
+
+// ============================================================
+// K2 확장 API (K1 5함수는 변경 없음. 아래는 신규 4함수)
+// ============================================================
+// 비유: K1이 "회사 매뉴얼 책자"라면, K2는 "상품 카탈로그 요약 카드 묶음".
+//       챗봇이 "농구 3~5만원대 추천?"에 즉답하려면 카드 묶음에서 필터만 하면 된다.
+//       DB를 매번 뒤지지 않고 메모리 배열 filter로 처리 → 빠르고 부담 없음.
+// ============================================================
+
+// ------------------------------------------------------------
+// K2-API 1. searchProducts(opts) — 조건 필터로 상품 top N 반환
+// ------------------------------------------------------------
+// opts: { sport?, categoryId?, type?, priceMin?, priceMax?, limit? }
+//   예: searchProducts({ sport:'농구', priceMin:30000, priceMax:50000, limit:3 })
+// 반환: [{id, type, name, categoryName, price, isConsultPrice, sport, subCategory, url, ...}]
+//
+// 설계 주의:
+//  - isConsultPrice=true 상품은 가격 필터가 걸리면 자동 제외 (참고가가 없으므로 범위 판정 불가)
+//  - sport 필터는 정확 일치 (parseProductQuery가 "농구/축구/배구/팀웨어"로 정규화해서 넘김)
+//  - products.json 없거나 빈 배열이면 [] 반환 — 호출자가 LIKE 폴백으로 넘어가게
+export function searchProducts(opts = {}) {
+    const { sport, categoryId, type, priceMin, priceMax, limit = 3 } = opts;
+    const items = (_products && Array.isArray(_products.items)) ? _products.items : [];
+    if (items.length === 0) return [];
+
+    const filtered = items.filter(p => {
+        // 종목 필터 (농구/축구/배구/팀웨어)
+        if (sport && p.sport !== sport) return false;
+        // 카테고리 ID 필터 (정확 매칭)
+        if (categoryId && p.categoryId !== categoryId) return false;
+        // 상품 타입 필터 (custom / ready)
+        if (type && p.type !== type) return false;
+        // 가격 범위: 참고가(isConsultPrice) 상품은 범위 필터 시 제외
+        if (priceMin != null && (p.isConsultPrice || p.price < priceMin)) return false;
+        if (priceMax != null && (p.isConsultPrice || p.price > priceMax)) return false;
+        return true;
+    });
+
+    return filtered.slice(0, Math.max(0, limit | 0));
+}
+
+// ------------------------------------------------------------
+// K2-API 2. parseProductQuery(message) — 자연어 → 필터 조건 추출
+// ------------------------------------------------------------
+// 예시:
+//   "농구 유니폼 3~5만원대 추천" → { sport:'농구', priceMin:30000, priceMax:50000 }
+//   "배구용품 뭐 있어?"         → { sport:'배구' }
+//   "커스텀 상품 10만원 이상"    → { type:'custom', priceMin:100000 }
+//   "기성품 5만원 이하"          → { type:'ready', priceMax:50000 }
+//
+// 설계 주의:
+//  - 조건이 없으면 빈 객체 반환 → 호출자가 "구조 필터 불가능"으로 판정 후 LIKE 폴백
+//  - 가격은 "만원" 단위 전용 (DB 실측상 주로 3~10만원대)
+export function parseProductQuery(message) {
+    const q = {};
+    if (!message || typeof message !== 'string') return q;
+
+    // 1) 종목(sport) 추출 — customMeta.sport 값과 일치시킴
+    //    ⚠️ 순서 중요: "농구"는 "농구공" 등의 부분일치여도 농구로 분류 OK
+    if (/농구/.test(message)) q.sport = '농구';
+    else if (/축구/.test(message)) q.sport = '축구';
+    else if (/배구/.test(message)) q.sport = '배구';
+    else if (/팀웨어|단체복|팀복/.test(message)) q.sport = '팀웨어';
+
+    // 2) 가격 범위 추출 (만원 단위)
+    //    "3~5만" / "3만~5만" / "30000~50000원" 등
+    const rangeMan = message.match(/(\d+)\s*만?\s*[~\-]\s*(\d+)\s*만/);
+    if (rangeMan) {
+        q.priceMin = parseInt(rangeMan[1], 10) * 10000;
+        q.priceMax = parseInt(rangeMan[2], 10) * 10000;
+    } else {
+        // "5만원 이하" / "5만 이하"
+        const under = message.match(/(\d+)\s*만\s*원?\s*(?:이하|미만|까지)/);
+        if (under) q.priceMax = parseInt(under[1], 10) * 10000;
+        // "10만원 이상" / "10만 이상"
+        const over = message.match(/(\d+)\s*만\s*원?\s*(?:이상|초과|부터)/);
+        if (over) q.priceMin = parseInt(over[1], 10) * 10000;
+    }
+
+    // 3) 상품 타입(type) 힌트 — custom(주문제작) vs ready(기성품)
+    if (/기성품|완제품|바로\s*배송|재고\s*상품/.test(message)) q.type = 'ready';
+    else if (/커스텀|제작|단체\s*주문|주문\s*제작|유니폼\s*제작/.test(message)) q.type = 'custom';
+
+    return q;
+}
+
+// ------------------------------------------------------------
+// K2-API 3. getProductStats() — 상품 통계 요약 반환
+// ------------------------------------------------------------
+// 챗봇이 "배구 뭐 있어?" 같은 집계 질문에 먼저 통계로 안내할 때 사용
+// 반환: { totalActive, byType, withPrice, consultPrice, withCustomMeta, sportCounts, priceHistogram }
+export function getProductStats() {
+    return (_products && _products.stats) ? _products.stats : {};
+}
+
+// ------------------------------------------------------------
+// K2-API 4. formatProductContext(items) — searchProducts 결과를 프롬프트 문자열로 포맷
+// ------------------------------------------------------------
+// 비유: 검색 결과를 "티즈가 손님에게 읽어줄 한 줄 카드"로 변환
+// 반환 예시:
+//   "\n\n현재 판매중인 관련 상품(참고용):\n- [농구] 농구 베이직 유니폼 / 참고가 33,000원 (상품ID: ...)\n..."
+// 주의:
+//  - isConsultPrice=true 상품은 "가격문의"로 표기 (실가격 노출 금지)
+//  - 결과가 빈 배열이면 빈 문자열 반환 → 호출자가 폴백 판정하기 쉬움
+export function formatProductContext(items) {
+    if (!Array.isArray(items) || items.length === 0) return '';
+    const lines = items.map(p => {
+        const priceStr = p.isConsultPrice
+            ? '가격문의'
+            : (typeof p.price === 'number' && p.price > 0
+                ? `참고가 ${p.price.toLocaleString()}원`
+                : '가격문의');
+        return `- [${p.categoryName || '기타'}] ${p.name} / ${priceStr} (상품ID: ${p.id})`;
+    }).join('\n');
+    // 꼬리 문구: "실제 가격/재고는 상담원 확인" — Gemini가 단정적으로 답하지 않도록 힌트
+    return `\n\n현재 판매중인 관련 상품(참고용):\n${lines}\n※ 실제 가격·재고는 상담원 확인 권장 (일부는 제작 방식별 차등)`;
 }

@@ -5,9 +5,11 @@
   "scripts": {
     "start": "npm start --prefix server",
     "dev": "npm run dev --prefix server",
-    "migrate": "node server/migrate-to-sqlite.js"
+    "migrate": "node server/migrate-to-sqlite.js",
+    "build-knowledge": "node scripts/build-knowledge.js"
   },
   "dependencies": {
-    "better-sqlite3": "^12.8.0"
+    "better-sqlite3": "^12.8.0",
+    "sharp": "^0.34.5"
   }
 }

@@ -25,3 +25,7 @@ dev/design/
 
 # 테스트 스크립트
 test-*.js
+
+# K2 챗봇 지식 빌드 결과물 (DB에서 매번 빌드 가능, 개발자별 데이터 상태 상이)
+server/data/knowledge/products.json
+server/data/knowledge/products.json.tmp
