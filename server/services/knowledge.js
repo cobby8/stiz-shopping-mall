@@ -72,7 +72,7 @@ export function getCompany() {
 // ------------------------------------------------------------
 // API 2. getPolicy(path) — 점 표기법 경로로 정책값 조회
 //   예: getPolicy('shipping.freeThreshold') → 50000
-//       getPolicy('bulk.discountTiers')     → [{min:10,max:29,...}, ...]
+//       getPolicy('bulk.discountTiers')     → [{min:15,max:29,...}, ...]
 // ------------------------------------------------------------
 // 비유: JSON을 "폴더 구조"로 본다면 path는 "경로 주소"다.
 export function getPolicy(path) {
@@ -142,13 +142,14 @@ export function buildSystemPrompt(intent, productContext = '') {
     const r = (_policies && _policies.refund) || {};
     const p = (_policies && _policies.payment) || {};
 
-    // 단체 할인 구간 요약 문자열 만들기 (10~29벌 5% / 30~99벌 10% / 100벌 이상 협의)
+    // 단체 할인 구간 요약 문자열 만들기 (15~29벌 5% / 30~99벌 10% / 100벌 이상 협의)
+    // ※ 단체 주문 접수는 10벌부터 가능하지만, 수량별 할인은 15벌부터 적용됨
     const tierText = (b.discountTiers || [])
         .map(t => {
             const range = t.max ? `${t.min}~${t.max}벌` : `${t.min}벌 이상`;
             return `${range} ${t.label}`;
         })
-        .join(' / ') || '10~29벌 5% / 30~99벌 10% / 100벌 이상 협의';
+        .join(' / ') || '15~29벌 5% / 30~99벌 10% / 100벌 이상 협의';
 
     // intent별 FAQ top 3 힌트 블록 구성
     let faqHint = '';
@@ -170,7 +171,7 @@ export function buildSystemPrompt(intent, productContext = '') {
 - 영업시간: 평일 ${c.businessHours?.weekday || '09:00~18:00'} / 토 ${c.businessHours?.saturday || '예약 상담'} / 일·공휴일 휴무
 
 핵심 정책:
-- 최소 주문: ${b.minQty || 10}벌부터 (${tierText})
+- 단체 주문: ${b.minQty || 10}벌부터 접수 가능 (10~14벌은 할인 없음, ${tierText})
 - 커스텀 제작 기간: ${s.leadTime?.custom || '시안 확정 후 2~3주'} (100벌+ 는 ${s.leadTime?.bulk100plus || '3~4주'})
 - 기성품 배송: ${s.leadTime?.ready || '2~3 영업일'} (${(s.freeThreshold || 50000).toLocaleString()}원 이상 무료배송, 미만 ${(s.baseFee || 3000).toLocaleString()}원)
 - Design Lab에서 2D/3D 디자인 가능 (custom.html)

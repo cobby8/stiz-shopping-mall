@@ -183,7 +183,7 @@ async function apiProductsByCategory(categoryId, limit = 2) {
 async function apiChat(message) {
     // 서버에는 최근 4턴(= 8개 메시지)만 전송하여 토큰 낭비 방지
     const recent = ChatState.history.slice(-8);
-    const r = await fetch('/api/chat', {
+    const r = await fetch('/api/generate/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, history: recent })
@@ -343,7 +343,7 @@ function handleCustom() {
         <ul class="text-xs text-gray-600 space-y-1 mb-3">
             <li>• 최소 주문: 10벌부터</li>
             <li>• 제작 기간: 2~3주</li>
-            <li>• 10~29벌 5% / 30~99벌 10% / 100벌 이상 협의</li>
+            <li>• 15~29벌 5% / 30~99벌 10% / 100벌 이상 협의</li>
         </ul>
         <a href="custom.html" class="block bg-black text-white text-center py-2 rounded text-xs font-bold hover:bg-gray-800 transition-colors">Design Lab 바로가기 →</a>
         ${renderChips(['배송·결제', '상담원 연결'])}

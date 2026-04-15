@@ -15,8 +15,17 @@ import {
 
 const router = express.Router();
 
-// Initialize Google AI
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || 'MOCK_KEY');
+// Initialize Google AI — Lazy init (E-15)
+// 비유: ai.js를 처음 import 할 때는 .env가 아직 안 읽혔을 수 있어요(레스토랑 오픈 전 재료 도착 안 한 상태).
+// 그래서 객체를 미리 만들지 않고, "실제 손님이 주문할 때(첫 호출 시점)"에 만들도록 함수로 감쌉니다.
+// dotenv.config()가 server.js에서 실행된 이후에 호출되므로 GOOGLE_API_KEY가 정확히 주입됩니다.
+let _genAI = null;
+function getGenAI() {
+    if (!_genAI) {
+        _genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || 'MOCK_KEY');
+    }
+    return _genAI;
+}
 
 // Helper for Mock Images
 function getRandomMockImage(type) {
@@ -45,7 +54,7 @@ router.post('/', async (req, res) => {
             });
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
 
         let refinementPrompt = '';
 
@@ -259,7 +268,7 @@ router.post('/chat', async (req, res) => {
         const kbPrompt = buildSystemPrompt(intent, productContext);
         const systemPrompt = `${kbPrompt}${context ? `\n\n추가 컨텍스트: ${context}` : ''}`;
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         // 3) 대화 히스토리 구성 — 시스템 프롬프트를 첫 턴으로 주입 + 클라이언트 history 이어붙이기
         const clientHistory = toGeminiHistory(history);
