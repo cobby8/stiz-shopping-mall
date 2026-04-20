@@ -20,10 +20,28 @@
 
 import express from 'express';
 import { spawn } from 'child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getRawFaq, writeFaq, reloadKnowledge, getKnowledgeInfo } from '../services/knowledge.js';
 import { logActivity } from '../activityLog.js';
 
 const router = express.Router();
+
+// ------------------------------------------------------------
+// 프로젝트 루트 절대경로 (rebuild spawn cwd로 사용)
+// ------------------------------------------------------------
+// 비유: "어느 디렉토리에서 명령을 실행할지" 지정하는 집주소.
+// process.cwd()는 서버 기동 방식(예: `npm start --prefix server`)에 따라 달라지므로
+// 이 파일(server/routes/knowledge.js)의 실제 경로 기준으로 프로젝트 루트를 정적으로 계산한다.
+// - __filename: ...\server\routes\knowledge.js
+// - __dirname:  ...\server\routes
+// - PROJECT_ROOT: ...\stizshop  (routes → server → stizshop, 두 단계 위)
+//
+// build-knowledge 스크립트는 루트 package.json L9에만 정의되어 있으므로
+// cwd를 PROJECT_ROOT로 고정해야 `npm run build-knowledge`가 정상 동작한다. (E-16 해결)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 
 // ------------------------------------------------------------
 // 상수: intent 8종 + priority 3종 + id prefix 매핑
@@ -365,8 +383,10 @@ router.post('/rebuild', (req, res) => {
 
     // 가드 2: 고정 커맨드 + 고정 인자 배열 (쉘 인젝션 원천 차단)
     // Windows에서 npm은 npm.cmd로 해석되므로 shell:true 필요 (옵션 설명용)
+    // cwd는 PROJECT_ROOT(이 파일 기준 정적 계산)로 고정 — process.cwd()는 기동 방식에 따라
+    // server/ 로 설정될 수 있어 "Missing script: build-knowledge" 에러가 났었음 (E-16)
     const child = spawn('npm', ['run', 'build-knowledge'], {
-        cwd: process.cwd(),
+        cwd: PROJECT_ROOT,
         shell: true,
         timeout: REBUILD_TIMEOUT_MS,
         // windowsHide:true — 자식 프로세스 콘솔 창이 뜨지 않도록
