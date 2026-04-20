@@ -18,17 +18,21 @@ import { STATUS_TO_NOTIFICATION_TYPE } from '../services/notification-templates.
 const router = express.Router();
 
 // I-2: 종목 영문→한글 매핑을 파일 상단 1곳에서 정의 (기존 2곳 중복 제거)
+// 프론트 js/admin-common.js L45~60과 키세트 완전 동기화 — 새 종목 추가 시 양쪽 모두 업데이트 필요
+// 비유: 관제실 서버 사무실 벽보 — 이 파일 안의 모든 라우트가 참조하는 단일 소스
 const SPORT_LABELS = {
     basketball: '농구',
     soccer: '축구',
     volleyball: '배구',
     baseball: '야구',
     badminton: '배드민턴',
-    futsal: '풋살',
-    handball: '핸드볼',
-    tennis: '테니스',
     tabletennis: '탁구',
+    handball: '핸드볼',
+    futsal: '풋살',
+    tennis: '테니스',
+    softball: '소프트볼',   // 프론트(admin-common.js)와 동기화 (stiz.db 0건, 예비)
     hockey: '하키',
+    other: '기타',           // stiz.db 실측 1,137건 — 영문 노출 버그 해결
     etc: '기타',
     unknown: '미분류'
 };
@@ -2263,12 +2267,8 @@ router.get('/calendar/events', (req, res) => {
             // 주문 기본 정보 — 이벤트 제목과 부가정보에 사용
             const teamName = order.customer?.teamName || order.customer?.name || '미지정';
             const sport = order.items?.[0]?.sport || '';
-            const sportLabel = sport ? ({
-                basketball: '농구', soccer: '축구', volleyball: '배구',
-                baseball: '야구', badminton: '배드민턴', tabletennis: '탁구',
-                handball: '핸드볼', futsal: '풋살', tennis: '테니스',
-                softball: '소프트볼', hockey: '하키', other: '기타', etc: '기타'
-            }[sport] || sport) : '';
+            // I-2: 상단 SPORT_LABELS 재사용 (파일 내 중복 제거됨) — 새 종목은 상단 1곳만 추가
+            const sportLabel = sport ? (SPORT_LABELS[sport] || sport) : '';
             const title = sportLabel ? `${teamName} - ${sportLabel}` : teamName;
 
             // 공통 extendedProps — 프론트에서 필터/표시에 사용
