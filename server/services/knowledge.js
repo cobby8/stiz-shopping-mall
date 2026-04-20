@@ -93,13 +93,25 @@ export function getPolicy(path) {
 // 키워드는 정적 배열(정규식 소스)로 직접 정의. faq.json의 keywords와 의도적으로 분리:
 //  - faq.json keywords = FAQ 1개를 "매칭"할 때 쓰는 세밀 키워드
 //  - INTENT_PATTERNS   = 카테고리 분류용 굵은 키워드 (faq 무관하게 priority 답변 찾기용)
+// [Phase 2 개선] T1/T2 정규식 재분배 (2026-04-20)
+//  - T1: refund 패턴에 "사이즈 불만형" (사이즈 안맞/커요/작게 왔어요 등) 공기어 추가
+//         → 중립 문의("사이즈표", "XL 있어요?")는 불만 키워드 없어서 그대로 product 유지
+//  - T2: product에서 "브랜드|STIZ" 제거 (브랜드명 단독은 상품 근거 약함)
+//         + company에 브랜드 소개형("STIZ가 뭐", "스티즈 브랜드 소개") 추가
+//  - 배열 순서(custom > product > shipping > refund > ...)는 절대 변경 금지.
 const INTENT_PATTERNS = [
     { intent: 'custom',   re: /(커스텀|유니폼\s*제작|단체|몇\s*벌|MOQ|시안|마킹|승화전사|파일\s*규격|디자인\s*의뢰|Design\s*Lab|2D|3D)/i },
-    { intent: 'product',  re: /(사이즈|원단|어센틱|스탠다드|베이직|프로\s*원단|재고|품절|브랜드|STIZ|종목|어떤\s*상품)/i },
+    // T2: '브랜드|STIZ' 제거 — 브랜드명 자체는 상품 의도 근거 약함
+    // [Phase 2 2차] T1 보강:
+    //  - "사이즈" 단독 매칭을 부정 전방탐색으로 좁힘 (불만/교환/환불/반품 키워드 공기 시 product 탈출 → refund로 하강)
+    //  - 의류 사이즈 라벨 단독 질의(XL/XS/XXL/95/100/105) 추가
+    { intent: 'product',  re: /(사이즈(?!.{0,6}(안\s*맞|커요|작아요|크게|작게|헐렁|타이트|교환|환불|반품))|XL|XS|XXL|95|100|105|원단|어센틱|스탠다드|베이직|프로\s*원단|재고|품절|종목|어떤\s*상품)/i },
     { intent: 'shipping', re: /(배송|택배|송장|배송조회|얼마나\s*걸|며칠|제주|도서산간|해외\s*배송|배송비|무료배송|배송\s*지연)/i },
-    { intent: 'refund',   re: /(환불|반품|교환|취소|단순\s*변심|하자|오배송)/i },
+    // T1: 사이즈 불만형(사이즈 안맞/커요/작아요/헐렁/타이트 + "안 맞/크게 왔어요" 형태) 추가
+    { intent: 'refund',   re: /(환불|반품|교환|취소|단순\s*변심|하자|오배송|사이즈.{0,4}(안\s*맞|커요|작아요|크게|작게|헐렁|타이트)|(안\s*맞|크게|작게).{0,4}(와요|왔어요|나왔|받았))/i },
     { intent: 'payment',  re: /(결제|카드|무통장|계좌\s*이체|토스페이|세금계산서|현금영수증|법인|견적|입금\s*계좌)/i },
-    { intent: 'company',  re: /(전화|연락처|이메일|메일|주소|영업시간|운영시간|회사\s*정보|사업자|카카오톡|카톡|인스타|SNS)/i },
+    // T2: company에 브랜드 소개형 추가 — "STIZ가 뭐/어떤 회사" / "브랜드 소개" 공기어 기반
+    { intent: 'company',  re: /(전화|연락처|이메일|메일|주소|영업시간|운영시간|회사\s*정보|사업자|카카오톡|카톡|인스타|SNS|(STIZ|스티즈)\s*(?:가|는|이|을|를|의)?\s*(?:뭐|어떤|소개|누구|회사|브랜드)|(?:브랜드|회사).{0,3}(?:소개|어디|누구|뭐))/i },
     { intent: 'member',   re: /(회원가입|회원\s*탈퇴|등급|VIP|적립금|포인트|개인정보|소셜\s*로그인|카카오\s*로그인|네이버\s*로그인)/i },
     { intent: 'coupon',   re: /(쿠폰|할인\s*코드|이벤트|세일)/i }
 ];
@@ -266,19 +278,77 @@ export function parseProductQuery(message) {
     else if (/배구/.test(message)) q.sport = '배구';
     else if (/팀웨어|단체복|팀복/.test(message)) q.sport = '팀웨어';
 
-    // 2) 가격 범위 추출 (만원 단위)
-    //    "3~5만" / "3만~5만" / "30000~50000원" 등
+    // 2) 가격 범위 추출 — [Phase 2 T4 확장] 한국어 가격 표현 커버리지 확대
+    //    비유: 손님이 "3만원대", "5만5천원", "50000원 이하" 같은 다양한 표현을 써도
+    //          티즈가 전부 알아듣도록 다단계 파싱. 먼저 매칭된 블록이 승리(후속 블록 skip).
+    //    우선순위(구체적 > 덜 구체적):
+    //      (a) 만원 범위 "3~5만" → 기존 규칙 (가장 명확한 범위)
+    //      (b) 원 단위 범위/이하/이상 "50000원 이하"
+    //      (c) "N만원대" 접미사 → [N*10000, N*10000+9999]
+    //      (d) 만원 이하/이상 "5만원 이하" → 기존 규칙
+    //      (e) 만+천 조합 "5만 5천원" → 근사값 대역 [n, n+999]
+    //      (f) 근사치 "3만원 정도" → ±15% 대역
+
+    // (a) 만원 범위 "3~5만" / "3만~5만" (기존)
     const rangeMan = message.match(/(\d+)\s*만?\s*[~\-]\s*(\d+)\s*만/);
     if (rangeMan) {
         q.priceMin = parseInt(rangeMan[1], 10) * 10000;
         q.priceMax = parseInt(rangeMan[2], 10) * 10000;
-    } else {
-        // "5만원 이하" / "5만 이하"
+    }
+
+    // (b) 원 단위 범위/이하/이상 — \d{4,6}으로 1000~999999 범위 제한 (연도 등 오인 방지)
+    if (q.priceMin == null && q.priceMax == null) {
+        const wonRange = message.match(/(\d{4,6})\s*원?\s*[~\-]\s*(\d{4,6})\s*원/);
+        if (wonRange) {
+            q.priceMin = parseInt(wonRange[1], 10);
+            q.priceMax = parseInt(wonRange[2], 10);
+        } else {
+            const wonUnder = message.match(/(\d{4,6})\s*원\s*(?:이하|미만|까지)/);
+            const wonOver  = message.match(/(\d{4,6})\s*원\s*(?:이상|초과|부터)/);
+            if (wonUnder) q.priceMax = parseInt(wonUnder[1], 10);
+            if (wonOver)  q.priceMin = parseInt(wonOver[1], 10);
+        }
+    }
+
+    // (c) "N만원대" / "N만대" 접미사 → [N*10000, N*10000+9999]
+    //    예: "3만원대" → {priceMin:30000, priceMax:39999}
+    if (q.priceMin == null && q.priceMax == null) {
+        const manDae = message.match(/(\d+)\s*만\s*원?\s*대/);
+        if (manDae) {
+            q.priceMin = parseInt(manDae[1], 10) * 10000;
+            q.priceMax = q.priceMin + 9999;
+        }
+    }
+
+    // (d) 만원 이하/이상 (기존 유지) — "5만원 이하" / "10만원 이상"
+    if (q.priceMin == null && q.priceMax == null) {
         const under = message.match(/(\d+)\s*만\s*원?\s*(?:이하|미만|까지)/);
         if (under) q.priceMax = parseInt(under[1], 10) * 10000;
-        // "10만원 이상" / "10만 이상"
         const over = message.match(/(\d+)\s*만\s*원?\s*(?:이상|초과|부터)/);
         if (over) q.priceMin = parseInt(over[1], 10) * 10000;
+    }
+
+    // (e) 만+천 조합 "5만 5천원" → 근사값 대역 [n, n+999]
+    if (q.priceMin == null && q.priceMax == null) {
+        const manChun = message.match(/(\d+)\s*만\s*(\d+)\s*천\s*원?/);
+        if (manChun) {
+            const approx = parseInt(manChun[1], 10) * 10000 + parseInt(manChun[2], 10) * 1000;
+            q.priceMin = approx;
+            q.priceMax = approx + 999;
+        }
+    }
+
+    // (f) "정도/쯤/즈음/가량" 근사치 → ±15% 대역 (만원 우선, 없으면 원 단위)
+    if (q.priceMin == null && q.priceMax == null) {
+        const approxMan = message.match(/(\d+)\s*만\s*원?\s*(?:정도|쯤|즈음|가량)/);
+        const approxWon = message.match(/(\d{4,6})\s*원\s*(?:정도|쯤|즈음|가량)/);
+        const approx = approxMan ? parseInt(approxMan[1], 10) * 10000
+                    : approxWon ? parseInt(approxWon[1], 10)
+                    : null;
+        if (approx) {
+            q.priceMin = Math.floor(approx * 0.85);
+            q.priceMax = Math.ceil(approx * 1.15);
+        }
     }
 
     // 3) 상품 타입(type) 힌트 — custom(주문제작) vs ready(기성품)

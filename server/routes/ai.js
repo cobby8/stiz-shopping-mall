@@ -208,6 +208,26 @@ function buildProductContext(message, limit = 3) {
     }
 }
 
+// [Phase 2 T3] 메시지 유형별로 searchProducts의 limit을 동적으로 계산
+// 비유: 손님이 "막 추천해줘" 하면 많이 보여주고(6개), "이 상품 콕 집어줘" 하면 적게(2개).
+// 규칙(PM 승인 상한 6):
+//  - 추천/탐색형 + 구체화 필터 많음  → 5 (가격·타입까지 좁혀진 경우)
+//  - 추천/탐색형 + 구체화 필터 적음  → 6 (일반 추천)
+//  - 지목형("이 상품") or 키워드 매우 구체(3자+) → 2
+//  - 기본                              → 3
+function pickTopN(message, q) {
+    const m = String(message || '');
+    if (/추천|뭐\s*있|어떤|종류|리스트|목록|보여\s*줘|괜찮은/.test(m)) {
+        // 가격/타입까지 구체화되면 후보군이 좁아지므로 상한 축소
+        const hasFilters = (q?.priceMin != null) || (q?.priceMax != null) || !!q?.type;
+        return hasFilters ? 5 : 6;
+    }
+    if (/이\s*상품|해당\s*상품|이거|그거|정확히|상세/.test(m)) return 2;
+    // 키워드가 매우 구체적(3자 이상)이면 지목형으로 간주
+    if (typeof q?.keyword === 'string' && q.keyword.length >= 3) return 2;
+    return 3;
+}
+
 // 클라이언트 history 배열을 Gemini startChat 포맷으로 변환
 // role은 'user' | 'model' 만 허용
 function toGeminiHistory(history) {
@@ -248,7 +268,8 @@ router.post('/chat', async (req, res) => {
             const q = parseProductQuery(message);
             const hasStructural = Boolean(q.sport || q.priceMin != null || q.priceMax != null || q.type);
             if (hasStructural) {
-                const hits = searchProducts({ ...q, limit: 3 });
+                // [Phase 2 T3] limit을 메시지 유형에 따라 동적으로 결정 (기본 3, 추천형은 5~6)
+                const hits = searchProducts({ ...q, limit: pickTopN(message, q) });
                 if (hits.length > 0) {
                     // K2 히트 — 포맷된 컨텍스트로 세팅 (참고가 / 가격문의 구분 표기)
                     productContext = formatProductContext(hits);

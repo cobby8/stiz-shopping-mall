@@ -267,7 +267,7 @@
     },
     {
       "id": "FAQ-PRODUCT-006",
-      "intent": "product",
+      "intent": "refund",
       "priority": "medium",
       "keywords": ["사이즈교환", "사이즈 안맞", "작아요", "커요"],
       "questions": ["사이즈 안 맞으면 교환 되나요?", "커스텀 사이즈 교환 되죠?"],
@@ -462,9 +462,9 @@
   ],
   "intentIndex": {
     "shipping": ["FAQ-SHIP-001", "FAQ-SHIP-002", "FAQ-SHIP-003", "FAQ-SHIP-004", "FAQ-SHIP-005", "FAQ-SHIP-006"],
-    "refund":   ["FAQ-REFUND-001", "FAQ-REFUND-002", "FAQ-REFUND-003", "FAQ-REFUND-004", "FAQ-REFUND-005"],
+    "refund":   ["FAQ-REFUND-001", "FAQ-REFUND-002", "FAQ-REFUND-003", "FAQ-REFUND-004", "FAQ-REFUND-005", "FAQ-PRODUCT-006"],
     "custom":   ["FAQ-CUSTOM-001", "FAQ-CUSTOM-002", "FAQ-CUSTOM-003", "FAQ-CUSTOM-004", "FAQ-CUSTOM-005", "FAQ-CUSTOM-006", "FAQ-CUSTOM-007", "FAQ-CUSTOM-008", "FAQ-CUSTOM-009", "FAQ-CUSTOM-010"],
-    "product":  ["FAQ-PRODUCT-001", "FAQ-PRODUCT-002", "FAQ-PRODUCT-003", "FAQ-PRODUCT-004", "FAQ-PRODUCT-005", "FAQ-PRODUCT-006"],
+    "product":  ["FAQ-PRODUCT-001", "FAQ-PRODUCT-002", "FAQ-PRODUCT-003", "FAQ-PRODUCT-004", "FAQ-PRODUCT-005"],
     "payment":  ["FAQ-PAY-001", "FAQ-PAY-002", "FAQ-PAY-003", "FAQ-PAY-004", "FAQ-PAY-005", "FAQ-PAY-006"],
     "member":   ["FAQ-MEMBER-001", "FAQ-MEMBER-002", "FAQ-MEMBER-003", "FAQ-MEMBER-004"],
     "company":  ["FAQ-COMPANY-001", "FAQ-COMPANY-002", "FAQ-COMPANY-003", "FAQ-COMPANY-004", "FAQ-COMPANY-005"],
