@@ -200,6 +200,11 @@ function migrateOrder(order) {
 }
 
 
+// C-3: 신규 주문 시 클라이언트가 지정 가능한 상태 화이트리스트
+// 비유: 주문을 "처음" 받을 때는 '상담개시' 또는 '시안요청'만 올 수 있음.
+//       '배송완료'로 시작하는 주문은 논리적으로 존재할 수 없음 → 공격자 차단용.
+const ALLOWED_NEW_ORDER_STATUSES = ['consult_started', 'design_requested'];
+
 // POST /api/orders - 주문 생성
 // A-5: 고객 주문 위자드에서 보내는 확장 필드(fabric, composition, referenceFiles, design 등) 수용
 // 기존 필드만 보내도 정상 동작 (하위 호환 유지)
@@ -223,8 +228,54 @@ router.post('/', (req, res) => {
         // 주문번호 자동 생성 (클라이언트가 보내지 않으면 서버에서 생성)
         order.orderNumber = order.orderNumber || generateOrderNumber();
 
-        // 확장된 스키마 기본값 설정
-        order.status = normalizeStatus(order.status || 'consult_started');
+        // C-3: status 화이트리스트 검증
+        // 레거시 매핑(normalizeStatus) 후, 허용 리스트에 없는 값이면 기본 'consult_started'로 강제.
+        // 비유: 접수 창구에서 고객이 "이미 배송완료" 상태로 접수하려 해도 무조건 '상담개시'부터 시작.
+        const requestedStatus = normalizeStatus(order.status || 'consult_started');
+        order.status = ALLOWED_NEW_ORDER_STATUSES.includes(requestedStatus)
+            ? requestedStatus
+            : 'consult_started';
+
+        // C-3: payment 필드 내 민감 값 고객 입력 무효화
+        // 고객이 body로 "이미 입금했음(paidDate)" 같은 값을 위조하지 못하도록 서버에서 강제 리셋.
+        // 실제 결제 확정은 별도 엔드포인트(POST /api/payments/*)에서만 처리된다.
+        // [A-2 보완 2026-04-20] 환불/분쟁 대응용 결제 추적 필드 5개(subtotal/shipping/method/paymentKey/tossOrderId) 보존 추가.
+        if (order.payment) {
+            const p = order.payment;
+            order.payment = {
+                // --- 주문 금액 필드 --- 숫자로 강제 캐스팅 (문자열 입력도 Number로 변환)
+                totalAmount: Number(p.totalAmount) || Number(order.total) || 0,
+                unitPrice: Number(p.unitPrice) || 0,
+                quantity: Number(p.quantity) || 0,
+                // 상품 소계/배송비 — 주문서 재표시/재계산 감사용
+                subtotal: Number(p.subtotal) || 0,
+                shipping: Number(p.shipping) || 0,
+
+                // --- 결제 수단 (전부 화이트리스트) ---
+                paymentType: ['deposit','card','transfer'].includes(p.paymentType)
+                    ? p.paymentType : 'deposit',
+                transactionMethod: ['cash','card','transfer'].includes(p.transactionMethod)
+                    ? p.transactionMethod : 'cash',
+                // method: PG 결제수단 식별자.
+                // 프론트 실제 전송값(bank_transfer/toss) + 표준값(card/bank/virtual/transfer/deposit) 모두 수용.
+                // 비유: "영수증에 찍히는 결제 방식 이름" — 화이트리스트 밖이면 빈 값.
+                method: ['bank_transfer','toss','card','bank','virtual','transfer','deposit'].includes(p.method)
+                    ? p.method : '',
+
+                // --- 토스페이먼츠 추적 필드 (환불/분쟁 대응) ---
+                // 비유: "영수증 번호. 나중에 PG사에 '이 결제 환불해주세요' 할 때 필요."
+                // 문자열 타입 + 최대 128자 제한 (토스 paymentKey는 통상 64자 이내).
+                // 위조 방지가 핵심이 아니라 '토스가 발급한 고유값을 DB에 남긴다'는 추적 목적.
+                paymentKey: (typeof p.paymentKey === 'string' && p.paymentKey.length <= 128) ? p.paymentKey : '',
+                tossOrderId: (typeof p.tossOrderId === 'string' && p.tossOrderId.length <= 128) ? p.tossOrderId : '',
+
+                // --- 관리자 전용 민감 필드 (고객 주문 시에는 항상 강제 리셋) ---
+                paidDate: '',           // 입금일 — 관리자만 설정 가능
+                quoteUrl: '',
+                autoQuote: false,
+            };
+        }
+
         order.createdAt = new Date().toISOString();
         order.updatedAt = order.createdAt;
 

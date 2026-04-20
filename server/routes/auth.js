@@ -7,13 +7,16 @@ import { getAdminScopes, getDefaultAdminPage, adminAuth } from '../middleware/ad
 
 const router = express.Router();
 
-// JWT 비밀키 - 환경변수에서 가져오거나 기본값 사용
-// 비유: 암호 도장 - 이 도장으로 찍은 토큰만 진짜로 인정
-const JWT_SECRET = process.env.JWT_SECRET || 'stiz-shop-secret-key-2026';
-// 보안 경고: 환경변수가 없으면 기본 키를 사용하므로, 운영 환경에서는 반드시 설정 필요
-if (!process.env.JWT_SECRET) {
-    console.warn('[Auth] JWT_SECRET 환경변수가 설정되지 않았습니다. 기본 키를 사용합니다.');
+// JWT 비밀키 - 환경변수 필수화 (C-2 fail-fast)
+// 비유: 암호 도장 - 이 도장이 없으면 가게 문 자체를 열지 않는다 (잘못된 도장 사용 방지)
+// 기존 하드코딩 기본값 fallback은 보안상 제거됨. 예제값/기본값은 명시적으로 차단한다.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key-change-this' || process.env.JWT_SECRET === 'stiz-shop-secret-key-2026') {
+    console.error('[Auth] FATAL: JWT_SECRET 환경변수가 설정되지 않았거나 안전하지 않은 기본값입니다.');
+    console.error('[Auth] server/.env 파일에 안전한 랜덤 문자열 32자 이상으로 JWT_SECRET을 설정하세요.');
+    console.error('[Auth] 생성 예시: node -e "console.log(require(\'node:crypto\').randomBytes(32).toString(\'hex\'))"');
+    process.exit(1);  // 서버 기동 차단 (공격자가 기본 secret으로 토큰을 위조하지 못하도록)
 }
+const JWT_SECRET = process.env.JWT_SECRET;
 // 토큰 유효기간: 7일 (7일 후 다시 로그인 필요)
 const JWT_EXPIRES_IN = '7d';
 
