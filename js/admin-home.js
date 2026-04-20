@@ -15,6 +15,11 @@
 // handleLogout, apiFetch/adminFetch, formatMoney/formatCurrency,
 // formatNumber, timeAgo → admin-common.js에서 로드
 
+// #5 CS 파트 슬림화 (2026-04-22): WORK_GROUPS.cs 원본 statuses 배열은 보존 (총계 집계용).
+// 대시보드 세부 행 렌더링 시에만 HIDDEN_CS_STATUSES로 필터링하여 0건 상태 3개 숨김.
+// 복구 방법: HIDDEN_CS_STATUSES = [] 로 비우면 즉시 복구.
+const HIDDEN_CS_STATUSES = ['payment_completed', 'work_instruction_pending', 'work_instruction_sent'];
+
 const WORK_GROUPS = [
     {
         key: 'design',
@@ -28,6 +33,7 @@ const WORK_GROUPS = [
         title: 'CS 파트',
         icon: 'support_agent',
         accentClass: 'text-emerald-600',
+        // 원본 배열 (총계 집계 및 향후 복구용 보존) — 렌더 시점에 HIDDEN_CS_STATUSES 필터 적용
         statuses: ['consult_started', 'order_received', 'payment_completed', 'work_instruction_pending', 'work_instruction_sent']
     },
     {
@@ -162,8 +168,11 @@ async function loadWorkSummary() {
         const html = `
             <div class="work-grid">
                 ${WORK_GROUPS.map(group => {
+                    // 총계는 원본 statuses 전체 합산 (통계 왜곡 방지 — 만약 숨긴 상태에 데이터가 들어오면 총계에는 반영)
                     const total = group.statuses.reduce((sum, status) => sum + (counts[status] || 0), 0);
-                    const rows = group.statuses.map(status => {
+                    // #5: 세부 행 렌더 시점에만 HIDDEN_CS_STATUSES 제거 (원본 배열은 보존)
+                    const visibleStatuses = group.statuses.filter(s => !HIDDEN_CS_STATUSES.includes(s));
+                    const rows = visibleStatuses.map(status => {
                         const count = counts[status] || 0;
                         return `
                             <a href="admin.html?status=${encodeURIComponent(status)}" class="work-status-row">

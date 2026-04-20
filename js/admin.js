@@ -57,6 +57,15 @@ function getTagBadges(tags) {
 // 비유: "진행중" 서랍을 열면 그 안에 "시안요청", "제작중" 등 작은 칸막이가 있는 것
 // 상태별 탭 정의 — STATUS_FLOW 순서에 맞춤
 // 수정: revision(수정중), production_done(생산완료), shipped(배송중) 누락 추가
+//
+// #5 CS 파트 슬림화 (2026-04-22): 아래 HIDDEN_CS_STATUSES 배열에 포함된 상태는
+// UI 렌더 단계에서만 탭이 숨겨진다. STATUS_TABS/PAGE_PRESETS.cs/STATUS_LABELS 원본은 보존.
+// 복구 방법: HIDDEN_CS_STATUSES = [] 로 비우면 즉시 3개 탭 복구.
+// 대상: payment_completed/work_instruction_pending/work_instruction_sent (stiz.db 실측 각 0건)
+// 살아있는 코드: consult_started(7건)/order_received(2건)은 계속 표시
+// 보존 이유: notification-templates.js L217 결제완료 알림톡 템플릿, 향후 확장 자산
+const HIDDEN_CS_STATUSES = ['payment_completed', 'work_instruction_pending', 'work_instruction_sent'];
+
 const STATUS_TABS = [
     { code: '', label: '전체 진행중' },
     { code: 'consult_started', label: '상담개시' },
@@ -319,8 +328,25 @@ function applyStatusOptionVisibility() {
     const tabAll = document.getElementById('tab-all');
     const tabUnpaid = document.getElementById('tab-unpaid');
 
+    // #5 CS 파트 슬림화: 전체 뷰든 파트 뷰든 HIDDEN_CS_STATUSES 탭은 항상 숨긴다.
+    // 비유: 메뉴판에 "준비 중" 표시된 항목은 테이블마다 똑같이 가린다.
     if (!allowed) {
-        if (statusTabsRow) statusTabsRow.classList.remove('hidden');
+        if (statusTabsRow) {
+            statusTabsRow.classList.remove('hidden');
+            // 전체 뷰에서도 0건 CS 상태 3개는 혼란 방지 차원에서 탭 숨김
+            statusTabsRow.querySelectorAll('.status-sub-tab').forEach(btn => {
+                const code = btn.dataset.statusCode || '';
+                btn.classList.toggle('hidden', HIDDEN_CS_STATUSES.includes(code));
+            });
+        }
+        // 전체 뷰 select 옵션도 동기화 (필터 드롭다운에서 선택 불가)
+        [filterStatus, bulkStatus].forEach(select => {
+            if (!select) return;
+            Array.from(select.options).forEach(option => {
+                if (!option.value) return;
+                option.hidden = HIDDEN_CS_STATUSES.includes(option.value);
+            });
+        });
         if (tabAll) tabAll.classList.remove('hidden');
         if (tabUnpaid) tabUnpaid.classList.remove('hidden');
         return;
@@ -329,7 +355,11 @@ function applyStatusOptionVisibility() {
     if (statusTabsRow) {
         statusTabsRow.querySelectorAll('.status-sub-tab').forEach(btn => {
             const code = btn.dataset.statusCode || '';
-            btn.classList.toggle('hidden', !!code && !allowed.includes(code));
+            // 조건 1: 파트에 속하지 않는 상태 숨김 (기존 동작)
+            // 조건 2: #5 HIDDEN_CS_STATUSES는 파트 소속이어도 강제 숨김 (CS 0건 탭 3종)
+            const hiddenByPreset = !!code && !allowed.includes(code);
+            const hiddenByPolicy = HIDDEN_CS_STATUSES.includes(code);
+            btn.classList.toggle('hidden', hiddenByPreset || hiddenByPolicy);
         });
     }
 
@@ -337,7 +367,8 @@ function applyStatusOptionVisibility() {
         if (!select) return;
         Array.from(select.options).forEach(option => {
             if (!option.value) return;
-            option.hidden = !allowed.includes(option.value);
+            // 파트 preset + HIDDEN_CS_STATUSES 양쪽 모두 적용
+            option.hidden = !allowed.includes(option.value) || HIDDEN_CS_STATUSES.includes(option.value);
         });
     });
 
