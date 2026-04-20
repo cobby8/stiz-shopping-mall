@@ -33,6 +33,7 @@ const COLLECTION = 'activity-log';
  *   - order_edit           : 주문 정보 수정
  *   - order_duplicate      : 주문 복제
  *   - payment_confirm      : 입금 확인
+ *   - payment_cancel       : 입금 취소 (잘못 찍은 도장 되돌리기)
  *   - comment_add          : 코멘트 추가
  *   - backup_manual        : 수동 백업
  */

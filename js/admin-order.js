@@ -1457,14 +1457,23 @@ function renderPaymentConfirmSection() {
             ? payment.paidDate.split('T')[0]   // ISO 형식이면 날짜만 추출
             : payment.paidDate;
         const paidAmt = payment.paidAmount || totalAmount;
+        // 입금 취소 버튼 추가: 잘못 찍은 "입금 완료" 도장을 되돌릴 수 있는 비상구
+        // 비유: 가계부에 잘못 적은 입금 기록을 지우개로 깨끗이 지우는 버튼
         section.innerHTML = `
-            <div class="flex items-center space-x-2 text-green-700 bg-green-50 rounded-lg px-4 py-3">
-                <span class="material-symbols-outlined">check_circle</span>
-                <div>
-                    <p class="font-medium text-sm">입금 완료 (${escapeHtml(paidDateStr)})</p>
-                    <p class="text-xs text-green-600 mt-0.5">입금액: ${formatCurrency(paidAmt)}</p>
-                    ${payment.paymentNote ? `<p class="text-xs text-green-600 mt-0.5">메모: ${escapeHtml(payment.paymentNote)}</p>` : ''}
+            <div class="flex items-start justify-between text-green-700 bg-green-50 rounded-lg px-4 py-3">
+                <div class="flex items-start space-x-2">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <div>
+                        <p class="font-medium text-sm">입금 완료 (${escapeHtml(paidDateStr)})</p>
+                        <p class="text-xs text-green-600 mt-0.5">입금액: ${formatCurrency(paidAmt)}</p>
+                        ${payment.paymentNote ? `<p class="text-xs text-green-600 mt-0.5">메모: ${escapeHtml(payment.paymentNote)}</p>` : ''}
+                    </div>
                 </div>
+                <button onclick="cancelPayment()"
+                    class="text-xs text-red-600 hover:text-red-800 hover:underline ml-3 flex-shrink-0"
+                    title="잘못 처리된 입금을 취소합니다">
+                    입금 취소
+                </button>
             </div>
         `;
         return;
@@ -1556,6 +1565,71 @@ async function confirmPayment() {
     } catch (error) {
         console.error('[AdminOrder] 입금 확인 실패:', error);
         alert('입금 확인 중 오류가 발생했습니다.');
+    }
+}
+
+/**
+ * 입금 취소 API 호출 (잘못 찍은 도장 되돌리기)
+ * DELETE /api/admin/orders/:id/payment
+ *
+ * 비유: 외상 장부에 잘못 찍은 "입금 완료" 도장을 지우개로 지우는 것
+ * - 2단계 확인: confirm(주문 정보 보여주며 경고) → prompt(사유 선택 입력)
+ * - 성공 시 currentOrder 갱신 후 전체 재렌더링 → 자동으로 "미수금" 주황색 박스로 돌아감
+ */
+async function cancelPayment() {
+    // 현재 주문 없으면 중단
+    if (!currentOrder || !currentOrder.payment?.paidDate) {
+        alert('입금 완료 상태가 아닙니다.');
+        return;
+    }
+
+    const payment = currentOrder.payment;
+    const paidDateStr = payment.paidDate.includes('T')
+        ? payment.paidDate.split('T')[0]
+        : payment.paidDate;
+    const paidAmt = payment.paidAmount || 0;
+
+    // status_completed가 아닌 경우 추가 경고 — 업무 흐름상 이례적 케이스
+    const isPaymentCompleted = currentOrder.status === 'payment_completed';
+    const statusWarning = isPaymentCompleted
+        ? '\n\n※ 주문 상태도 "주문서 접수"로 자동 변경됩니다.'
+        : `\n\n⚠️ 현재 상태(${currentOrder.status})는 결제 이후 단계입니다.\n입금만 취소되며 주문 상태는 유지됩니다.\n필요 시 상태도 수동으로 조정해주세요.`;
+
+    // 1단계: 확인 다이얼로그 — 주문 정보 + status 변화 예고
+    const confirmMsg = `정말 입금을 취소하시겠습니까?\n\n주문번호: ${currentOrder.orderNumber}\n입금일: ${paidDateStr}\n입금액: ${formatCurrency(paidAmt)}${statusWarning}\n\n※ 취소 후 재입금은 "입금 확인" 버튼으로 다시 처리해주세요.`;
+    if (!confirm(confirmMsg)) return;
+
+    // 2단계: 사유 입력 (선택) — 빈 값 허용, 500자 제한은 서버에서 자동 truncate
+    const reasonRaw = prompt('취소 사유를 입력해주세요 (선택, 엔터=건너뛰기):', '');
+    // prompt 취소(null) 시에도 빈 문자열로 처리하여 계속 진행
+    // 취소와 확인 구분하고 싶으면 === null 체크했겠지만, UX상 한번 더 막으면 짜증나므로 진행
+    const reason = (reasonRaw || '').trim();
+
+    try {
+        // adminFetch: admin-common.js에서 제공, JWT 토큰 자동 부착 + 401 처리
+        const res = await adminFetch(`/api/admin/orders/${currentOrder.id}/payment`, {
+            method: 'DELETE',
+            body: JSON.stringify({ reason })
+        });
+
+        if (!res) return;
+        const data = await res.json();
+
+        if (data.success) {
+            // 응답에 statusPreserved 있으면 안내 다르게
+            const msg = data.statusPreserved
+                ? '입금이 취소되었습니다. (주문 상태는 유지되었습니다)'
+                : '입금이 취소되었습니다.';
+            alert(msg);
+            // 업데이트된 데이터로 전체 화면 재렌더링 — 자동으로 미수금 UI 복귀
+            currentOrder = data.order;
+            renderOrderDetail();
+        } else {
+            alert('입금 취소 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('[AdminOrder] 입금 취소 실패:', error);
+        alert('입금 취소 중 오류가 발생했습니다.');
     }
 }
 

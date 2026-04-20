@@ -1333,6 +1333,134 @@ router.patch('/orders/:id/payment', (req, res) => {
 });
 
 // ============================================================
+// DELETE /api/admin/orders/:id/payment - 입금 취소 (잘못 찍은 도장 되돌리기)
+// 비유: 외상 장부에 잘못 찍은 "입금 완료" 도장을 지우는 것
+// - payment.paidDate / paidAmount / paymentNote 3개 필드만 리셋
+// - 주문 금액/결제수단/tossOrderId 등 추적 정보는 보존 (재입금 가능)
+// - status가 payment_completed면 order_received로 자동 하향 (targetStatus로 오버라이드 가능)
+// - 감사 로그(activity_log) + 상태 이력(order-history) 자동 기록
+// ============================================================
+// 결제 취소 시 이동 허용되는 status 화이트리스트
+// 결제 이후 단계(in_production 등)로는 이동 금지 — 업무 프로세스상 이상 상황이라 수동 처리 필요
+const PAYMENT_CANCEL_TARGET_WHITELIST = [
+    'consult_started',
+    'design_requested',
+    'draft_done',
+    'revision',
+    'design_confirmed',
+    'order_received'
+];
+
+router.delete('/orders/:id/payment', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const existing = db.findById('orders', id);
+
+        // 1. 주문 존재 확인
+        if (!existing) {
+            return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다.' });
+        }
+
+        // 2. body 파라미터: targetStatus(선택) + reason(선택, 500자 truncate)
+        const { targetStatus, reason } = req.body || {};
+        // reason은 선택 입력이지만 문자열 보장 + 500자로 잘라 저장 (관리자 편의 우선)
+        const safeReason = typeof reason === 'string' ? reason.slice(0, 500) : '';
+
+        // 3. prev 값 캡처 — 로그 기록용 (리셋 전에 반드시 보관)
+        const prevPayment = {
+            paidDate: existing.payment?.paidDate || '',
+            paidAmount: existing.payment?.paidAmount || 0,
+            paymentNote: existing.payment?.paymentNote || ''
+        };
+        const prevStatus = normalizeStatus(existing.status);
+
+        // 4. payment 객체 리셋 — 3개 필드만 초기화, 나머지(totalAmount/paymentKey 등)는 보존
+        // 비유: 도장 찍은 날짜/금액/메모만 지우개로 지우고, 장부 자체는 그대로
+        const updatedPayment = {
+            ...(existing.payment || {}),
+            paidDate: '',
+            paidAmount: 0,
+            paymentNote: ''
+        };
+
+        // 5. status 원복 로직
+        // - targetStatus 명시 시: 화이트리스트 검증 후 적용
+        // - 미지정 & prev.status === 'payment_completed': order_received로 자동 하향
+        // - 그 외: status 불변 (배송중/생산중 등에서 paidDate만 리셋)
+        let newStatus = prevStatus;
+        let statusPreserved = false;
+
+        if (targetStatus) {
+            // 관리자가 명시적으로 목적지를 지정한 경우
+            const normalizedTarget = normalizeStatus(targetStatus);
+            if (!PAYMENT_CANCEL_TARGET_WHITELIST.includes(normalizedTarget)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `결제 취소 시 이동 가능한 상태가 아닙니다. 허용: ${PAYMENT_CANCEL_TARGET_WHITELIST.join(', ')}`
+                });
+            }
+            newStatus = normalizedTarget;
+        } else if (prevStatus === 'payment_completed') {
+            // 기본 자동 하향
+            newStatus = 'order_received';
+        } else {
+            // status 불변 — 결제 이후 단계에서 입금만 취소하는 경우
+            statusPreserved = true;
+        }
+
+        // 6. DB 업데이트 — status 변경 여부에 관계없이 payment는 항상 리셋
+        const patch = {
+            payment: updatedPayment,
+            updatedAt: new Date().toISOString()
+        };
+        if (newStatus !== prevStatus) {
+            patch.status = newStatus;
+        }
+        const updated = db.updateById('orders', id, patch);
+
+        // 7. status가 실제로 바뀐 경우만 order-history에 기록
+        // changedBy에 '(payment_cancel)' 꼬리표를 붙여 이력 타임라인에서 원인 구분 가능
+        if (newStatus !== prevStatus) {
+            db.insert('order-history', {
+                orderId: id,
+                orderNumber: existing.orderNumber,
+                fromStatus: prevStatus,
+                toStatus: newStatus,
+                changedBy: `admin_${req.user.name} (payment_cancel)`,
+                memo: safeReason || '입금 취소로 인한 상태 하향',
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        console.log(`[Admin] Payment cancelled: ${existing.orderNumber} / prev ${prevPayment.paidDate}(${prevPayment.paidAmount}) / status ${prevStatus} → ${newStatus} by ${req.user.name}`);
+
+        // 8. 감사 로그 — prev 값 전부 + reason + newStatus 기록
+        logActivity('payment_cancel', {
+            orderNumber: existing.orderNumber,
+            orderId: id,
+            prevPaidDate: prevPayment.paidDate,
+            prevPaidAmount: prevPayment.paidAmount,
+            prevPaymentNote: prevPayment.paymentNote,
+            prevStatus,
+            newStatus,
+            reason: safeReason,
+            customerName: existing.customer?.name || '미상'
+        }, req.user);
+
+        // 9. 응답 — prevPayment를 함께 반환하여 프론트에서 "되돌리기" UI도 가능
+        res.json({
+            success: true,
+            order: normalizeOrderStatus(updated),
+            prevPayment,
+            statusPreserved
+        });
+    } catch (error) {
+        console.error('[Admin] Payment cancel error:', error);
+        res.status(500).json({ success: false, error: '입금 취소 처리 실패' });
+    }
+});
+
+// ============================================================
 // POST /api/admin/orders/:id/notify - 수동 알림 발송 트리거
 // Phase 4에서 실제 카카오/SMS 연동 시 확장 예정. 지금은 로그만 기록
 // ============================================================
