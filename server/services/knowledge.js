@@ -9,7 +9,7 @@
 //       DB 가격은 여기서 캐싱 금지 — 상품 가격은 반드시 실시간 DB 조회.
 // ============================================================
 
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, renameSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -388,4 +388,109 @@ export function formatProductContext(items) {
     }).join('\n');
     // 꼬리 문구: "실제 가격/재고는 상담원 확인" — Gemini가 단정적으로 답하지 않도록 힌트
     return `\n\n현재 판매중인 관련 상품(참고용):\n${lines}\n※ 실제 가격·재고는 상담원 확인 권장 (일부는 제작 방식별 차등)`;
+}
+
+// ============================================================
+// K3 확장 API (관리자 FAQ CMS 용) — reload / write / raw getter
+// ============================================================
+// 비유: K1/K2가 "책자를 읽는 기능"이라면, K3는 "책자를 바꿔치기하는 기능".
+//       운영팀이 admin-faq에서 FAQ를 편집하면 이 함수들이
+//       (1) 파일을 안전하게 갈아 끼우고 (atomic write)
+//       (2) 메모리 캐시를 즉시 갱신한다 (reload)
+// 이유: 서버 재시작 없이 "관리자 저장 → 다음 /api/chat 응답에 반영" 흐름을 만들기 위함.
+// ============================================================
+
+// 쓰기 동시성 보호 — 관리자 2명이 "정말로 동시에" 저장 누르면
+// 뒤쪽 write가 앞쪽 rename과 충돌할 수 있으므로 모듈 전역 플래그로 직렬화.
+// (Node는 싱글 스레드지만 fs 작업은 비동기이고, 본 프로젝트는 Sync API를 쓰므로
+//  실제로 충돌 가능성은 극히 낮지만 방어적으로 플래그 둠)
+let _writing = false;
+
+// ------------------------------------------------------------
+// K3-API 1. reloadKnowledge() — K1/K2 캐시 전체 재로드
+// ------------------------------------------------------------
+// 호출 시점:
+//   (1) /api/admin/knowledge/faq POST/PUT/DELETE 저장 직후 (K1 반영)
+//   (2) /api/admin/knowledge/rebuild 성공 직후 (K2 반영)
+// 반환: getKnowledgeInfo() 결과 (버전/카운트 요약)
+export function reloadKnowledge() {
+    _load();         // K1: company/policies/faq.json 재로드
+    _loadProducts(); // K2: products.json 재로드
+    return getKnowledgeInfo();
+}
+
+// ------------------------------------------------------------
+// K3-API 2. getRawFaq() — faq.json 원본 객체 읽기 (items/intentIndex/version)
+// ------------------------------------------------------------
+// 비유: "편집용 원고"를 통째로 건네주는 함수. 편집 라우트에서 items 배열을 직접 수정할 때 사용.
+// 주의: 반환값은 참조 아닌 얕은 복사가 아니다 — 호출자는 items를 복사해서 수정해야 안전.
+export function getRawFaq() {
+    return _faq;
+}
+
+// ------------------------------------------------------------
+// K3-API 3. writeFaq(newItems) — faq.json 저장 + 캐시 리로드 (atomic)
+// ------------------------------------------------------------
+// 입력: newItems[] = [{id, intent, priority, keywords, questions, answer, source?, needsReview?}, ...]
+// 동작:
+//   1) intentIndex 자동 재계산 (intent → [id...])
+//   2) totalCount 재계산
+//   3) version 갱신 (k1-YYYY-MM-DD-HHMM)
+//   4) .tmp 파일에 write → rename (atomic, build-knowledge.js와 동일 패턴)
+//   5) 성공 시 reloadKnowledge() 호출하여 메모리 즉시 반영
+// 실패 시: 예외 throw (호출자에서 catch하여 500 응답)
+// 반환: { version, totalCount, byIntent }
+export function writeFaq(newItems) {
+    if (!Array.isArray(newItems)) {
+        throw new Error('writeFaq: newItems must be an array');
+    }
+    if (_writing) {
+        // 극히 드문 동시성 상황 — 바로 예외 (라우트에서 409로 매핑 가능)
+        const err = new Error('FAQ 저장 진행 중입니다. 잠시 후 다시 시도하세요.');
+        err.code = 'WRITE_BUSY';
+        throw err;
+    }
+    _writing = true;
+    try {
+        // 1) intentIndex 자동 재계산
+        //    items 순회하며 { shipping:[id...], refund:[id...], ... } 재구성
+        const intentIndex = {};
+        for (const item of newItems) {
+            if (!item || !item.intent || !item.id) continue;
+            if (!intentIndex[item.intent]) intentIndex[item.intent] = [];
+            intentIndex[item.intent].push(item.id);
+        }
+
+        // 2) version 갱신 (저장 시각 기반) — 관리자가 "어느 시점 버전"인지 추적 가능
+        const now = new Date();
+        const version = `k1-${now.toISOString().slice(0, 10)}-${now.toTimeString().slice(0, 5).replace(':', '')}`;
+
+        // 3) 최종 JSON 객체
+        const json = {
+            version,
+            totalCount: newItems.length,
+            items: newItems,
+            intentIndex
+        };
+
+        // 4) atomic write: .tmp → rename (크래시 시 원본 보존)
+        const faqPath = join(KNOWLEDGE_DIR, 'faq.json');
+        const tmpPath = join(KNOWLEDGE_DIR, 'faq.json.tmp');
+        // JSON.stringify의 2번째/3번째 인자: 들여쓰기 2칸으로 가독성 유지 (기존 포맷 준수)
+        const serialized = JSON.stringify(json, null, 2);
+        writeFileSync(tmpPath, serialized, 'utf-8');
+        renameSync(tmpPath, faqPath);
+
+        // 5) 메모리 캐시 즉시 갱신 (다음 /api/chat부터 새 FAQ 반영)
+        reloadKnowledge();
+
+        // 6) byIntent 요약 반환 (라우트 응답용)
+        const byIntent = {};
+        for (const [k, v] of Object.entries(intentIndex)) {
+            byIntent[k] = v.length;
+        }
+        return { version, totalCount: newItems.length, byIntent };
+    } finally {
+        _writing = false;
+    }
 }
