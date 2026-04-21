@@ -203,7 +203,7 @@ function bindCheckAllEvent() {
 function goToCheckout() {
   const cart = getCart();
   if (cart.length === 0) {
-    alert('장바구니가 비어있습니다.');
+    (typeof stizToast === 'function' ? stizToast('장바구니가 비어있습니다', { type: 'error' }) : alert('장바구니가 비어있습니다.'));
     return;
   }
   location.href = 'checkout.html';

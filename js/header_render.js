@@ -149,7 +149,6 @@ function renderHeader() {
                 <div class="hidden group-hover:block absolute left-1/2 -translate-x-1/2 top-full w-48 bg-white text-black shadow-lg border border-gray-100 py-4 z-40 text-center">
                     <a href="about.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">회사소개</a>
                     <a href="about.html#values" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">가치 (Values)</a>
-                    <a href="lookbook.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">룩북 (Lookbook)</a>
                     <a href="about.html#contact" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">오시는 길</a>
                 </div>
             </div>
@@ -188,8 +187,7 @@ function renderHeader() {
                                     <a href="inquiry.html" class="flex items-start group/item">
                                         <span class="text-2xl mr-3 text-gray-300 group-hover/item:text-blue-600">02</span>
                                         <div>
-                                            <strong class="text-black block group-hover/item:text-blue-600">Free Design Request</strong>
-                                            <span class="text-xs">디자이너 무료 시안 요청</span>
+                                            <strong class="text-black block group-hover/item:text-blue-600">디자이너 무료 시안 요청</strong>
                                         </div>
                                     </a>
                                 </li>
@@ -235,7 +233,7 @@ function renderHeader() {
                     <a href="bulk-order.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">단체 주문 (Bulk Order)</a>
                     <div class="border-t border-gray-100 my-2"></div>
                     <a href="notice.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">공지사항</a>
-                    <a href="inquiry.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">문의하기 (Q&A)</a>
+                    <a href="inquiry.html" class="block px-4 py-2 text-sm hover:bg-gray-50 hover:font-bold">문의하기</a>
                 </div>
             </div>
 
@@ -244,7 +242,7 @@ function renderHeader() {
         <!-- Utilities -->
         <div class="flex items-center space-x-6 text-current">
             <!-- Search -->
-             <button class="hover:opacity-70">
+             <button class="hover:opacity-70" aria-label="상품 검색">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -258,14 +256,14 @@ function renderHeader() {
             </a>
 
             <!-- Cart (장바구니 아이콘 + 배지) -->
-            <a href="cart.html" class="hover:opacity-70 relative">
+            <a href="cart.html" class="hover:opacity-70 relative" aria-label="장바구니">
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
                  <span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">0</span>
             </a>
 
-             <button id="mobile-menu-btn" class="md:hidden hover:opacity-70">
+             <button id="mobile-menu-btn" class="md:hidden hover:opacity-70" aria-label="메뉴 열기">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>

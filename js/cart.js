@@ -40,7 +40,7 @@ function addToCart(product) {
 
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
     updateCartCount();
-    alert('장바구니에 추가되었습니다!');
+    (typeof stizToast === 'function' ? stizToast('장바구니에 추가되었습니다', { type: 'success' }) : alert('장바구니에 추가되었습니다!'));
 
     // 로그인 상태면 서버에도 동기화 (백그라운드, 실패해도 무시)
     _syncAddToServer(product);
