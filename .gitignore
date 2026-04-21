@@ -11,6 +11,7 @@ server/uploads/**
 server/data/*.bak
 server/data/*.bak-*
 server/data/*.pre-*
+server/data/backups/
 server/data/stiz.db-shm
 server/data/stiz.db-wal
 
