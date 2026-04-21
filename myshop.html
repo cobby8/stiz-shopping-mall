@@ -202,9 +202,12 @@
     <script src="js/auth.js" defer></script>
     <script>
         // 로그인 안 되어 있으면 로그인 페이지로 이동
-        if (!isLoggedIn()) {
-            location.href = 'login.html';
-        }
+        // auth.js가 defer로 로드되므로 DOMContentLoaded 이후에 실행해야 isLoggedIn이 정의됨
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof isLoggedIn !== 'function' || !isLoggedIn()) {
+                location.href = 'login.html';
+            }
+        });
 
         /**
          * 상태 매핑 함수 (서버의 getCustomerStatus와 동일한 로직)

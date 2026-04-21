@@ -10,6 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
     injectShopCategories();
 });
 
+// 다른 탭에서 장바구니가 바뀌면(stiz_cart storage 이벤트) 이 탭의 뱃지도 갱신
+window.addEventListener('storage', (e) => {
+    if (e.key === 'stiz_cart' && typeof syncHeaderCartBadge === 'function') {
+        syncHeaderCartBadge();
+    }
+});
+
 /**
  * 카테고리 목록을 API에서 가져와 sessionStorage에 5분간 캐시
  * - 네비 드롭다운이 매 페이지마다 동일 API를 호출하는 낭비를 줄이기 위함
@@ -324,6 +331,10 @@ function renderHeader() {
         });
     }
 
+    // 카트 뱃지: cart.js가 없어도 localStorage에서 직접 읽어 초기값 반영
+    // (cart.js가 로드된 페이지에서는 updateCartCount()가 이후 덮어쓰므로 충돌 없음)
+    syncHeaderCartBadge();
+
     // Search Functionality
     initSearchUI();
 
@@ -509,4 +520,25 @@ function initSearchUI() {
             closeSearch();
         }
     });
+}
+
+/**
+ * 헤더의 카트 뱃지를 localStorage('stiz_cart')에서 직접 계산해 반영한다.
+ * cart.js가 없는 페이지에서도 정확한 개수가 보이도록 하는 보조 로직.
+ */
+function syncHeaderCartBadge() {
+    try {
+        const raw = localStorage.getItem('stiz_cart');
+        const cart = raw ? JSON.parse(raw) : [];
+        const count = Array.isArray(cart)
+            ? cart.reduce((acc, it) => acc + (parseInt(it.qty, 10) || 0), 0)
+            : 0;
+        const badge = document.querySelector('header .bg-red-600');
+        if (badge) {
+            badge.innerText = count;
+            badge.style.display = count > 0 ? 'flex' : 'none';
+        }
+    } catch (e) {
+        console.warn('[header] cart badge sync failed:', e);
+    }
 }

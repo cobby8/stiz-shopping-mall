@@ -820,3 +820,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // Design Lab V3.0 초기화 완료
     // Design Lab V3.0 (SVG Templates) 초기화 완료
 });
+
+/**
+ * 2D 에디터에서 구성한 커스텀 유니폼을 장바구니에 담는다.
+ * - Summary 패널(데스크탑)과 모바일 하단바 양쪽 버튼에서 호출됨
+ * - Base Model명과 Total 가격은 DOM에서 읽어옴 (custom_2d.js가 이미 업데이트한 값)
+ * - 캔버스 이미지는 dataURL로 저장하여 장바구니 썸네일로 활용
+ */
+function addCustom2DToCart() {
+    // 1) Summary 정보 수집 (custom_2d.js가 이미 렌더링한 결과물을 읽는다)
+    const modelName = document.getElementById('summary-model-name')?.innerText?.trim() || '커스텀 유니폼';
+    const priceText = document.getElementById('summary-price')?.innerText || '0';
+    const price = parseInt(priceText.replace(/[^\d]/g, ''), 10) || 0;
+
+    // 2) 캔버스 스냅샷 (장바구니 썸네일)
+    let thumbnail = 'images/placeholder.png';
+    try {
+        const canvasEl = document.querySelector('#c');
+        if (canvasEl && typeof canvasEl.toDataURL === 'function') {
+            thumbnail = canvasEl.toDataURL('image/png');
+        }
+    } catch (_) { /* dataURL 실패 시 기본 이미지 */ }
+
+    // 3) 장바구니 ID — 커스텀 상품은 구성이 매번 다르므로 타임스탬프 기반 유니크 ID
+    const customId = 'custom2d-' + Date.now();
+
+    // 4) cart.js의 addToCart 호출
+    if (typeof addToCart !== 'function') {
+        alert('장바구니 스크립트를 불러오지 못했습니다. 페이지를 새로고침해 주세요.');
+        return;
+    }
+
+    addToCart({
+        id: customId,
+        name: `[커스텀] ${modelName}`,
+        price: price,
+        image: thumbnail,
+        size: 'CUSTOM',
+        qty: 1
+    });
+
+    // 5) 담은 뒤 장바구니로 이동 여부 확인
+    if (confirm('장바구니에 담았습니다. 바로 이동할까요?')) {
+        location.href = 'cart.html';
+    }
+}

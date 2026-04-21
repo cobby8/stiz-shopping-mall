@@ -109,9 +109,12 @@
     <script src="js/auth.js" defer></script>
     <script>
         // 이미 로그인된 상태면 마이페이지로 이동
-        if (isLoggedIn()) {
-            location.href = 'myshop.html';
-        }
+        // auth.js가 defer로 로드되므로 DOMContentLoaded 이후에 실행해야 isLoggedIn이 정의됨
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+                location.href = 'myshop.html';
+            }
+        });
 
         // 로그인 처리 — async로 서버 API 호출
         async function handleLogin() {

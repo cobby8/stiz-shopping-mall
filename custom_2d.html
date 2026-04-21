@@ -300,9 +300,9 @@
                         <span class="font-bold text-lg">Total</span>
                         <span class="font-bold text-xl text-brand-red" id="summary-price">&#8361;45,000</span>
                     </div>
-                    <button
+                    <button id="add-to-cart-desktop" onclick="addCustom2DToCart()"
                         class="w-full bg-black text-white py-4 font-bold tracking-wide hover:bg-gray-800 transition-colors">
-                        ADD TO CART
+                        장바구니 담기
                     </button>
                 </div>
             </div>
@@ -316,13 +316,14 @@
             <span class="text-xs text-gray-500">Total</span>
             <span class="text-lg font-bold ml-2" id="mobile-total-price">&#8361;49,000</span>
         </div>
-        <button onclick="document.querySelector('[onclick*=addToCart], [onclick*=cart], .add-to-cart-btn, #add-to-cart')?.click()" class="bg-black text-white px-6 py-2 rounded-lg text-sm font-bold">
-            ADD TO CART
+        <button id="add-to-cart-mobile" onclick="addCustom2DToCart()" class="bg-black text-white px-6 py-2 rounded-lg text-sm font-bold">
+            장바구니 담기
         </button>
     </div>
 
     <!-- SVG 유니폼 템플릿 데이터 (custom_2d.js보다 먼저 로드해야 함) -->
     <script src="js/jersey-templates.js" defer></script>
+    <script src="js/cart.js" defer></script>
     <script src="js/custom_2d.js" defer></script>
     <!-- 챗봇 위젯: 디자인 중 AI 상담 가능 -->
     <!-- product-data.js 제거됨 — API 기반으로 전환 완료 -->
