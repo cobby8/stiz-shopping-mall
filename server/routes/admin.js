@@ -22,6 +22,7 @@ const router = express.Router();
 // 비유: 관제실 서버 사무실 벽보 — 이 파일 안의 모든 라우트가 참조하는 단일 소스
 const SPORT_LABELS = {
     basketball: '농구',
+    teamwear: '팀웨어',       // #7: 프론트(admin-common.js)와 동일 위치 — D-83 규칙 준수
     soccer: '축구',
     volleyball: '배구',
     baseball: '야구',

@@ -44,6 +44,7 @@ const STATUS_LABELS = {
 // 종목 한글 라벨 — 영문 코드를 한글로 변환 (테이블/CSV/차트에서 사용)
 const SPORT_LABELS = {
     basketball: '농구',
+    teamwear: '팀웨어',           // #7: bulk-order.html 순서와 일치(basketball 다음) — 영문 노출 버그 해결
     soccer: '축구',
     volleyball: '배구',
     baseball: '야구',
