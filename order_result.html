@@ -42,7 +42,6 @@
     <!-- HEADER -->
     <header></header>
     <div class="h-20"></div>
-    <div class="h-20"></div>
 
     <main class="flex-1 container mx-auto px-6 py-12">
 
@@ -55,55 +54,59 @@
                 </svg>
             </div>
 
-            <h1 class="text-4xl font-bold mb-4">Thank you for your order!</h1>
+            <h1 class="text-4xl font-bold mb-4">주문이 완료되었습니다</h1>
             <p class="text-gray-500 mb-8" id="confirm-email-msg">
-                Your order has been received and is being processed.
+                주문이 접수되어 처리 중입니다.
             </p>
 
-            <!-- Order Number -->
+            <!-- 주문 번호 -->
             <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 w-full mb-8">
-                <h3 class="text-sm font-bold text-gray-500 uppercase mb-2">Order Number</h3>
+                <h3 class="text-sm font-bold text-gray-500 uppercase mb-2">주문번호</h3>
                 <p class="text-2xl font-mono tracking-widest" id="result-order-number">#STIZ-0000-0000</p>
             </div>
 
-            <!-- Order Details -->
+            <!-- 주문 상세 -->
             <div class="bg-white border border-gray-200 rounded-lg text-left mb-8">
                 <div class="p-6 border-b border-gray-100">
-                    <h3 class="font-bold text-sm mb-4">Order Items</h3>
+                    <h3 class="font-bold text-sm mb-4">주문 상품</h3>
                     <div id="result-items" class="space-y-3">
                         <!-- JS injected -->
                     </div>
                 </div>
 
                 <div class="p-6 border-b border-gray-100">
-                    <h3 class="font-bold text-sm mb-3">Shipping Address</h3>
+                    <h3 class="font-bold text-sm mb-3">배송지</h3>
                     <p class="text-sm text-gray-600" id="result-address">-</p>
                 </div>
 
                 <div class="p-6">
                     <div class="flex justify-between text-sm mb-2">
-                        <span class="text-gray-500">Subtotal</span>
+                        <span class="text-gray-500">상품 금액</span>
                         <span class="font-bold" id="result-subtotal">₩ 0</span>
                     </div>
                     <div class="flex justify-between text-sm mb-2">
-                        <span class="text-gray-500">Shipping</span>
+                        <span class="text-gray-500">배송비</span>
                         <span id="result-shipping">₩ 0</span>
                     </div>
                     <div class="flex justify-between text-lg font-bold border-t border-gray-200 pt-3 mt-3">
-                        <span>Total</span>
+                        <span>총 결제 금액</span>
                         <span class="text-brand-red" id="result-total">₩ 0</span>
                     </div>
                 </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <button id="btn-track-order" onclick="goToOrderTracking()"
+                    class="bg-brand-red text-white px-8 py-3 rounded font-bold hover:bg-red-700 transition-colors uppercase">
+                    주문 진행 확인
+                </button>
                 <button onclick="location.href='list.html'"
                     class="bg-black text-white px-8 py-3 rounded font-bold hover:bg-gray-800 transition-colors uppercase">
-                    Continue Shopping
+                    쇼핑 계속하기
                 </button>
                 <button onclick="location.href='index.html'"
                     class="border border-black px-8 py-3 rounded font-bold hover:bg-black hover:text-white transition-colors uppercase">
-                    Back to Home
+                    홈으로
                 </button>
             </div>
         </div>
@@ -134,7 +137,7 @@
             // Email message
             if (order.customer && order.customer.email) {
                 document.getElementById('confirm-email-msg').innerHTML =
-                    `Your order has been received and is being processed. A confirmation will be sent to <span class="text-black font-bold">${order.customer.email}</span>.`;
+                    `주문이 접수되어 처리 중입니다. 확인 메일은 <span class="text-black font-bold">${order.customer.email}</span> 으로 발송됩니다.`;
             }
 
             // Items
@@ -165,9 +168,36 @@
 
             // Totals
             document.getElementById('result-subtotal').innerText = '₩ ' + (order.subtotal || 0).toLocaleString();
-            document.getElementById('result-shipping').innerText = order.shippingCost === 0 ? 'FREE' : '₩ ' + (order.shippingCost || 0).toLocaleString();
+            document.getElementById('result-shipping').innerText = order.shippingCost === 0 ? '무료' : '₩ ' + (order.shippingCost || 0).toLocaleString();
             document.getElementById('result-total').innerText = '₩ ' + (order.total || 0).toLocaleString();
         });
+
+        /**
+         * "주문 진행 확인" 버튼: 로그인 상태면 myshop 주문 탭,
+         * 비회원이면 order-track 페이지로 주문번호+연락처 프리필하여 이동
+         */
+        function goToOrderTracking() {
+            const orderJson = localStorage.getItem('stiz_last_order');
+            const token = localStorage.getItem('stiz_token');
+            // 로그인 상태: 마이페이지 주문 탭으로 바로 이동
+            if (token) {
+                location.href = 'myshop.html#orders';
+                return;
+            }
+            // 비회원: 주문번호/연락처 프리필하여 주문 조회 페이지로
+            if (orderJson) {
+                try {
+                    const o = JSON.parse(orderJson);
+                    const params = new URLSearchParams();
+                    if (o.orderNumber) params.set('orderNumber', o.orderNumber);
+                    if (o.customer && o.customer.phone) params.set('phone', o.customer.phone);
+                    location.href = 'order-track.html?' + params.toString();
+                    return;
+                } catch (_) { /* fall through */ }
+            }
+            // 폴백: 빈 주문조회 페이지
+            location.href = 'order-track.html';
+        }
     </script>
 </body>
 

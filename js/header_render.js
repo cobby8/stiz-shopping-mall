@@ -250,8 +250,8 @@ function renderHeader() {
                 </svg>
             </button>
             
-            <!-- User -->
-            <a href="login.html" class="hover:opacity-70">
+            <!-- User: 로그인 상태면 마이페이지, 아니면 로그인 페이지로 -->
+            <a href="#" onclick="goToUserPage(event)" class="hover:opacity-70" aria-label="내 계정">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -541,4 +541,16 @@ function syncHeaderCartBadge() {
     } catch (e) {
         console.warn('[header] cart badge sync failed:', e);
     }
+}
+
+/**
+ * 헤더 유저 아이콘 클릭: stiz_token이 있으면 myshop으로, 없으면 login으로.
+ * auth.js가 없는 페이지에서도 동작하도록 localStorage 직접 읽기.
+ */
+function goToUserPage(e) {
+    // 기본 앵커 동작(#으로 이동) 막기
+    if (e && e.preventDefault) e.preventDefault();
+    // 토큰 유무로 로그인 상태 판별 — 만료 여부는 auth.js가 책임
+    const token = localStorage.getItem('stiz_token');
+    location.href = token ? 'myshop.html' : 'login.html';
 }
