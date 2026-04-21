@@ -188,6 +188,7 @@ function renderHeader() {
                                         <span class="text-2xl mr-3 text-gray-300 group-hover/item:text-blue-600">02</span>
                                         <div>
                                             <strong class="text-black block group-hover/item:text-blue-600">디자이너 무료 시안 요청</strong>
+                                            <span class="text-xs">원하시는 분위기만 알려주시면 시안 제작</span>
                                         </div>
                                     </a>
                                 </li>
