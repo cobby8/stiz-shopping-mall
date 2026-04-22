@@ -43,8 +43,7 @@
         href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Black+Han+Sans&family=Black+Ops+One&family=Bungee+Inline&family=Changa:wght@200..800&family=Chusso&family=College&family=Do+Hyeon&family=Faster+One&family=Graduate&family=Gugi&family=Hammersmith+One&family=Impact&family=Jua&family=Kanit:ital,wght@0,100..900;1,100..900&family=Knewave&family=Lemon&family=Lobster&family=Moirai+One&family=Monoton&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Sans+KR:wght@100..900&family=Orbitron:wght@400..900&family=Oswald:wght@200..700&family=Pacifico&family=Passion+One:wght@400;700;900&family=Permanent+Marker&family=Racing+Sans+One&family=Righteous&family=Roboto+Slab:wght@100..900&family=Rowdies:wght@300;400;700&family=Russo+One&family=Shojumaru&family=Sigmar&family=Squada+One&family=Stardos+Stencil:wght@400;700&family=Teko:wght@300..700&family=Titan+One&family=Tourney:ital,wght@0,100..900;1,100..900&family=Wallpoet&display=swap"
         rel="stylesheet">
 
-    <!-- Fabric.js -->
-    <script defer src="https://unpkg.com/fabric@5.3.0/dist/fabric.min.js"></script>
+    <!-- Fabric.js 제거됨 (D-96, 2026-04-22) — 2D 에디터 폐기에 따라 허브 페이지에서도 미사용 스크립트 정리 -->
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
@@ -87,39 +86,12 @@
                 아이덴티티를 디자인하세요</h1>
             <p class="text-gray-400 text-lg md:text-xl mb-16 max-w-2xl mx-auto">
                 STIZ 디자인 랩에서 팀의 색을 입혀보세요. <br class="hidden md:block">
-                세 가지 방식 중 편한 방법으로 시작할 수 있어요.
+                두 가지 방식 중 편한 방법으로 시작할 수 있어요.
             </p>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-                <!-- Card 1: 2D Editor -->
-                <a href="custom_2d.html"
-                    class="group relative bg-gray-900 rounded-2xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300">
-                    <div
-                        class="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-100 group-hover:opacity-0 transition-opacity">
-                    </div>
-                    <div
-                        class="absolute inset-0 bg-gradient-to-br from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    </div>
-
-                    <div
-                        class="relative bg-black h-full rounded-xl p-8 flex flex-col items-center justify-center text-center border border-gray-800 group-hover:border-transparent">
-                        <div
-                            class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                        </div>
-                        <h3 class="text-2xl font-bold text-white mb-2">2D 에디터로 직접 디자인</h3>
-                        <p class="text-gray-400 text-sm mb-6">STIZ 유니폼 템플릿에 로고·텍스트·컬러를
-                            바로 올려보세요.</p>
-                        <span
-                            class="inline-block border border-gray-600 rounded-full px-4 py-1 text-xs text-gray-300 group-hover:bg-white group-hover:text-black group-hover:border-white transition-colors font-bold">2D 에디터 시작 &rarr;</span>
-                    </div>
-                </a>
-
-                <!-- Card 2: 3D AI Design -->
+            <!-- 2D 에디터 카드 제거됨 (D-96, 2026-04-22). 3카드 → 2카드 레이아웃으로 축소 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-4xl mx-auto">
+                <!-- Card 1: 3D AI Design -->
                 <a href="custom_3d.html"
                     class="group relative bg-gray-900 rounded-2xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300">
                     <div
@@ -147,7 +119,7 @@
                     </div>
                 </a>
 
-                <!-- Card 3: 무료 시안 요청 -->
+                <!-- Card 2: 무료 시안 요청 -->
                 <!-- 무료 시안 요청은 1:1 문의로 유입 (제목 프리필 위해 source=custom 전달) -->
                 <a href="inquiry.html?source=custom"
                     class="group relative bg-gray-900 rounded-2xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300">

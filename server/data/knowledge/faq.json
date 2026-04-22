@@ -178,9 +178,9 @@
       "id": "FAQ-CUSTOM-007",
       "intent": "custom",
       "priority": "high",
-      "keywords": ["디자인", "2D", "3D", "목업", "에디터"],
+      "keywords": ["디자인", "3D", "에디터", "시안"],
       "questions": ["직접 디자인할 수 있나요?", "어떻게 디자인해요?"],
-      "answer": "STIZ Design Lab에서 세 가지 방법을 제공합니다. ① 2D Editor — 기존 STIZ 상품에 로고·텍스트·색상을 얹는 커스텀(custom_2d.html). ② 3D AI Design — NanoBanana AI 엔진으로 독창적 디자인 생성(custom_3d.html). ③ Request Mockup — 시안을 실제 유니폼 목업으로 확인(custom_mockup.html). 디자인 랩 입구는 custom.html이에요.",
+      "answer": "STIZ Design Lab에서 두 가지 방법을 제공합니다. ① 3D AI Design — NanoBanana AI 엔진으로 키워드만 입력하면 유니폼 3D 시안을 자동 생성해 드립니다(custom_3d.html). ② 무료 시안 요청 (1:1 문의) — 원하시는 분위기만 알려주시면 디자이너가 직접 시안을 만들어 드립니다(inquiry.html?source=custom). 디자인 랩 입구는 custom.html이에요.",
       "source": "custom.html:90~176",
       "needsReview": false
     },
