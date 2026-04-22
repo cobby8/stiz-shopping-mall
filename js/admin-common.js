@@ -17,6 +17,33 @@
 // 이렇게 해야 다른 컴퓨터에서 192.168.x.x로 접속해도 API가 정상 동작한다.
 const API_BASE = '';
 
+// ============================================================
+// 관리자 태블릿 브레이크포인트 (C-9, D-95)
+// ============================================================
+// 이유: 같은 미디어쿼리 문자열이 admin.js / admin-calendar.js / admin-common.js 3곳에
+//       중복되어 있어서, 브레이크포인트 변경 시 3곳을 전부 찾아 고쳐야 했다.
+// 해법: 공통 상수 2개 + 헬퍼 2개를 admin-common.js에 단일 선언.
+//       admin-common.js는 모든 관리자 페이지에 가장 먼저 로드되므로 전역 참조 가능.
+// 규칙: 관리자 JS에서 하드코딩 금지 — 반드시 아래 상수/헬퍼만 사용.
+//       브레이크포인트를 바꿀 일이 생기면 이 네 줄만 수정하면 프로젝트 전역에 반영된다.
+// Tailwind와의 정합: md(768)~xl(1280) 경계와 동일. A-23 참조.
+
+// 태블릿 전용 구간 (768~1279px) — 태블릿 레이아웃 분기에만 사용
+const ADMIN_TABLET_ONLY_MQ = '(min-width: 768px) and (max-width: 1279px)';
+
+// 태블릿+스마트폰 통합 구간 (0~1279px, 즉 "PC가 아닌" 구간) — PC 권장 배너 등에 사용
+const ADMIN_NON_PC_MQ = '(max-width: 1279px)';
+
+// 현재 뷰포트가 태블릿 구간(768~1279px)인지 판단
+function isAdminTabletOnly() {
+    return window.matchMedia(ADMIN_TABLET_ONLY_MQ).matches;
+}
+
+// 현재 뷰포트가 PC가 아닌지(≤1279px) 판단
+function isAdminNonPc() {
+    return window.matchMedia(ADMIN_NON_PC_MQ).matches;
+}
+
 // 주문 상태 한글 라벨 — 영문 코드를 한글로 변환 (상태 배지, 필터 등에서 사용)
 const STATUS_LABELS = {
     consult_started: '상담개시',
@@ -414,8 +441,8 @@ function showPcRecommendBanner() {
         if (sessionStorage.getItem('pcRecommendBannerDismissed') === 'true') return;
     } catch (e) { /* Storage 차단 환경도 배너는 노출 */ }
 
-    // 1280px 미만일 때만 노출 — Step 2/4 브레이크포인트와 정합
-    if (!window.matchMedia('(max-width: 1279px)').matches) return;
+    // 1280px 미만일 때만 노출 — Step 2/4 브레이크포인트와 정합 (C-9/D-95: 공통 헬퍼 경유)
+    if (!isAdminNonPc()) return;
 
     // 배너 DOM 생성 — Tailwind 유틸만 사용(하드코딩 색상 금지, C-1)
     const banner = document.createElement('div');

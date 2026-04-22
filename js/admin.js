@@ -94,8 +94,10 @@ const TABLET_HIDDEN_COLUMNS = ['customerName', 'manager', 'paidDate', 'workInstr
 
 // 현재 뷰포트가 태블릿 구간인지 판단 (768~1279px)
 // PC(≥1280px)에서는 항상 false → 기존 컬럼 구성 그대로 유지 (회귀 0)
+// C-9/D-95: 매직 스트링 하드코딩 금지 — admin-common.js 전역 헬퍼 재사용
+// 함수명은 유지(호출자 applyPagePreset 등 변경 0), 내부 구현만 공통 헬퍼 경유
 function isTabletViewport() {
-    return window.matchMedia('(min-width: 768px) and (max-width: 1279px)').matches;
+    return isAdminTabletOnly();
 }
 
 const PAGE_PRESETS = {
@@ -471,7 +473,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 태블릿 ↔ PC 브레이크포인트 교차 시 컬럼 가시성 재계산 + 테이블 재렌더
     // 비유: 창 크기를 늘렸다 줄이면 자동으로 컬럼이 붙었다 떨어졌다
     // 서버 재요청 없이 캐시(lastLoadedOrders)로 즉시 재렌더 → 네트워크 부담 0
-    const tabletMql = window.matchMedia('(min-width: 768px) and (max-width: 1279px)');
+    // C-9/D-95: 공통 상수 경유 (admin-common.js ADMIN_TABLET_ONLY_MQ)
+    const tabletMql = window.matchMedia(ADMIN_TABLET_ONLY_MQ);
     const handleBreakpointChange = () => {
         applyPagePreset();
         if (lastLoadedOrders) {
