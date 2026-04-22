@@ -308,3 +308,85 @@ function handleLogout() {
     localStorage.removeItem('stiz_admin_token');
     window.location.href = 'admin-login.html';
 }
+
+// ============================================================
+// 모바일/태블릿 햄버거 드로어 (Step 1 공통 UI)
+// 비유: PC에서 쭉 펼쳐진 상단 메뉴를, 좁은 화면에선 접었다 펴는 서랍장으로 교체
+// ============================================================
+
+/**
+ * 햄버거 드로어 초기화 — 5개 관리자 페이지 공통
+ *
+ * 왜 이렇게 하는가:
+ *  - admin*.html 5개 파일 헤더에 각각 #adminMobileToggle(햄버거 버튼)과
+ *    #adminMobileDrawer(사이드 서랍)를 배치하되, 동작 JS는 한 곳에서 관리하기 위함
+ *  - 프로젝트 관례(C-4)에 따라 ESM export 대신 전역 함수로 선언
+ *  - 아래 DOMContentLoaded 후크에서 자동 호출되므로, HTML 파일별 JS는 수정 불필요
+ *
+ * 동작:
+ *  - 햄버거 클릭 → 드로어(오버레이 + 사이드패널) 열기 + body 스크롤 잠금
+ *  - 오버레이 클릭 / 닫기(X) 버튼 / ESC 키 → 드로어 닫기
+ *  - 화면이 md(≥768px) 이상으로 넓어지면 드로어 자동 닫기(리사이즈 대응)
+ */
+function initMobileDrawer() {
+    // 페이지에 드로어가 없으면(예: admin-login 등) 조용히 종료
+    const toggleBtn = document.getElementById('adminMobileToggle');
+    const drawer = document.getElementById('adminMobileDrawer');
+    if (!toggleBtn || !drawer) return;
+
+    // 드로어 내부 요소 — 오버레이/패널/닫기 버튼(HTML에서 data 속성으로 마킹)
+    const overlay = drawer.querySelector('[data-drawer-overlay]');
+    const closeBtn = drawer.querySelector('[data-drawer-close]');
+
+    // 드로어 열기 — hidden 제거 + body 스크롤 잠금(배경이 따라 스크롤되는 현상 방지)
+    const open = () => {
+        drawer.classList.remove('hidden');
+        // 다음 프레임에 aria-hidden 갱신(스크린리더 호환)
+        drawer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        toggleBtn.setAttribute('aria-expanded', 'true');
+    };
+
+    // 드로어 닫기
+    const close = () => {
+        drawer.classList.add('hidden');
+        drawer.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        toggleBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    // 열림 상태 여부 확인(ESC 핸들러 등에서 활용)
+    const isOpen = () => !drawer.classList.contains('hidden');
+
+    // 햄버거 버튼 클릭 → 열기
+    toggleBtn.addEventListener('click', open);
+
+    // 오버레이 클릭 → 닫기
+    if (overlay) overlay.addEventListener('click', close);
+
+    // X 버튼 클릭 → 닫기
+    if (closeBtn) closeBtn.addEventListener('click', close);
+
+    // ESC 키 → 닫기(접근성)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isOpen()) close();
+    });
+
+    // md(≥768px) 이상으로 리사이즈되면 드로어 자동 닫기
+    // 비유: 책상이 넓어지면 서랍을 쓸 필요가 없으니 자동으로 닫는 것
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handleMq = (e) => { if (e.matches && isOpen()) close(); };
+    // 구형 브라우저(addEventListener 미지원) 대비
+    if (mq.addEventListener) mq.addEventListener('change', handleMq);
+    else if (mq.addListener) mq.addListener(handleMq);
+
+    // 드로어 내부 링크를 클릭하면 페이지 이동 전에 닫기(시각적 깔끔함)
+    drawer.querySelectorAll('a[href]').forEach(a => {
+        a.addEventListener('click', close);
+    });
+}
+
+// DOMContentLoaded 자동 후크 — 5개 페이지 JS를 수정하지 않아도 초기화 완료
+// 비유: 5개 상점 각 매니저에게 "문 여는 법" 설명서를 개별 배포하는 대신,
+//       본사(admin-common.js)가 일괄 공지해서 모두 자동 적용되게 하는 것
+document.addEventListener('DOMContentLoaded', initMobileDrawer);
