@@ -11,8 +11,9 @@ import db from '../db.js';
 // normalizeStatus — normalizeOrderStatus(line 59) 내부에서 사용 (stats.js/orders.js가 이 파일의 normalizeOrderStatus를 import)
 // (getCustomerStatus / STATUS_FLOW / STATUS_LABELS는 2026-04-22 orders 분리로 admin.js 본체에서는 사용처 없어져 import 제거)
 import { normalizeStatus } from './orders.js';
-import { runBackup } from '../backup.js';  // 수동 백업 API용
-import { logActivity, getActivityLogs } from '../activityLog.js';  // 관리자 활동 로그 (D-2)
+// (runBackup은 2026-04-22 ops 5차 분리로 admin/ops.js로 이동)
+// (logActivity / getActivityLogs는 2026-04-22 ops 5차 분리로 admin/ops.js로 이동
+//  — orders.js / templates.js는 각자 `../../activityLog.js` 자체 import 중이라 영향 없음)
 // (알림톡 관련 import는 2026-04-22 orders 분리 때 admin/orders.js로 이동됨 — PATCH /:id/status에서만 사용)
 // 관리자 통계/분석 라우트 — 2026-04-22 admin.js에서 분리 (stats 도메인 6개 라우트)
 // 비유: "통계 캐비닛"을 별도 미니 사무실로 옮긴 것. URL은 그대로 /api/admin/stats/*
@@ -28,6 +29,11 @@ import templatesRouter from './admin/templates.js';
 // URL은 그대로 /api/admin/sales-goals/:year, /api/admin/reorder-candidates
 // ⚠️ sales-goals와 reorder-candidates는 공통 prefix가 없어 `router.use('/', ...)` 패턴 사용
 import salesOpsRouter from './admin/sales-ops.js';
+// 관리자 운영(ops) 라우트 — 2026-04-22 admin.js에서 분리 (backup + activity-log, D-90 5차)
+// 비유: "백업 버튼 + CCTV 감사 로그"를 별도 미니 사무실로 옮긴 것.
+// URL은 그대로 /api/admin/backup, /api/admin/activity-log
+// ⚠️ /backup과 /activity-log는 공통 prefix가 없어 `router.use('/', ...)` 루트 마운트 (C-8, sales-ops와 동일)
+import opsRouter from './admin/ops.js';
 
 const router = express.Router();
 
@@ -44,6 +50,10 @@ router.use('/templates', templatesRouter);
 // prefix 없이 루트에 마운트하고 salesOpsRouter 내부에서 절대경로로 정의한다.
 // ⚠️ 아래에 `/sales-goals/*`, `/reorder-candidates` 라우트를 추가하지 말 것 — salesOpsRouter로 위임됨
 router.use('/', salesOpsRouter);
+// /backup, /activity-log도 동일한 루트 마운트 패턴 (C-8).
+// opsRouter 내부에서 절대경로로 정의되어 있다.
+// ⚠️ 아래에 `/backup`, `/activity-log` 라우트를 추가하지 말 것 — opsRouter로 위임됨
+router.use('/', opsRouter);
 
 // I-2: 종목 영문→한글 매핑을 파일 상단 1곳에서 정의 (기존 2곳 중복 제거)
 // 프론트 js/admin-common.js L45~60과 키세트 완전 동기화 — 새 종목 추가 시 양쪽 모두 업데이트 필요
@@ -93,63 +103,11 @@ function normalizeOrderStatus(order) {
 
 
 // ============================================================
-// GET /api/admin/backup - 수동 백업 실행
-// 비유: 관리자가 "지금 당장 금고에 복사본 넣어!" 버튼을 누르는 것
+// [D-2] 수동 백업 + 감사 로그 — 2026-04-22 admin/ops.js로 분리 (D-90 5차)
+//  - GET /backup, GET /activity-log (2 라우트)
+//  - URL은 그대로. 마운트 패턴: router.use('/', opsRouter) — C-8 루트 마운트 (sales-ops와 동일)
+//  - ⚠️ 아래에 `/backup`, `/activity-log` 라우트를 추가하지 말 것 — opsRouter로 위임됨
 // ============================================================
-router.get('/backup', async (req, res) => {
-    try {
-        const result = await runBackup();
-
-        if (result.success) {
-            // [D-2] 활동 로그 기록
-            logActivity('backup_manual', {
-                fileCount: result.files.length,
-                timestamp: result.timestamp
-            }, req.user);
-
-            res.json({
-                success: true,
-                message: `${result.files.length}개 파일 백업 완료`,
-                files: result.files,
-                timestamp: result.timestamp
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: result.error || '백업 실행 중 오류 발생'
-            });
-        }
-    } catch (error) {
-        console.error('[Admin] Backup error:', error);
-        res.status(500).json({ success: false, error: '백업 실행 실패' });
-    }
-});
-
-
-// ============================================================
-// GET /api/admin/activity-log - 최근 활동 로그 조회 (D-2)
-// 비유: CCTV 녹화 영상을 최신순으로 되감아 보는 것
-// 쿼리 파라미터:
-//   - limit: 가져올 건수 (기본 50, 최대 200)
-//   - action: 특정 액션만 필터 (예: order_status_change)
-// ============================================================
-router.get('/activity-log', (req, res) => {
-    try {
-        const limit = parseInt(req.query.limit) || 50;
-        const action = req.query.action || null;
-
-        const logs = getActivityLogs(limit, action);
-
-        res.json({
-            success: true,
-            logs,
-            total: logs.length
-        });
-    } catch (error) {
-        console.error('[Admin] Activity log error:', error);
-        res.status(500).json({ success: false, error: '활동 로그 조회 실패' });
-    }
-});
 
 // ============================================================
 // [C-3] 매출 목표 + [B-3] 재주문 후보 — 2026-04-22 admin/sales-ops.js로 분리 (D-90 4차)
