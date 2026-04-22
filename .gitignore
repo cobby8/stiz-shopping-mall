@@ -21,8 +21,10 @@ dev/*.log
 # 디자인 원본
 dev/design/
 
-# Agent worktrees
-.claude/worktrees/
+# Claude 에이전트 로컬 데이터 (scratchpad/knowledge/worktrees/settings)
+# AI 도구 내부 상태라 팀 공유 대상 아님
+.claude/
+.agents/
 
 # 테스트 스크립트
 test-*.js
