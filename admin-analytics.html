@@ -252,8 +252,9 @@
                     <span class="material-symbols-outlined mr-2 text-brand-red">flag</span>
                     <span id="goal-title">매출 목표 달성률</span>
                 </h3>
+                <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) — Step 3 -->
                 <button id="goal-setting-btn" onclick="openGoalModal()"
-                    class="text-sm text-gray-500 hover:text-brand-red transition-colors flex items-center gap-1">
+                    class="min-h-[44px] text-sm text-gray-500 hover:text-brand-red transition-colors flex items-center gap-1">
                     <span class="material-symbols-outlined text-base">settings</span>
                     목표 설정
                 </button>
@@ -263,8 +264,9 @@
             <div id="goal-empty" class="text-center py-6">
                 <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">track_changes</span>
                 <p class="text-sm text-gray-400 mb-3">아직 매출 목표가 설정되지 않았습니다.</p>
+                <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) — Step 3 -->
                 <button onclick="openGoalModal()"
-                    class="text-sm bg-brand-red text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                    class="min-h-[44px] text-sm bg-brand-red text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
                     목표 설정하기
                 </button>
             </div>
@@ -519,10 +521,11 @@
 
             <!-- 종목별/고객별 마진 테이블 (탭 전환) -->
             <div>
+                <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) — Step 3 -->
                 <div class="flex border-b border-gray-200 mb-4">
-                    <button id="margin-tab-sport" class="px-4 py-2 text-sm font-medium border-b-2 border-gray-800 text-gray-800"
+                    <button id="margin-tab-sport" class="min-h-[44px] px-4 py-2 text-sm font-medium border-b-2 border-gray-800 text-gray-800"
                         onclick="switchMarginTab('sport')">종목별</button>
-                    <button id="margin-tab-customer" class="px-4 py-2 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600"
+                    <button id="margin-tab-customer" class="min-h-[44px] px-4 py-2 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600"
                         onclick="switchMarginTab('customer')">고객 TOP 10</button>
                 </div>
                 <!-- 종목별 마진 테이블 -->
