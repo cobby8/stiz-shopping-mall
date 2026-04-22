@@ -598,7 +598,7 @@ const CHATBOT_STYLE = `
 // Material Symbols 폰트 링크가 <head>에 없는 페이지에서도
 // 챗봇 아이콘(chat/send/close/support_agent/sell)이 원시 텍스트로
 // 노출되지 않도록, 초기화 시 존재 여부를 확인하고 없으면 주입한다.
-// (join/login/custom/custom_3d/custom_mockup/order_result 6개 HTML 대응)
+// (join/login/custom/custom_3d/order_result 5개 HTML 대응)
 function ensureMaterialSymbolsFont() {
     // 이미 어떤 형태로든 Material Symbols Outlined 링크가 있으면 스킵
     // (opsz/wght 파라미터 변형까지 href*= 로 포괄 매칭)

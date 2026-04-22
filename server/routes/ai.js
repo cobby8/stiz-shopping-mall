@@ -80,22 +80,6 @@ router.post('/', async (req, res) => {
                 2. Do NOT mention "Jersey", "Shirt", "Fabric", "Sleeve", "Mannequin".
                 3. Background must be "Solid White".
             `;
-        } else if (type === 'mockup') {
-            // 목업 뷰어에서 호출: 유니폼 착용 사진 스타일 이미지 생성
-            console.log("--> AI MODE: [MOCKUP GENERATOR]");
-            refinementPrompt = `
-                Role: Professional Sports Photography Director.
-                Task: Create a studio-quality product mockup photo based on: "${prompt}".
-
-                STRICT CONSTRAINTS:
-                1. **Subject**: Athletic model wearing the described sportswear uniform.
-                2. **Pose**: Standing confidently, front-facing, professional sports portrait.
-                3. **Background**: Clean studio white or light gray gradient.
-                4. **Lighting**: Professional studio lighting, soft shadows.
-                5. **Quality**: High-resolution product photography style.
-
-                Output Format: "Mockup Description: [detailed visual description for image generation]"
-            `;
         } else {
             console.log("--> AI MODE: [FASHION DESIGNER]");
             refinementPrompt = `
@@ -116,7 +100,6 @@ router.post('/', async (req, res) => {
         const refinedPrompt = response.text()
             .replace('Design Description:', '')
             .replace('Logo Description:', '')
-            .replace('Mockup Description:', '')  // 목업 타입 접두사 제거
             .trim();
 
         console.log(`[AI Refined] ${refinedPrompt}`);
