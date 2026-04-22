@@ -26,32 +26,12 @@ import db from '../../db.js';
 import { normalizeOrderStatus } from '../admin.js';
 // orders.js의 getCustomerStatus — stats 루트 라우트(4단계 집계)에서 필요
 import { getCustomerStatus } from '../orders.js';
+// SPORT_LABELS — 종목 영문키 → 한글 라벨 매핑 공유 모듈 (D-90 6차로 추출)
+// 비유: 예전에는 이 파일에 사전을 복붙해 뒀지만, 이제는 공용 도서관(constants/)에서 빌려 쓴다.
+// ⚠️ D-83 규칙: 서버는 이 공유 모듈 1곳 + 프론트 js/admin-common.js 1곳 = 총 2곳 동기화
+import { SPORT_LABELS } from '../../constants/sport-labels.js';
 
 const router = express.Router();
-
-// ─────────────────────────────────────────────────────────────
-// SPORT_LABELS — 종목 영문키 → 한글 라벨 매핑 (15종)
-// ⚠️ D-83 규칙: 프론트 admin-common.js + 서버 admin.js + 서버 admin/stats.js (3곳 동기화)
-//    새 종목 추가 시 3곳 모두 수정해야 함. admin.js 원본은 calendar 라우트(admin.js L2272)가 참조 중이라 유지.
-// 비유: "종목 번역 사전의 사본" — 본사(admin.js)와 지점(stats.js)이 각각 가지고 있어야 API 응답 한글 라벨이 같음
-// ─────────────────────────────────────────────────────────────
-const SPORT_LABELS = {
-    basketball: '농구',
-    teamwear: '팀웨어',       // 프론트(admin-common.js)와 동일 위치 — D-83 규칙 준수
-    soccer: '축구',
-    volleyball: '배구',
-    baseball: '야구',
-    badminton: '배드민턴',
-    tabletennis: '탁구',
-    handball: '핸드볼',
-    futsal: '풋살',
-    tennis: '테니스',
-    softball: '소프트볼',   // 프론트(admin-common.js)와 동기화 (stiz.db 0건, 예비)
-    hockey: '하키',
-    other: '기타',           // stiz.db 실측 1,137건 — 영문 노출 버그 해결
-    etc: '기타',
-    unknown: '미분류'
-};
 
 // 매출 기준일 반환 (주문서접수일 우선, 없으면 상담개시일 폴백)
 // 비유: "계약일"이 있으면 계약일 기준, 없으면 "상담일" 기준으로 매출 집계
@@ -476,7 +456,7 @@ router.get('/by-sport', (req, res) => {
             sportMap[sport].revenue += amount;
         });
 
-        // SPORT_LABELS는 이 파일 상단에 정의 (D-83 3곳 동기화)
+        // SPORT_LABELS는 상단에서 공유 모듈(`../../constants/sport-labels.js`)에서 import (D-90 6차)
 
         // 배열로 변환 + 매출 내림차순 정렬
         const sports = Object.entries(sportMap)
@@ -566,7 +546,7 @@ router.get('/margin', (req, res) => {
         });
 
         // --- 종목별(bySport) 집계 ---
-        // SPORT_LABELS는 이 파일 상단에 정의 (D-83 3곳 동기화)
+        // SPORT_LABELS는 상단에서 공유 모듈(`../../constants/sport-labels.js`)에서 import (D-90 6차)
 
         const sportMap = {};
         orders.forEach(order => {

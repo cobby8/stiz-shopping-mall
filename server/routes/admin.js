@@ -34,6 +34,10 @@ import salesOpsRouter from './admin/sales-ops.js';
 // URL은 그대로 /api/admin/backup, /api/admin/activity-log
 // ⚠️ /backup과 /activity-log는 공통 prefix가 없어 `router.use('/', ...)` 루트 마운트 (C-8, sales-ops와 동일)
 import opsRouter from './admin/ops.js';
+// 관리자 캘린더(calendar) 라우트 — 2026-04-22 admin.js에서 분리 (calendar/events, D-90 6차)
+// 비유: "벽 달력 포스트잇 서비스"를 별도 미니 사무실로 옮긴 것.
+// URL은 그대로 /api/admin/calendar/events — prefix 통합 마운트(향후 /calendar/* 확장 대비)
+import calendarRouter from './admin/calendar.js';
 
 const router = express.Router();
 
@@ -54,27 +58,13 @@ router.use('/', salesOpsRouter);
 // opsRouter 내부에서 절대경로로 정의되어 있다.
 // ⚠️ 아래에 `/backup`, `/activity-log` 라우트를 추가하지 말 것 — opsRouter로 위임됨
 router.use('/', opsRouter);
+// /calendar/* 하위 경로는 전부 calendarRouter로 위임 (URL 변경 0)
+// ⚠️ 아래에 `/calendar/*` 패턴 라우트를 절대 추가하지 말 것 — calendarRouter로 위임되므로 매칭 실패
+router.use('/calendar', calendarRouter);
 
-// I-2: 종목 영문→한글 매핑을 파일 상단 1곳에서 정의 (기존 2곳 중복 제거)
-// 프론트 js/admin-common.js L45~60과 키세트 완전 동기화 — 새 종목 추가 시 양쪽 모두 업데이트 필요
-// 비유: 관제실 서버 사무실 벽보 — 이 파일 안의 모든 라우트가 참조하는 단일 소스
-const SPORT_LABELS = {
-    basketball: '농구',
-    teamwear: '팀웨어',       // #7: 프론트(admin-common.js)와 동일 위치 — D-83 규칙 준수
-    soccer: '축구',
-    volleyball: '배구',
-    baseball: '야구',
-    badminton: '배드민턴',
-    tabletennis: '탁구',
-    handball: '핸드볼',
-    futsal: '풋살',
-    tennis: '테니스',
-    softball: '소프트볼',   // 프론트(admin-common.js)와 동기화 (stiz.db 0건, 예비)
-    hockey: '하키',
-    other: '기타',           // stiz.db 실측 1,137건 — 영문 노출 버그 해결
-    etc: '기타',
-    unknown: '미분류'
-};
+// (SPORT_LABELS는 2026-04-22 D-90 6차 분리로 `server/constants/sport-labels.js`로 이동
+//  — 서버 3곳 중복을 1곳 단일 소스로 통합 (D-83). calendar.js / stats.js가 각자 import 사용.
+//  프론트는 여전히 js/admin-common.js에 별도 존재 → 새 종목 추가 시 2곳 동기화 필요.)
 
 // (헬퍼 이동 기록:
 //   - getRevenueDate: 2026-04-22 stats.js로 이동 (stats 도메인 전용)
@@ -126,113 +116,11 @@ function normalizeOrderStatus(order) {
 
 
 // ============================================================
-// GET /api/admin/calendar/events - 캘린더용 주문 이벤트 목록
-// 비유: 벽 달력에 붙일 포스트잇 데이터를 만들어주는 API
-// FullCalendar가 월/주 뷰를 바꿀 때마다 start~end 범위로 자동 호출
+// [E-1] 캘린더 — 2026-04-22 admin/calendar.js로 분리 (D-90 6차)
+//  - GET /calendar/events (1 라우트)
+//  - URL은 그대로. 마운트 패턴: router.use('/calendar', calendarRouter) — prefix 통합 (stats/orders/templates와 동일)
+//  - ⚠️ 아래에 `/calendar/*` 패턴 라우트를 추가하지 말 것 — calendarRouter로 위임됨
 // ============================================================
-router.get('/calendar/events', (req, res) => {
-    try {
-        const { start, end } = req.query;
-
-        // start/end 필수 — FullCalendar가 자동으로 보내는 파라미터
-        if (!start || !end) {
-            return res.status(400).json({ success: false, error: 'start, end 파라미터 필수' });
-        }
-
-        const allOrders = db.getAll('orders');
-        const events = []; // FullCalendar 이벤트 배열
-
-        // 각 주문에서 최대 3개 이벤트(포스트잇)를 생성
-        allOrders.forEach(order => {
-            // 주문 기본 정보 — 이벤트 제목과 부가정보에 사용
-            const teamName = order.customer?.teamName || order.customer?.name || '미지정';
-            const sport = order.items?.[0]?.sport || '';
-            // I-2: 상단 SPORT_LABELS 재사용 (파일 내 중복 제거됨) — 새 종목은 상단 1곳만 추가
-            const sportLabel = sport ? (SPORT_LABELS[sport] || sport) : '';
-            const title = sportLabel ? `${teamName} - ${sportLabel}` : teamName;
-
-            // 공통 extendedProps — 프론트에서 필터/표시에 사용
-            const baseProps = {
-                orderNumber: order.orderNumber || order.id,
-                status: order.status || 'unknown',
-                teamName,
-                manager: order.manager || '미지정',
-                orderId: order.id
-            };
-
-            // --- 이벤트 1: 납기일 (가장 중요한 포스트잇) ---
-            // 날짜 비교 시 substring(0,10)으로 날짜 부분만 추출 (시간대 차이로 인한 누락 방지)
-            const deadlineDate = order.shipping?.desiredDate?.substring(0, 10);
-            const startDate = start.substring(0, 10);
-            const endDate = end.substring(0, 10);
-            if (deadlineDate && deadlineDate >= startDate && deadlineDate <= endDate) {
-                // D-day 계산 — 납기까지 남은 일수에 따라 색상 결정
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const dday = Math.ceil((new Date(deadlineDate) - today) / (1000 * 60 * 60 * 24));
-
-                let color;
-                // 완료/취소 주문은 회색으로 통일
-                if (order.status === 'delivered' || order.status === 'cancelled') {
-                    color = '#9CA3AF'; // 회색
-                } else if (dday <= 3) {
-                    color = '#E63946'; // 빨강: 3일 이내 긴급
-                } else if (dday <= 7) {
-                    color = '#F59E0B'; // 주황: 7일 이내 주의
-                } else {
-                    color = '#10B981'; // 초록: 여유
-                }
-
-                events.push({
-                    id: `${order.id}-deadline`,
-                    title: `[납기] ${title}`,
-                    start: deadlineDate,
-                    color,
-                    extendedProps: { ...baseProps, type: 'deadline', dday }
-                });
-            }
-
-            // --- 이벤트 2: 접수일 (주문이 들어온 날) ---
-            const receiptDate = order.orderReceiptDate || order.createdAt;
-            // createdAt은 ISO 형식일 수 있으므로 날짜 부분만 추출
-            const receiptDateStr = receiptDate ? receiptDate.substring(0, 10) : null;
-            if (receiptDateStr && receiptDateStr >= startDate && receiptDateStr <= endDate) {
-                const receiptColor = (order.status === 'delivered' || order.status === 'cancelled')
-                    ? '#9CA3AF' : '#3B82F6'; // 파랑 또는 회색
-
-                events.push({
-                    id: `${order.id}-receipt`,
-                    title: `[접수] ${title}`,
-                    start: receiptDateStr,
-                    color: receiptColor,
-                    extendedProps: { ...baseProps, type: 'receipt' }
-                });
-            }
-
-            // --- 이벤트 3: 출고일 (출고 예정/완료일) ---
-            const releaseDate = order.shipping?.releaseDate?.substring(0, 10);
-            if (releaseDate && releaseDate >= startDate && releaseDate <= endDate) {
-                const releaseColor = (order.status === 'delivered' || order.status === 'cancelled')
-                    ? '#9CA3AF' : '#8B5CF6'; // 보라 또는 회색
-
-                events.push({
-                    id: `${order.id}-release`,
-                    title: `[출고] ${title}`,
-                    start: releaseDate,
-                    color: releaseColor,
-                    extendedProps: { ...baseProps, type: 'release' }
-                });
-            }
-        });
-
-        console.log(`[Admin] Calendar events: ${events.length} events for ${start} ~ ${end}`);
-        res.json(events); // FullCalendar는 배열을 직접 기대함
-
-    } catch (error) {
-        console.error('[Admin] Calendar events error:', error);
-        res.status(500).json({ success: false, error: '캘린더 이벤트 조회 실패' });
-    }
-});
 
 // 분리된 stats.js에서 import 사용 (2026-04-22 admin.js 분리 리팩토링)
 // 비유: 지점(stats.js)에서 본사(admin.js)의 "상태 정규화 스티커"를 꺼내 쓰도록 문 열어놓은 것
