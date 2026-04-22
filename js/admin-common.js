@@ -386,7 +386,66 @@ function initMobileDrawer() {
     });
 }
 
+/**
+ * showPcRecommendBanner — "이 페이지는 PC에 최적화" 안내 배너
+ *
+ * 왜 이렇게 하는가:
+ *  - Step 1~4로 대응한 핵심 페이지(admin/home/analytics/calendar) 외 6개 페이지는
+ *    태블릿 리스트/테이블 UI 밀도가 높아 단기간 태블릿 최적화가 어려움
+ *  - 사용자에게 "PC 또는 태블릿 가로 권장" 안내를 주어 혼란을 줄이는 것이 목적
+ *  - HTML 쪽은 <body data-pc-only="true">만 달면 되고, JS는 자동 감지
+ *    (비유: 간판에 "공사중" 팻말만 달면 순찰차가 알아서 안내판 세움)
+ *
+ * 동작:
+ *  - data-pc-only 속성이 없는 페이지는 즉시 return(대응 완료 페이지 보호)
+ *  - 1280px 미만 뷰포트에서만 노출(PC 사이즈에는 불필요)
+ *  - 우측 X 버튼으로 닫으면 sessionStorage에 플래그 저장 → 탭 유지 동안 재노출 안 함
+ *  - sessionStorage 접근 차단 환경(시크릿/iframe 등)은 try-catch로 감싸서 배너 기본 노출
+ */
+function showPcRecommendBanner() {
+    // 대상 페이지가 아니면 무시(대응 완료 4개 페이지는 data-pc-only 미부착)
+    if (!document.body.dataset.pcOnly) return;
+
+    // 중복 생성 방지(만약의 재호출 대비)
+    if (document.getElementById('pcRecommendBanner')) return;
+
+    // 사용자가 이미 닫았는지 확인 — Storage 차단 환경에서도 배너가 보이도록 try-catch
+    try {
+        if (sessionStorage.getItem('pcRecommendBannerDismissed') === 'true') return;
+    } catch (e) { /* Storage 차단 환경도 배너는 노출 */ }
+
+    // 1280px 미만일 때만 노출 — Step 2/4 브레이크포인트와 정합
+    if (!window.matchMedia('(max-width: 1279px)').matches) return;
+
+    // 배너 DOM 생성 — Tailwind 유틸만 사용(하드코딩 색상 금지, C-1)
+    const banner = document.createElement('div');
+    banner.id = 'pcRecommendBanner';
+    banner.className = 'bg-yellow-100 border-b border-yellow-300 text-yellow-900 px-4 py-3 flex items-center justify-between gap-2';
+    banner.setAttribute('role', 'status');
+    banner.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-yellow-800">info</span>
+            <span class="text-sm">이 페이지는 PC 화면에 최적화되어 있습니다. 태블릿 가로 또는 PC 사용을 권장합니다.</span>
+        </div>
+        <button class="p-2 hover:bg-yellow-200 rounded min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="배너 닫기" data-dismiss-banner>
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    `;
+    // body 맨 위에 삽입(상단 알림은 항상 첫 줄에 보이도록)
+    document.body.insertBefore(banner, document.body.firstChild);
+
+    // X 버튼 → 배너 제거 + sessionStorage에 닫힘 기록
+    banner.querySelector('[data-dismiss-banner]').addEventListener('click', () => {
+        banner.remove();
+        try { sessionStorage.setItem('pcRecommendBannerDismissed', 'true'); } catch (e) {}
+    });
+}
+
 // DOMContentLoaded 자동 후크 — 5개 페이지 JS를 수정하지 않아도 초기화 완료
 // 비유: 5개 상점 각 매니저에게 "문 여는 법" 설명서를 개별 배포하는 대신,
 //       본사(admin-common.js)가 일괄 공지해서 모두 자동 적용되게 하는 것
-document.addEventListener('DOMContentLoaded', initMobileDrawer);
+// 주의: 리스너 중복 방지를 위해 단일 화살표 함수 안에서 두 초기화를 순차 호출
+document.addEventListener('DOMContentLoaded', () => {
+    initMobileDrawer();         // 모든 관리자 페이지 — 햄버거+드로어(없으면 조용히 종료)
+    showPcRecommendBanner();    // data-pc-only 페이지만 — PC 권장 배너
+});
