@@ -14,6 +14,22 @@
 let calendar = null; // FullCalendar 인스턴스 — 나중에 refetch 등에 사용
 
 // ============================================================
+// headerToolbar 빌더 — 뷰포트에 따라 우측 버튼 구성을 분기
+// 이유: 태블릿(768~1279px)에서는 주간 버튼까지 노출하면 헤더가 좁아 줄바꿈/충돌 →
+//       월간(dayGridMonth) 하나만 노출하여 공간 확보
+// PC(≥1280px)는 기존처럼 월간/주간 2개 유지 → 회귀 0
+// ============================================================
+function buildHeaderToolbar() {
+    // matchMedia: CSS 미디어쿼리와 동일 기준 판정 (Tailwind md 768 ~ xl 1280 직전)
+    const isTablet = window.matchMedia('(min-width: 768px) and (max-width: 1279px)').matches;
+    return {
+        left: 'prev,next today',                                       // 좌측: 이전/다음/오늘 버튼
+        center: 'title',                                               // 중앙: "2026년 4월" 같은 제목
+        right: isTablet ? 'dayGridMonth' : 'dayGridMonth,timeGridWeek' // 태블릿: 월간만 / PC: 월간+주간
+    };
+}
+
+// ============================================================
 // 초기화 — 페이지 로드 시 실행
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -41,11 +57,7 @@ function initCalendar() {
         // --- 기본 설정 ---
         locale: 'ko',                    // 한국어 (월/요일 이름, 버튼 텍스트)
         initialView: 'dayGridMonth',     // 초기 뷰: 월간
-        headerToolbar: {
-            left: 'prev,next today',     // 좌측: 이전/다음/오늘 버튼
-            center: 'title',             // 중앙: "2026년 4월" 같은 제목
-            right: 'dayGridMonth,timeGridWeek' // 우측: 월간/주간 뷰 전환
-        },
+        headerToolbar: buildHeaderToolbar(), // 태블릿: 월간만 / PC: 월간+주간 (헬퍼가 뷰포트 판정)
         buttonText: {
             today: '오늘',
             month: '월간',
@@ -91,6 +103,28 @@ function initCalendar() {
     });
 
     calendar.render();
+
+    // ============================================================
+    // 브레이크포인트 교차 리스너 — 창 크기 조절로 태블릿 ↔ PC 전환 시
+    //   1) headerToolbar를 재구성 (주간 버튼 on/off)
+    //   2) 엣지케이스: 태블릿 진입 당시 주간뷰(timeGridWeek) 상태면 주간 버튼이
+    //      사라지므로 사용자가 뷰를 바꿀 수 없는 상태가 됨 → 월간뷰로 강제 전환
+    // ============================================================
+    const tabletMql = window.matchMedia('(min-width: 768px) and (max-width: 1279px)');
+    const handleTabletChange = () => {
+        // setOption: 캘린더 인스턴스 옵션을 런타임에 교체 (재생성 없이 헤더만 갱신)
+        calendar.setOption('headerToolbar', buildHeaderToolbar());
+        // 태블릿 진입 + 현재 주간뷰면 월간뷰로 자동 전환 (갇힘 방지)
+        if (tabletMql.matches && calendar.view.type !== 'dayGridMonth') {
+            calendar.changeView('dayGridMonth');
+        }
+    };
+    // 모던 브라우저: addEventListener / 구형 Safari 13 이하: addListener fallback
+    if (tabletMql.addEventListener) {
+        tabletMql.addEventListener('change', handleTabletChange);
+    } else {
+        tabletMql.addListener(handleTabletChange);
+    }
 }
 
 // ============================================================

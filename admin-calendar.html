@@ -43,6 +43,14 @@
             min-height: 700px;
         }
 
+        /* 태블릿(≤1279px)에서 700px은 세로 뷰포트 대비 너무 큼 → viewport 비례로 조정 */
+        /* clamp(최소, 선호, 최대): 500px~700px 사이에서 vh 80%를 따라감 */
+        @media (max-width: 1279px) {
+            #calendar {
+                min-height: clamp(500px, 80vh, 700px);
+            }
+        }
+
         /* FullCalendar 내부 스타일 오버라이드 — 폰트를 Pretendard로 통일 */
         .fc {
             font-family: 'Pretendard', 'Inter', sans-serif !important;
@@ -53,6 +61,13 @@
             cursor: pointer;
             font-size: 12px;
             padding: 2px 4px;
+        }
+
+        /* 태블릿에서 12px은 터치/시인성 부족 → 14px로 상향 (PC 회귀 0) */
+        @media (max-width: 1279px) {
+            .fc-event {
+                font-size: 14px;
+            }
         }
 
         /* 오늘 날짜 셀 하이라이트 */
@@ -194,7 +209,8 @@
                 <!-- 상태 필터: 진행중만 vs 전체 -->
                 <div class="flex items-center gap-2">
                     <span class="text-sm font-medium text-gray-700">상태:</span>
-                    <select id="filter-status" class="text-sm border rounded-lg px-3 py-1.5 bg-white">
+                    <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) -->
+                    <select id="filter-status" class="text-sm border rounded-lg px-3 py-1.5 bg-white min-h-[44px]">
                         <option value="active">진행중만</option>
                         <option value="all">전체 (완료 포함)</option>
                     </select>
@@ -203,7 +219,8 @@
                 <!-- 담당자 필터 -->
                 <div class="flex items-center gap-2">
                     <span class="text-sm font-medium text-gray-700">담당자:</span>
-                    <select id="filter-manager" class="text-sm border rounded-lg px-3 py-1.5 bg-white">
+                    <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) -->
+                    <select id="filter-manager" class="text-sm border rounded-lg px-3 py-1.5 bg-white min-h-[44px]">
                         <option value="">전체</option>
                         <!-- JS에서 동적으로 담당자 목록 채움 -->
                     </select>
