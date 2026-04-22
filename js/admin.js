@@ -87,6 +87,17 @@ const STATUS_TABS = [
     { code: 'hold', label: '보류' }
 ];
 
+// 태블릿(768px~1279px) 뷰포트에서 숨길 컬럼 목록
+// 이유: 12컬럼 가로 스크롤 부담 완화. PC(≥1280px)에서는 그대로 노출 유지.
+// 대상 4개: 고객명/담당자/결제완료일/지시서전송일 (각 뷰 공통으로 밀도 영향 큰 컬럼)
+const TABLET_HIDDEN_COLUMNS = ['customerName', 'manager', 'paidDate', 'workInstructionSentDate'];
+
+// 현재 뷰포트가 태블릿 구간인지 판단 (768~1279px)
+// PC(≥1280px)에서는 항상 false → 기존 컬럼 구성 그대로 유지 (회귀 0)
+function isTabletViewport() {
+    return window.matchMedia('(min-width: 768px) and (max-width: 1279px)').matches;
+}
+
 const PAGE_PRESETS = {
     all: {
         title: '주문 관리',
@@ -166,6 +177,10 @@ const PAGE_PRESETS = {
 
 let currentPagePreset = PAGE_PRESETS.all;
 let visibleColumns = new Set(PAGE_PRESETS.all.visibleColumns);
+
+// 태블릿 브레이크포인트 교차 시 서버 재요청 없이 즉시 재렌더하기 위한 캐시
+// loadOrders() 성공 시점에 최신 주문 배열을 담아둔다.
+let lastLoadedOrders = null;
 
 // ============================================================
 // D-day 계산 헬퍼 — 납기까지 남은 일수를 계산
@@ -385,7 +400,13 @@ function applyPagePreset() {
         return false;
     }
 
-    visibleColumns = new Set(currentPagePreset.visibleColumns);
+    // 태블릿 뷰포트(768~1279px)면 TABLET_HIDDEN_COLUMNS 4개 제외 후 Set 초기화
+    // PC(≥1280px)면 프리셋 원본 그대로 → 기존 동작 유지
+    const baseColumns = currentPagePreset.visibleColumns;
+    const filtered = isTabletViewport()
+        ? baseColumns.filter(c => !TABLET_HIDDEN_COLUMNS.includes(c))
+        : baseColumns;
+    visibleColumns = new Set(filtered);
     applyColumnVisibility();
     applyStatusOptionVisibility();
     applyFilterVisibility();
@@ -446,6 +467,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // 차트/실적/랭킹 초기 로드 제거: admin-analytics.html로 이동됨
     loadOrders();
+
+    // 태블릿 ↔ PC 브레이크포인트 교차 시 컬럼 가시성 재계산 + 테이블 재렌더
+    // 비유: 창 크기를 늘렸다 줄이면 자동으로 컬럼이 붙었다 떨어졌다
+    // 서버 재요청 없이 캐시(lastLoadedOrders)로 즉시 재렌더 → 네트워크 부담 0
+    const tabletMql = window.matchMedia('(min-width: 768px) and (max-width: 1279px)');
+    const handleBreakpointChange = () => {
+        applyPagePreset();
+        if (lastLoadedOrders) {
+            renderOrdersTable(lastLoadedOrders);
+        }
+    };
+    // 모던 브라우저는 addEventListener, 구형(Safari 13 이하)은 addListener fallback
+    if (tabletMql.addEventListener) {
+        tabletMql.addEventListener('change', handleBreakpointChange);
+    } else {
+        tabletMql.addListener(handleBreakpointChange);
+    }
 
     // 필터 프리셋 드롭다운 초기 렌더링 (localStorage에 저장된 프리셋이 있으면 표시)
     renderPresetDropdown();
@@ -611,6 +649,9 @@ async function loadOrders() {
         // 서버에서 allowedStatuses 기준으로 이미 필터링된 결과가 오므로
         // 클라이언트 측 applyPresetOrderFilter 호출은 불필요 (이중 필터링 제거)
         const filteredOrders = data.orders;
+
+        // 태블릿 ↔ PC 브레이크포인트 교차 시 서버 재요청 없이 재렌더하기 위한 캐시
+        lastLoadedOrders = filteredOrders;
 
         if (filteredOrders.length === 0) {
             showEmpty();

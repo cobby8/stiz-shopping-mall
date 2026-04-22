@@ -562,15 +562,17 @@
                 </div>
 
                 <!-- 필터 초기화 -->
+                <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) -->
                 <button onclick="resetFilters()"
-                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors">
+                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors min-h-[44px]">
                     <span class="material-symbols-outlined text-base">filter_alt_off</span>
                     <span>초기화</span>
                 </button>
 
                 <!-- CSV 내보내기 버튼 (D-5): 현재 필터 조건의 주문을 CSV로 다운로드 -->
+                <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) -->
                 <button onclick="exportToCSV()"
-                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors ml-2 border border-gray-200 rounded-lg px-3 py-2">
+                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors ml-2 border border-gray-200 rounded-lg px-3 py-2 min-h-[44px]">
                     <span class="material-symbols-outlined text-base">download</span>
                     <span>CSV 다운로드</span>
                 </button>
@@ -578,8 +580,9 @@
                 <!-- 필터 프리셋: 자주 쓰는 필터 조합을 저장/불러오기 -->
                 <div class="relative ml-2" id="preset-wrapper">
                     <!-- 프리셋 토글 버튼 -->
+                    <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) -->
                     <button onclick="document.getElementById('preset-panel').classList.toggle('hidden')"
-                        class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors border border-gray-200 rounded-lg px-3 py-2">
+                        class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors border border-gray-200 rounded-lg px-3 py-2 min-h-[44px]">
                         <span class="material-symbols-outlined text-base">bookmark</span>
                         <span>필터 프리셋</span>
                         <span class="material-symbols-outlined text-base">expand_more</span>
@@ -603,15 +606,17 @@
                 </div>
 
                 <!-- [D-5] 템플릿에서 새 주문 생성 -->
+                <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) -->
                 <button onclick="openTemplateSelectModal()"
-                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors ml-2 border border-gray-200 rounded-lg px-3 py-2">
+                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors ml-2 border border-gray-200 rounded-lg px-3 py-2 min-h-[44px]">
                     <span class="material-symbols-outlined text-base">note_add</span>
                     <span>템플릿에서 새 주문</span>
                 </button>
 
                 <!-- [D-5] 템플릿 관리 -->
+                <!-- 태블릿 터치 타겟 44px 확보 (min-h-[44px]) -->
                 <button onclick="openTemplateManageModal()"
-                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors ml-2 border border-gray-200 rounded-lg px-3 py-2"
+                    class="text-sm text-gray-500 hover:text-gray-800 flex items-center space-x-1 transition-colors ml-2 border border-gray-200 rounded-lg px-3 py-2 min-h-[44px]"
                     title="템플릿 관리">
                     <span class="material-symbols-outlined text-base">bookmarks</span>
                 </button>
