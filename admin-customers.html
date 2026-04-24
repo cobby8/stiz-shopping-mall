@@ -97,6 +97,12 @@
         <div class="container mx-auto px-6 h-16 flex items-center justify-between">
             <!-- 로고 + 관리자 표시 -->
             <div class="flex items-center space-x-3">
+                <!-- 햄버거 버튼: md 미만(스마트폰/태블릿 세로)에서만 노출, admin-common.js의 initMobileDrawer가 자동 바인딩 -->
+                <button id="adminMobileToggle" type="button"
+                    class="md:hidden inline-flex items-center justify-center w-11 h-11 -ml-2 text-gray-300 hover:text-white"
+                    aria-label="메뉴 열기" aria-controls="adminMobileDrawer" aria-expanded="false">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
                 <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
                 <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
             </div>
@@ -130,6 +136,41 @@
                     <span>로그아웃</span>
                 </button>
             </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 모바일/태블릿 드로어: 고객 관리가 활성 -->
+        <!-- ========================================== -->
+        <div id="adminMobileDrawer" class="md:hidden hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-hidden="true" aria-label="관리자 메뉴">
+            <div data-drawer-overlay class="absolute inset-0 bg-black/60"></div>
+            <aside class="relative bg-brand-black text-white w-72 max-w-[85%] h-full shadow-xl flex flex-col">
+                <div class="flex items-center justify-between h-16 px-6 border-b border-white/10">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg font-bold tracking-tight">STIZ</span>
+                        <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+                    </div>
+                    <button type="button" data-drawer-close
+                        class="inline-flex items-center justify-center w-11 h-11 text-gray-300 hover:text-white"
+                        aria-label="메뉴 닫기">
+                        <span class="material-symbols-outlined text-2xl">close</span>
+                    </button>
+                </div>
+                <nav class="flex-1 overflow-y-auto py-2">
+                    <a href="admin-home.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">홈</a>
+                    <a href="admin.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">전체 주문</a>
+                    <a href="admin-design.html" data-admin-scope="all,design" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">디자인 파트</a>
+                    <a href="admin-cs.html" data-admin-scope="all,cs" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">CS 파트</a>
+                    <a href="admin-production.html" data-admin-scope="all,production" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">제작 파트</a>
+                    <a href="admin-shipping.html" data-admin-scope="all,shipping" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">출고 파트</a>
+                    <a href="admin-calendar.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">일정표</a>
+                    <a href="admin-analytics.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">매출 분석</a>
+                    <a href="admin-customers.html" class="flex items-center min-h-[44px] px-6 py-3 text-white font-medium bg-white/10" aria-current="page">고객 관리</a>
+                    <a href="admin-catalog.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">상품설정</a>
+                    <a href="admin-products.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">상품관리</a>
+                    <a href="admin-faq.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">챗봇 FAQ</a>
+                    <a href="index.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">쇼핑몰 보기</a>
+                </nav>
+            </aside>
         </div>
     </header>
 

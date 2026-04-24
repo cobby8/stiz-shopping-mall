@@ -34,6 +34,10 @@ const ADMIN_TABLET_ONLY_MQ = '(min-width: 768px) and (max-width: 1279px)';
 // 태블릿+스마트폰 통합 구간 (0~1279px, 즉 "PC가 아닌" 구간) — PC 권장 배너 등에 사용
 const ADMIN_NON_PC_MQ = '(max-width: 1279px)';
 
+// 스마트폰 전용 구간 (0~767px) — 배너 문구 강화 등 스마트폰 전용 분기에 사용
+// 비유: 768이 "태블릿 가로/세로 경계"이므로, 767 이하면 손에 들고 쓰는 스마트폰으로 판단
+const ADMIN_MOBILE_MQ = '(max-width: 767px)';
+
 // 현재 뷰포트가 태블릿 구간(768~1279px)인지 판단
 function isAdminTabletOnly() {
     return window.matchMedia(ADMIN_TABLET_ONLY_MQ).matches;
@@ -42,6 +46,12 @@ function isAdminTabletOnly() {
 // 현재 뷰포트가 PC가 아닌지(≤1279px) 판단
 function isAdminNonPc() {
     return window.matchMedia(ADMIN_NON_PC_MQ).matches;
+}
+
+// 현재 뷰포트가 스마트폰 구간(≤767px)인지 판단
+// 사용처: showPcRecommendBanner() 문구 분기 — 스마트폰이면 더 강한 경고
+function isAdminMobile() {
+    return window.matchMedia(ADMIN_MOBILE_MQ).matches;
 }
 
 // 주문 상태 한글 라벨 — 영문 코드를 한글로 변환 (상태 배지, 필터 등에서 사용)
@@ -444,6 +454,13 @@ function showPcRecommendBanner() {
     // 1280px 미만일 때만 노출 — Step 2/4 브레이크포인트와 정합 (C-9/D-95: 공통 헬퍼 경유)
     if (!isAdminNonPc()) return;
 
+    // 스마트폰(≤767px)이면 더 강한 경고 문구, 태블릿(768~1279px)이면 기존 문구
+    // 이유: 스마트폰은 테이블/편집 UI가 사실상 불가라 "강하게 경고"해야 오인 방지
+    //       태블릿 가로는 상당 부분 작업 가능 → "권장" 수준이 적절
+    const bannerMsg = isAdminMobile()
+        ? '스마트폰에서는 일부 기능이 제한됩니다. PC 또는 태블릿(가로) 사용을 강력히 권장합니다.'
+        : '이 페이지는 PC 화면에 최적화되어 있습니다. 태블릿 가로 또는 PC 사용을 권장합니다.';
+
     // 배너 DOM 생성 — Tailwind 유틸만 사용(하드코딩 색상 금지, C-1)
     const banner = document.createElement('div');
     banner.id = 'pcRecommendBanner';
@@ -452,7 +469,7 @@ function showPcRecommendBanner() {
     banner.innerHTML = `
         <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-yellow-800">info</span>
-            <span class="text-sm">이 페이지는 PC 화면에 최적화되어 있습니다. 태블릿 가로 또는 PC 사용을 권장합니다.</span>
+            <span class="text-sm">${escapeHtml(bannerMsg)}</span>
         </div>
         <button class="p-2 hover:bg-yellow-200 rounded min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="배너 닫기" data-dismiss-banner>
             <span class="material-symbols-outlined">close</span>
