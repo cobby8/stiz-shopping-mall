@@ -213,7 +213,7 @@ function renderTable() {
                 <td class="px-4 py-3 text-center">${reviewBadge}</td>
                 <td class="px-4 py-3 text-center">
                     <button type="button" data-action="edit" data-id="${escapeHtml(id)}"
-                        class="text-gray-500 hover:text-brand-red transition-colors px-1.5 py-1 rounded" title="수정">
+                        class="text-gray-500 hover:text-brand-red transition-colors px-1.5 py-1 rounded" title="수정 및 답변 확인">
                         <span class="material-symbols-outlined text-base align-middle">edit</span>
                     </button>
                     <button type="button" data-action="delete" data-id="${escapeHtml(id)}"
@@ -231,6 +231,12 @@ function renderTable() {
  * 통계 바 렌더
  * 왜 state.items를 직접 세는가: 서버가 반환한 필터링된 totalCount가 이미 들어있음.
  * needsReview 카운트는 필터 결과 기준으로 계산.
+ *
+ * 2026-04-24 add-only 확장:
+ *  - 기존 "총/검수대기/버전" 한 줄은 그대로 유지
+ *  - 아래에 intent별 chip 한 줄 추가 (서버 byIntent 집계를 UI에 노출)
+ *  - chip은 버튼으로 만들어 클릭 시 해당 intent로 필터링 (filter-intent select value 변경 → change 이벤트 발화)
+ *  - 기존 INTENT_LABELS(한글 매핑) + .badge-intent/.badge-{intent} CSS 재사용 → 색상 하드코딩 없음
  */
 function renderStats() {
     const total = state.items.length;
@@ -240,14 +246,74 @@ function renderStats() {
         : '';
 
     const statsEl = document.getElementById('faq-stats');
-    // textContent 대신 innerHTML을 쓰지만, 값은 모두 숫자/상수이므로 XSS 위험 없음
-    statsEl.innerHTML = `
-        <span class="text-gray-900 font-semibold">총 ${total}개</span>
-        <span class="text-gray-400 mx-2">|</span>
-        <span>검수대기 <span class="text-amber-600 font-semibold">${needsReview}개</span></span>
-        <span class="text-gray-400 mx-2">|</span>
-        <span class="text-gray-500 text-xs">버전 ${escapeHtml(state.version)}${escapeHtml(filterLabel)}</span>
+
+    // 기존 통계 한 줄 — 값은 모두 숫자/상수이므로 XSS 위험 없음
+    const summaryLine = `
+        <div class="flex flex-wrap items-center gap-x-1">
+            <span class="text-gray-900 font-semibold">총 ${total}개</span>
+            <span class="text-gray-400 mx-2">|</span>
+            <span>검수대기 <span class="text-amber-600 font-semibold">${needsReview}개</span></span>
+            <span class="text-gray-400 mx-2">|</span>
+            <span class="text-gray-500 text-xs">버전 ${escapeHtml(state.version)}${escapeHtml(filterLabel)}</span>
+        </div>
     `;
+
+    // intent chips — state.byIntent 객체를 순회
+    // 왜 INTENT_LABELS 순서대로 도는가: 드롭다운과 동일한 순서로 노출해 일관성 유지
+    // (byIntent에 없는 intent는 0건으로 표시하지 않고 skip — 서버가 내려준 것만)
+    const currentIntent = state.filter.intent;
+    const chipEntries = Object.keys(INTENT_LABELS)
+        .filter(key => state.byIntent && typeof state.byIntent[key] === 'number' && state.byIntent[key] > 0)
+        .map(key => {
+            const label = INTENT_LABELS[key] || key;
+            const count = state.byIntent[key];
+            const isActive = currentIntent === key;
+            // 활성 chip은 ring 강조 — 색상 하드코딩 금지, Tailwind 유틸만 사용
+            const activeClass = isActive ? ' ring-2 ring-brand-red ring-offset-1' : '';
+            // escapeHtml은 key/label 모두 안전하게 이스케이프 (INTENT_LABELS는 상수지만 방어적으로)
+            return `
+                <button type="button"
+                    data-intent-chip="${escapeHtml(key)}"
+                    aria-label="${escapeHtml(label)} intent로 필터링 (${count}건)"
+                    aria-pressed="${isActive ? 'true' : 'false'}"
+                    class="badge-intent badge-${escapeHtml(key)} cursor-pointer hover:opacity-80 transition-opacity${activeClass}"
+                    style="padding: 3px 10px;">
+                    ${escapeHtml(label)} ${count}
+                </button>
+            `;
+        });
+
+    // 전체(필터 해제) chip — 현재 intent 필터가 걸린 경우에만 노출
+    const clearChip = currentIntent
+        ? `
+            <button type="button"
+                data-intent-chip=""
+                aria-label="intent 필터 해제"
+                class="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                <span class="material-symbols-outlined" style="font-size:14px;">close</span>
+                전체
+            </button>
+        `
+        : '';
+
+    const chipsLine = chipEntries.length > 0
+        ? `<div class="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">${clearChip}${chipEntries.join('')}</div>`
+        : '';
+
+    statsEl.innerHTML = summaryLine + chipsLine;
+
+    // chip 클릭 이벤트 — 기존 filter-intent select 값만 바꾸고 change 이벤트 발화
+    // 이렇게 하면 bindEvents()의 기존 change 핸들러가 loadFaqs()를 호출 → 코드 중복 0
+    statsEl.querySelectorAll('[data-intent-chip]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const intent = btn.getAttribute('data-intent-chip') || '';
+            const select = document.getElementById('filter-intent');
+            if (!select) return;
+            select.value = intent;
+            // dispatchEvent로 기존 change 핸들러 재사용
+            select.dispatchEvent(new Event('change'));
+        });
+    });
 }
 
 // ============================================================

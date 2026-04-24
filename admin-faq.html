@@ -306,7 +306,14 @@
                         <tr class="text-left">
                             <th class="px-4 py-3 font-semibold text-gray-500 w-32">ID</th>
                             <th class="px-4 py-3 font-semibold text-gray-500 w-24">Intent</th>
-                            <th class="px-4 py-3 font-semibold text-gray-500">질문 (대표)</th>
+                            <th class="px-4 py-3 font-semibold text-gray-500">
+                                질문 (대표)
+                                <!-- 답변 컬럼이 테이블에 없는 디자인 의도를 운영자에게 힌트로 전달 (tester 요청) -->
+                                <span class="material-symbols-outlined text-gray-400 align-middle ml-0.5"
+                                    style="font-size: 14px; cursor: help;"
+                                    title="답변은 수정 버튼을 눌러 확인합니다"
+                                    aria-label="답변은 수정 버튼을 눌러 확인합니다">info</span>
+                            </th>
                             <th class="px-4 py-3 font-semibold text-gray-500 w-20">Priority</th>
                             <th class="px-4 py-3 font-semibold text-gray-500 w-20 text-center">검수</th>
                             <th class="px-4 py-3 font-semibold text-gray-500 w-28 text-center">관리</th>
