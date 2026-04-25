@@ -91,8 +91,8 @@
             <p class="text-slate-400 text-sm mt-1">관리자 전용 로그인</p>
         </div>
 
-        <!-- 로그인 폼 카드 -->
-        <div class="bg-white rounded-2xl shadow-2xl p-8">
+        <!-- 로그인 폼 카드 (스마트폰: p-6 / 태블릿+: p-8 — 좌우 여백 확보) -->
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
 
             <!-- 에러 메시지 영역 (기본 숨김) -->
             <div id="error-box" class="hidden mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
@@ -113,7 +113,7 @@
                             required
                             autocomplete="email"
                             placeholder="admin@stiz.kr"
-                            class="input-field w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
+                            class="input-field w-full pl-10 pr-4 py-3 min-h-[44px] border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
                         />
                     </div>
                 </div>
@@ -130,9 +130,10 @@
                             required
                             autocomplete="current-password"
                             placeholder="비밀번호를 입력하세요"
-                            class="input-field w-full pl-10 pr-10 py-3 border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
+                            class="input-field w-full pl-10 pr-10 py-3 min-h-[44px] border border-slate-200 rounded-lg text-sm outline-none transition-all duration-200 placeholder:text-slate-300"
                         />
-                        <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                        <!-- 토글 버튼: 44x44 터치 영역 확보 (C-9) — input pr-10(40px) 영역 안에 들어가도록 right-1로 조정 -->
+                        <button type="button" onclick="togglePassword()" aria-label="비밀번호 표시/숨김 전환" class="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
                             <span id="pw-toggle-icon" class="material-symbols-outlined text-xl">visibility_off</span>
                         </button>
                     </div>
@@ -142,7 +143,7 @@
                 <button
                     type="submit"
                     id="login-btn"
-                    class="w-full py-3 bg-brand-red hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="w-full py-3 min-h-[44px] bg-brand-red hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <span id="btn-text">로그인</span>
                     <!-- 로딩 스피너 (기본 숨김) -->
