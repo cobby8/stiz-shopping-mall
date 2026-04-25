@@ -98,15 +98,21 @@
             border-radius: 12px;
             padding: 4px;                      /* 안쪽 여백 — 탭 사이 틈새 역할 */
             gap: 2px;
+            /* 모바일 가로 스와이프 — 16탭이 좁은 폭에서 압축되지 않고 좌우 스크롤로 탐색 가능 */
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* iOS 관성 스크롤 */
+            scrollbar-width: thin;             /* Firefox 얇은 스크롤바 */
         }
         .status-tab-bar .status-sub-tab {
             flex: 1;                           /* 균등 너비 분할 */
+            flex-shrink: 0;                    /* 모바일에서 탭이 압축되지 않게 — 좌우 스크롤로 탐색 */
             display: flex;
             flex-direction: column;            /* 상태명 위, 건수 아래 (2줄 구조) */
             align-items: center;
             justify-content: center;
             padding: 10px 8px;                 /* 넉넉한 클릭 영역 */
             min-height: 56px;                  /* 최소 높이 — 넓직하게 */
+            white-space: nowrap;               /* 탭 라벨이 좁은 폭에서 줄바꿈되지 않도록 안전 가드 */
             border-radius: 10px;
             border: none;
             background: transparent;

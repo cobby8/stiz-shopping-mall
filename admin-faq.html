@@ -64,6 +64,7 @@
             font-size: 11px;
             font-weight: 600;
             line-height: 1.4;
+            white-space: nowrap;               /* 좁은 컬럼 폭에서도 라벨이 줄바꿈되지 않게 안전 가드 */
         }
         .badge-custom   { background: #fef3c7; color: #b45309; }
         .badge-product  { background: #dbeafe; color: #1d4ed8; }
@@ -81,6 +82,7 @@
             font-size: 11px;
             font-weight: 600;
             line-height: 1.4;
+            white-space: nowrap;               /* 좁은 컬럼 폭에서도 high/medium/low 라벨 줄바꿈 방지 */
         }
         .badge-priority-high   { background: #fee2e2; color: #dc2626; }
         .badge-priority-medium { background: #e0e7ff; color: #4338ca; }
@@ -94,6 +96,7 @@
             font-weight: 600;
             background: #fef3c7;
             color: #b45309;
+            white-space: nowrap;               /* 검수대기 라벨 줄바꿈 방지 안전 가드 */
         }
         /* 스켈레톤 로딩 */
         .skeleton {
