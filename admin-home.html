@@ -63,6 +63,12 @@
             font-weight: 800;
             line-height: 1.2;
         }
+        /* 모바일: 카드 폭이 좁아 큰 숫자(예: 미수금 총액)가 줄바꿈되는 현상 방지. ADMIN_MOBILE_MQ(=767px)와 정합 (D-95) */
+        @media (max-width: 767px) {
+            .kpi-value {
+                font-size: 22px;
+            }
+        }
         .kpi-label {
             font-size: 13px;
             color: #6b7280;
@@ -146,6 +152,8 @@
             border-radius: 9999px;
             font-size: 12px;
             font-weight: 700;
+            white-space: nowrap;   /* "24일 0시간" 한 줄 유지 (모바일 줄바꿈 방지) */
+            flex-shrink: 0;        /* 부모 flex 컨테이너 안에서 배지 압축 방지 */
         }
         .dday-danger { background: #fee2e2; color: #dc2626; }
         .dday-warn { background: #ffedd5; color: #ea580c; }
