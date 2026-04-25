@@ -280,7 +280,8 @@
     <!-- ========================================== -->
     <!-- 메인 콘텐츠 -->
     <!-- ========================================== -->
-    <main class="w-full max-w-[1600px] mx-auto px-8 py-6">
+    <!-- main padding: 모바일 12px / sm 24px / PC 32px (묶음 C 모바일 대응, max-w-[1600px] PC 폭 유지) -->
+    <main class="w-full max-w-[1600px] mx-auto px-3 py-4 sm:px-6 sm:py-6 md:px-8">
 
         <!-- 로딩 상태 -->
         <div id="loading" class="flex items-center justify-center py-20">
@@ -430,13 +431,14 @@
 
             <!-- 탭 네비게이션 -->
             <!-- 탭 — PC 가독성: text-sm → text-base -->
-            <div class="flex space-x-6 border-b border-gray-200 mb-6 overflow-x-auto">
-                <button data-tab="customer" class="tab-btn active pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('customer')">고객 정보</button>
-                <button data-tab="design" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('design')">디자인</button>
-                <button data-tab="production" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('production')">생산</button>
-                <button data-tab="shipping" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('shipping')">물류</button>
-                <button data-tab="payment" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('payment')">금융</button>
-                <button data-tab="history" class="tab-btn pb-3 border-b-2 text-base whitespace-nowrap" onclick="switchTab('history')">이력</button>
+            <!-- 묶음 C: 모바일 탭 간격 12px / PC 24px, 버튼 min-h-[44px] 터치 타겟 + flex items-center 정렬 보존 -->
+            <div class="flex space-x-3 sm:space-x-6 border-b border-gray-200 mb-6 overflow-x-auto">
+                <button data-tab="customer" class="tab-btn active min-h-[44px] py-2.5 sm:pb-3 flex items-center border-b-2 text-base whitespace-nowrap" onclick="switchTab('customer')">고객 정보</button>
+                <button data-tab="design" class="tab-btn min-h-[44px] py-2.5 sm:pb-3 flex items-center border-b-2 text-base whitespace-nowrap" onclick="switchTab('design')">디자인</button>
+                <button data-tab="production" class="tab-btn min-h-[44px] py-2.5 sm:pb-3 flex items-center border-b-2 text-base whitespace-nowrap" onclick="switchTab('production')">생산</button>
+                <button data-tab="shipping" class="tab-btn min-h-[44px] py-2.5 sm:pb-3 flex items-center border-b-2 text-base whitespace-nowrap" onclick="switchTab('shipping')">물류</button>
+                <button data-tab="payment" class="tab-btn min-h-[44px] py-2.5 sm:pb-3 flex items-center border-b-2 text-base whitespace-nowrap" onclick="switchTab('payment')">금융</button>
+                <button data-tab="history" class="tab-btn min-h-[44px] py-2.5 sm:pb-3 flex items-center border-b-2 text-base whitespace-nowrap" onclick="switchTab('history')">이력</button>
             </div>
 
             <!-- 탭 콘텐츠 영역 -->
