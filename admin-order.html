@@ -319,31 +319,31 @@
                 </div>
                 <div class="flex items-center space-x-3 print-hide">
                     <button onclick="openStatusModal()"
-                        class="flex items-center space-x-1 bg-brand-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
+                        class="flex items-center space-x-1 bg-brand-black text-white px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
                         <span class="material-symbols-outlined text-base">swap_horiz</span>
                         <span>상태 변경</span>
                     </button>
                     <button onclick="toggleEditMode()"
                         id="edit-toggle-btn"
-                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
+                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
                         <span class="material-symbols-outlined text-base">edit</span>
                         <span>편집</span>
                     </button>
                     <!-- 인쇄/PDF 버튼: 브라우저 인쇄 기능으로 주문서 PDF 생성 -->
                     <button onclick="printOrder()"
-                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors print-hide">
+                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors print-hide">
                         <span class="material-symbols-outlined text-base">print</span>
                         <span>인쇄</span>
                     </button>
                     <!-- 주문 복제 버튼: 재주문 고객용 — 기존 주문을 복사해서 새 주문 생성 -->
                     <button onclick="duplicateOrder()"
-                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
+                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
                         <span class="material-symbols-outlined text-base">content_copy</span>
                         <span>복제</span>
                     </button>
                     <!-- [D-5] 템플릿으로 저장: 이 주문의 설정(종목/단가/담당자 등)만 추출해서 재사용 양식으로 저장 -->
                     <button onclick="openSaveAsTemplateModal()"
-                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
+                        class="flex items-center space-x-1 border border-gray-300 px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
                         <span class="material-symbols-outlined text-base">bookmark_add</span>
                         <span>템플릿 저장</span>
                     </button>

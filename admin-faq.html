@@ -259,7 +259,7 @@
                 <div class="flex items-center gap-2">
                     <label for="filter-intent" class="text-sm text-gray-600 font-medium">Intent</label>
                     <select id="filter-intent"
-                        class="form-select px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition-all">
+                        class="form-select px-3 py-2 min-h-[44px] border border-gray-200 rounded-lg text-sm outline-none transition-all">
                         <option value="">전체</option>
                         <option value="custom">custom (제작 문의)</option>
                         <option value="product">product (상품 문의)</option>
@@ -273,7 +273,7 @@
                 </div>
 
                 <!-- 검수대기 토글 -->
-                <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                <label class="flex items-center gap-2 cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-gray-200 hover:bg-gray-50">
                     <input type="checkbox" id="filter-review" class="accent-brand-red">
                     <span class="text-sm">검수 대기만</span>
                 </label>
@@ -282,19 +282,19 @@
                 <div class="flex-1 min-w-[200px] relative">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                     <input type="text" id="filter-q" placeholder="질문/답변 키워드 검색"
-                        class="form-input w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition-all" />
+                        class="form-input w-full pl-10 pr-3 py-2 min-h-[44px] border border-gray-200 rounded-lg text-sm outline-none transition-all" />
                 </div>
 
                 <!-- 재빌드 버튼 -->
                 <button id="btn-rebuild" type="button"
-                    class="flex items-center gap-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors">
+                    class="flex items-center gap-1 px-4 py-2 min-h-[44px] text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors">
                     <span class="material-symbols-outlined text-base">sync</span>
                     <span>상품 지식 재빌드 (K2)</span>
                 </button>
 
                 <!-- 새 FAQ 추가 버튼 -->
                 <button id="btn-create" type="button"
-                    class="flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-brand-red hover:bg-red-700 rounded-lg transition-colors">
+                    class="flex items-center gap-1 px-4 py-2 min-h-[44px] text-sm font-medium text-white bg-brand-red hover:bg-red-700 rounded-lg transition-colors">
                     <span class="material-symbols-outlined text-base">add</span>
                     <span>새 FAQ 추가</span>
                 </button>
