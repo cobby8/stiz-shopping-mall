@@ -155,6 +155,104 @@
         .status-tab-bar .status-sub-tab.hidden {
             display: none;
         }
+
+        /* ===== [M4 안 A] 모바일 주문 목록 카드형 변환 (≤767px) ===== */
+        /* 이유: 12컬럼 가로 스크롤 대신 1행 = 1카드로 변환하여 좁은 폭 가독성 확보 */
+        /* 비유: 엑셀 행을 그대로 둔 채, 모바일에서만 "명함 카드"처럼 위에서 아래로 펼치는 것 */
+        /* 원칙: JS 무수정 (셀렉터·순서·onclick 그대로). td에 data-label만 부여하고 CSS로 시각만 분기 */
+        @media (max-width: 767px) {
+            /* 가로 스크롤 제거 — 카드 1열로 충분 */
+            #table-wrapper.table-wrapper { overflow-x: visible; }
+
+            /* table을 일반 블록으로 — width 100% */
+            #orders-tbody,
+            #table-wrapper > table,
+            #table-wrapper > table > tbody {
+                display: block;
+                width: 100%;
+            }
+
+            /* 헤더(thead) 숨김 — 라벨은 각 td::before로 표시 */
+            #table-wrapper > table > thead {
+                display: none;
+            }
+
+            /* 각 행을 카드로 변환 — 둥근 테두리 + 그림자 + 카드 간 간격 */
+            #orders-tbody > tr {
+                display: block;
+                width: 100%;
+                margin-bottom: 12px;
+                padding: 12px 14px;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            }
+            /* tr 자체의 border-b 제거 (카드 외곽선이 대체) */
+            #orders-tbody > tr.order-row {
+                border-bottom: 0;
+            }
+
+            /* 각 td를 한 줄 블록으로 — 라벨(좌) | 값(우) 정렬 */
+            #orders-tbody > tr > td {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                padding: 6px 0;
+                white-space: normal;          /* 모바일에서 줄바꿈 허용 */
+                text-align: right;            /* 값은 우측 정렬 (라벨은 좌측 ::before로 분리) */
+                border: none;
+            }
+            /* td::before — 라벨 자동 표시 (data-label 속성값 사용) */
+            #orders-tbody > tr > td::before {
+                content: attr(data-label);
+                flex-shrink: 0;
+                margin-right: 12px;
+                color: #6b7280;               /* 회색 라벨 */
+                font-size: 12px;
+                font-weight: 500;
+                text-align: left;
+            }
+            /* data-label이 빈 칸(체크박스 td)은 라벨 비표시 */
+            #orders-tbody > tr > td[data-label=""]::before {
+                content: none;
+            }
+            /* 체크박스 td는 data-label="" (빈 라벨)로 식별 — admin.js td는 data-column 속성 없음 */
+            /* 가로 폭 제한 해제 + 좌측 정렬 (오른쪽 빈 공간에 동그라미만 보이지 않도록) */
+            #orders-tbody > tr > td[data-label=""] {
+                width: auto;
+                justify-content: flex-start;  /* 체크박스 좌측 배치 */
+                padding: 6px 0 10px 0;
+                border-bottom: 1px dashed #f3f4f6; /* 체크박스 아래 얇은 구분선 */
+            }
+            /* 체크박스 터치 타겟 44px 보장 (C-9) */
+            #orders-tbody > tr > td[data-label=""] .order-checkbox {
+                width: 20px;
+                height: 20px;
+                margin: 12px 0;               /* 상하 여유로 44px 터치 영역 확보 */
+            }
+
+            /* hidden 컬럼은 모바일에서도 숨김 유지 (PAGE_PRESETS.visibleColumns에서 빠진 td) */
+            #orders-tbody > tr > td.hidden {
+                display: none;
+            }
+
+            /* 팀명/금액/납기는 카드에서 강조 — 글자 굵게/약간 큼 */
+            #orders-tbody > tr > td[data-label="팀명"] {
+                font-size: 15px;
+                font-weight: 600;
+                color: #111827;
+            }
+            #orders-tbody > tr > td[data-label="금액"] {
+                font-size: 14px;
+                font-weight: 700;
+                color: #111827;
+            }
+            #orders-tbody > tr > td[data-label="납기"] {
+                font-size: 13px;
+            }
+        }
     </style>
 </head>
 

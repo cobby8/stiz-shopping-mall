@@ -716,26 +716,30 @@ function renderOrdersTable(orders) {
         // D-day 계산: 희망납기까지 남은 일수 (초록/주황/빨강으로 긴급도 표시)
         const dday = calcDday(order.shipping?.desiredDate, order.status);
 
+        // [M4 안 A] 각 td에 data-label 부여
+        // 이유: 모바일(<768px) CSS @media에서 thead 숨기고 td를 block 변환할 때
+        //       td::before { content: attr(data-label) }로 자동 라벨 표시
+        // 원칙: 셀렉터/순서/onclick 무수정 — 속성 추가만으로 카드형 시각만 바뀜 (PC/태블릿 회귀 0)
         row.innerHTML = `
-            <td class="px-3 py-3 w-10 ${getVisibleColumnClass('select')}" onclick="event.stopPropagation()">
+            <td data-label="" class="px-3 py-3 w-10 ${getVisibleColumnClass('select')}" onclick="event.stopPropagation()">
                 <input type="checkbox" class="order-checkbox w-4 h-4 rounded border-gray-300 text-brand-red focus:ring-brand-red cursor-pointer"
                     data-order-id="${order.id}"
                     onchange="onOrderCheckboxChange()">
             </td>
-            <td class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap ${getVisibleColumnClass('orderNumber')}">${order.orderNumber || '-'}</td>
-            <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap ${getVisibleColumnClass('receiptDate')}">${createdDate}</td>
-            <td class="px-4 py-3 font-medium whitespace-nowrap ${getVisibleColumnClass('teamName')}">${escapeHtml(teamName)}${gradeBadge}${getTagBadges(order.tags)}</td>
-            <td class="px-4 py-3 text-gray-600 whitespace-nowrap ${getVisibleColumnClass('customerName')}">${escapeHtml(customerName)}</td>
-            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('sport')}">
+            <td data-label="주문번호" class="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap ${getVisibleColumnClass('orderNumber')}">${order.orderNumber || '-'}</td>
+            <td data-label="접수일" class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap ${getVisibleColumnClass('receiptDate')}">${createdDate}</td>
+            <td data-label="팀명" class="px-4 py-3 font-medium whitespace-nowrap ${getVisibleColumnClass('teamName')}">${escapeHtml(teamName)}${gradeBadge}${getTagBadges(order.tags)}</td>
+            <td data-label="고객명" class="px-4 py-3 text-gray-600 whitespace-nowrap ${getVisibleColumnClass('customerName')}">${escapeHtml(customerName)}</td>
+            <td data-label="종목" class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('sport')}">
                 <span>${sportLabel}</span>
                 ${itemCount > 1 ? `<span class="ml-1 text-xs text-gray-400">(${itemDisplay})</span>` : ''}
             </td>
-            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('status')}">${statusBadge}</td>
-            <td class="px-4 py-3 text-gray-600 whitespace-nowrap ${getVisibleColumnClass('manager')}">${escapeHtml(order.manager || '미배정')}</td>
-            <td class="px-4 py-3 text-right whitespace-nowrap font-medium ${getVisibleColumnClass('amount')}">${formatCurrency(amount)}</td>
-            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('paidDate')}">${paidDateCell}</td>
-            <td class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('workInstructionSentDate')}">${workInstructionSentDateCell}</td>
-            <td class="px-4 py-3 text-center text-xs whitespace-nowrap ${dday.cssClass} ${getVisibleColumnClass('deadline')}">${dday.text}</td>
+            <td data-label="상태" class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('status')}">${statusBadge}</td>
+            <td data-label="담당자" class="px-4 py-3 text-gray-600 whitespace-nowrap ${getVisibleColumnClass('manager')}">${escapeHtml(order.manager || '미배정')}</td>
+            <td data-label="금액" class="px-4 py-3 text-right whitespace-nowrap font-medium ${getVisibleColumnClass('amount')}">${formatCurrency(amount)}</td>
+            <td data-label="결제완료" class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('paidDate')}">${paidDateCell}</td>
+            <td data-label="지시서전송" class="px-4 py-3 whitespace-nowrap ${getVisibleColumnClass('workInstructionSentDate')}">${workInstructionSentDateCell}</td>
+            <td data-label="납기" class="px-4 py-3 text-center text-xs whitespace-nowrap ${dday.cssClass} ${getVisibleColumnClass('deadline')}">${dday.text}</td>
         `;
 
         // 행 클릭 시 주문 상세 페이지로 이동 (체크박스 영역은 stopPropagation으로 제외)
