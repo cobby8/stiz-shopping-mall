@@ -84,6 +84,20 @@
             margin-right: 4px;
             vertical-align: middle;
         }
+
+        /* 모바일(<768px): 캘린더 헤더 폰트 축소 + flex-wrap 안정화 */
+        /* C-9/D-95 정합: admin-common.js ADMIN_MOBILE_MQ(=`(max-width: 767px)`)와 동일 기준
+           — CSS @media는 JS import 불가하므로 매직 스트링 동기화는 주석으로 명시 */
+        /* !important: FullCalendar 자체 스타일 우선순위가 높아 덮어쓰기 위해 한정 사용 */
+        @media (max-width: 767px) {
+            .fc .fc-toolbar.fc-header-toolbar {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .fc-toolbar-title {
+                font-size: 1.1em !important;
+            }
+        }
     </style>
 </head>
 
