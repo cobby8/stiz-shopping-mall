@@ -92,6 +92,13 @@ const STATUS_TABS = [
 // 대상 4개: 고객명/담당자/결제완료일/지시서전송일 (각 뷰 공통으로 밀도 영향 큰 컬럼)
 const TABLET_HIDDEN_COLUMNS = ['customerName', 'manager', 'paidDate', 'workInstructionSentDate'];
 
+// 모바일(<768px) 뷰포트에서 표시할 컬럼 화이트리스트 (M4 안 B)
+// 이유: M4 안 A(CSS 분기)로 카드형 변환은 됐으나, td 12개 전부 노출되어 카드 1장이 12라인으로 너무 길다.
+//       모바일에서는 한눈에 핵심 6개만 보이도록 압축하여 스크롤 부담 ↓.
+// 6개 선정 기준: 체크박스/주문번호/팀명/상태/금액/D-day — "이 주문이 뭔지 + 지금 어디에 있나 + 언제까지" 핵심
+// PC(≥1280px) / 태블릿(768~1279px)에는 영향 없음. 모바일 분기에서만 화이트리스트로 사용.
+const MOBILE_VISIBLE_COLUMNS = ['select', 'orderNumber', 'teamName', 'status', 'amount', 'deadline'];
+
 // 현재 뷰포트가 태블릿 구간인지 판단 (768~1279px)
 // PC(≥1280px)에서는 항상 false → 기존 컬럼 구성 그대로 유지 (회귀 0)
 // C-9/D-95: 매직 스트링 하드코딩 금지 — admin-common.js 전역 헬퍼 재사용
@@ -402,12 +409,21 @@ function applyPagePreset() {
         return false;
     }
 
-    // 태블릿 뷰포트(768~1279px)면 TABLET_HIDDEN_COLUMNS 4개 제외 후 Set 초기화
-    // PC(≥1280px)면 프리셋 원본 그대로 → 기존 동작 유지
+    // 컬럼 가시성 계산 — 우선순위: 모바일(<768px) > 태블릿(768~1279px) > PC(≥1280px)
+    // 모바일: MOBILE_VISIBLE_COLUMNS 6개 화이트리스트 교집합 (M4 안 B)
+    //         baseColumns(프리셋별 visibleColumns)에 존재하는 키만 살림 → 파트 페이지에 없는 키는 자동 제외
+    // 태블릿: TABLET_HIDDEN_COLUMNS 4개 블랙리스트 제외 (기존 동작 유지)
+    // PC: 프리셋 원본 그대로 → 기존 동작 유지 (회귀 0)
     const baseColumns = currentPagePreset.visibleColumns;
-    const filtered = isTabletViewport()
-        ? baseColumns.filter(c => !TABLET_HIDDEN_COLUMNS.includes(c))
-        : baseColumns;
+    let filtered;
+    if (isAdminMobile()) {
+        // 모바일: 화이트리스트 방식 — preset에 없는 키도 자연스럽게 제외됨
+        filtered = baseColumns.filter(c => MOBILE_VISIBLE_COLUMNS.includes(c));
+    } else if (isTabletViewport()) {
+        filtered = baseColumns.filter(c => !TABLET_HIDDEN_COLUMNS.includes(c));
+    } else {
+        filtered = baseColumns;
+    }
     visibleColumns = new Set(filtered);
     applyColumnVisibility();
     applyStatusOptionVisibility();
@@ -470,11 +486,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 차트/실적/랭킹 초기 로드 제거: admin-analytics.html로 이동됨
     loadOrders();
 
-    // 태블릿 ↔ PC 브레이크포인트 교차 시 컬럼 가시성 재계산 + 테이블 재렌더
+    // 모바일 ↔ 태블릿 ↔ PC 브레이크포인트 교차 시 컬럼 가시성 재계산 + 테이블 재렌더
     // 비유: 창 크기를 늘렸다 줄이면 자동으로 컬럼이 붙었다 떨어졌다
     // 서버 재요청 없이 캐시(lastLoadedOrders)로 즉시 재렌더 → 네트워크 부담 0
-    // C-9/D-95: 공통 상수 경유 (admin-common.js ADMIN_TABLET_ONLY_MQ)
+    // C-9/D-95: 공통 상수 경유 (admin-common.js ADMIN_TABLET_ONLY_MQ / ADMIN_MOBILE_MQ)
     const tabletMql = window.matchMedia(ADMIN_TABLET_ONLY_MQ);
+    const mobileMql = window.matchMedia(ADMIN_MOBILE_MQ);  // M4 안 B: 768px 경계 감지용
     const handleBreakpointChange = () => {
         applyPagePreset();
         if (lastLoadedOrders) {
@@ -482,10 +499,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     // 모던 브라우저는 addEventListener, 구형(Safari 13 이하)은 addListener fallback
+    // 두 MQ 모두 같은 핸들러 사용 — 어느 경계를 넘어도 동일한 재계산 로직
     if (tabletMql.addEventListener) {
         tabletMql.addEventListener('change', handleBreakpointChange);
+        mobileMql.addEventListener('change', handleBreakpointChange);
     } else {
         tabletMql.addListener(handleBreakpointChange);
+        mobileMql.addListener(handleBreakpointChange);
     }
 
     // 필터 프리셋 드롭다운 초기 렌더링 (localStorage에 저장된 프리셋이 있으면 표시)
