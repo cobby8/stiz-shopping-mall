@@ -105,7 +105,9 @@ const ALLOWED_TABLES = [
     'coupons',
     'user_mileage',
     // #18: 뉴스레터 구독
-    'newsletter_subscribers'
+    'newsletter_subscribers',
+    // P0-3: AI 일일 쿼터 추적 (R-03)
+    'ai_usage'
 ];
 
 // 테이블명 검증 함수 — 화이트리스트에 없으면 즉시 에러

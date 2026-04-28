@@ -332,3 +332,22 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   isActive INTEGER DEFAULT 1,            -- 구독 상태 (1=구독중, 0=구독취소)
   createdAt TEXT DEFAULT (datetime('now'))
 );
+
+-- =============================================
+-- AI 사용량 추적 테이블 (P0-3, R-03)
+-- 비유: 식당 주방의 "오늘 제공한 음식 일지" — 누가 몇 번 시켰는지 기록.
+--       Gemini API는 호출당 비용 발생하므로 일일 쿼터 적용 위한 카운트 원장.
+-- 일일 한도: 무료 30 / 로그인 50 / 관리자 1000 (자정 기준 리셋)
+-- =============================================
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT,                  -- JWT payload.id (로그인 사용자) 또는 NULL (익명)
+  ip TEXT,                       -- 익명 사용자 폴백 키
+  endpoint TEXT,                 -- '/api/generate', '/api/generate/chat' 등
+  prompt_length INTEGER,         -- 사용자 입력 길이 (모니터링용)
+  response_length INTEGER,       -- AI 응답 길이 (모니터링용)
+  created_at TEXT DEFAULT (datetime('now', 'localtime'))
+);
+-- 사용자별 일자 단위 카운트 빠른 조회용 (쿼터 체크 핫패스)
+CREATE INDEX IF NOT EXISTS idx_ai_usage_user_date ON ai_usage(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_ip_date ON ai_usage(ip, created_at);
