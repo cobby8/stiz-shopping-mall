@@ -196,6 +196,42 @@
         }
 
         // ============================================================
+        // next 파라미터 복귀 처리 (P1-1, 2026-04-29)
+        // ------------------------------------------------------------
+        // admin-guard.js 가 차단하면서 ?next=원래URL 을 붙여 보낸다.
+        // 로그인 성공 후 그 URL 로 돌려보내야 사용자가 가려던 화면에 도착.
+        //
+        // ⚠️ Open Redirect 방지: next 는 같은 도메인 내 admin-*.html 로만 허용.
+        //    외부 URL/스킴/admin-login 자체로의 복귀는 무시 → 기본 대시보드 사용.
+        // ============================================================
+        function getNextRedirectTarget(fallback) {
+            try {
+                const raw = new URLSearchParams(location.search).get('next');
+                if (!raw) return fallback;
+                const decoded = decodeURIComponent(raw);
+
+                // 1) 절대 URL/스킴/슬래시 시작 등 외부 이동 가능성 차단
+                if (/^[a-z]+:\/\//i.test(decoded)) return fallback; // http://, https://, javascript: 등
+                if (decoded.startsWith('//')) return fallback;       // protocol-relative
+
+                // 2) 경로에서 파일명만 추출하여 admin- 또는 admin.html 인지 확인
+                //    (쿼리스트링/해시는 살려둔다)
+                const pathOnly = decoded.split('?')[0].split('#')[0];
+                const fileName = pathOnly.split('/').pop();
+                if (!fileName) return fallback;
+                if (fileName === 'admin-login.html') return fallback; // 자기 자신 복귀 = 무한 루프
+
+                // admin.html 또는 admin-*.html 만 허용
+                if (fileName !== 'admin.html' && !/^admin-[a-z0-9-]+\.html$/i.test(fileName)) {
+                    return fallback;
+                }
+                return decoded;
+            } catch (e) {
+                return fallback;
+            }
+        }
+
+        // ============================================================
         // 페이지 로드 시: 이미 유효한 토큰이 있으면 대시보드로 바로 이동
         // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
@@ -208,8 +244,9 @@
                     // 토큰 만료 확인 (exp는 초 단위 Unix timestamp)
                     const now = Math.floor(Date.now() / 1000);
                     if (payload.role === 'admin' && payload.exp && payload.exp > now) {
-                        // 유효한 관리자 토큰 → 대시보드로 바로 이동
-                        window.location.href = getDefaultAdminPage(payload);
+                        // 유효한 관리자 토큰 → next 파라미터가 있으면 그 페이지로,
+                        // 없으면 권한별 기본 대시보드로 이동 (P1-1)
+                        window.location.href = getNextRedirectTarget(getDefaultAdminPage(payload));
                         return;
                     }
                 } catch (e) {
@@ -267,9 +304,9 @@
                     return;
                 }
 
-                // 관리자 확인 완료 → 토큰 저장 후 대시보드로 이동
+                // 관리자 확인 완료 → 토큰 저장 후 next 우선 복귀 (P1-1)
                 localStorage.setItem('stiz_admin_token', token);
-                window.location.href = getDefaultAdminPage(payload);
+                window.location.href = getNextRedirectTarget(getDefaultAdminPage(payload));
 
             } catch (err) {
                 // 네트워크 오류 등 예외 처리
