@@ -86,6 +86,65 @@
         }
         .edit-input:focus { border-color: #111; box-shadow: 0 0 0 1px #111; }
 
+        /* ===== 원가 입력 강조 (P1-5, 2026-04-29) ===== */
+        /* 비유: 운영자가 원가 입력을 누락하지 않도록, 미입력 상태일 때
+           "여기 입력 필요!"라고 빨간 띠로 알려주는 포스트잇 */
+        /* 미입력 상태: 좌측 빨간 보더 + 옅은 노란 배경 (시야에 띈다) */
+        #cost-margin-section.cost-warning {
+            border-left: 4px solid #dc2626;       /* 빨간 좌측 보더 */
+            background: #fffbeb;                  /* 옅은 노란 배경 (amber-50) */
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        /* 입력 완료 상태: 부드럽게 정상화 (이전 transition으로 자연스럽게 사라짐) */
+        #cost-margin-section {
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        /* "입력 필요" 배지 — 미입력일 때만 보임 */
+        .cost-warning-badge {
+            display: none;
+            align-items: center;
+            gap: 2px;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+            margin-left: 0.5rem;
+        }
+        #cost-margin-section.cost-warning .cost-warning-badge { display: inline-flex; }
+        /* 가이드 텍스트(상시 노출, 미입력일 때 강조 색상) */
+        .cost-guide-text {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+        #cost-margin-section.cost-warning .cost-guide-text { color: #b45309; font-weight: 500; }
+        /* 편집 모드: 원가 input 미입력 시 강조 (placeholder + 보더) */
+        .edit-input.cost-input-empty {
+            border-color: #fca5a5;
+            background: #fff7ed;
+        }
+        .edit-input.cost-input-empty::placeholder { color: #c2410c; font-weight: 500; }
+        /* 페이지 상단 미입력 알림 배너(요약/다른 탭에 있어도 인지 가능) */
+        #cost-missing-banner {
+            display: none;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 0.5rem;
+            color: #92400e;
+            font-size: 13px;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        #cost-missing-banner.visible { display: flex; }
+
         /* 상태 변경 모달 배경 */
         .modal-overlay {
             background-color: rgba(0,0,0,0.4);
@@ -351,6 +410,14 @@
                         <span>템플릿 저장</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- 원가 미입력 알림 배너 (P1-5, 2026-04-29) -->
+            <!-- 비유: 주문 상세에 들어왔을 때 "원가 입력 안 했어요!"라고 가장 먼저 알려주는 노란 띠.
+                 다른 탭(요약/물류 등)에 있어도 보이도록 페이지 상단에 배치 -->
+            <div id="cost-missing-banner" role="status" aria-live="polite">
+                <span class="material-symbols-outlined" style="font-size:18px;">warning</span>
+                <span>원가가 입금 정보에 입력되지 않았습니다. <a href="#" onclick="goToCostSection(event)" class="underline font-semibold">금융 탭에서 입력</a>하면 마진 분석에 반영됩니다.</span>
             </div>
 
             <!-- 현재 상태 표시 바 -->
@@ -687,11 +754,19 @@
 
                         <!-- 원가/마진 영역 -->
                         <!-- 비유: 기존 금융 탭이 "매출 장부"라면, 여기는 "원가 장부" 한 페이지 추가 -->
-                        <div class="mt-6 pt-4 border-t border-gray-100">
-                            <h4 class="font-semibold text-sm text-gray-500 mb-3 flex items-center">
+                        <!-- P1-5 (2026-04-29): 미입력 시 빨간 좌측 보더 + 노란 배경 + "입력 필요" 배지로 강조 -->
+                        <div id="cost-margin-section" class="mt-6 pt-4 border-t border-gray-100">
+                            <h4 class="font-semibold text-sm text-gray-500 mb-1 flex items-center">
                                 <span class="material-symbols-outlined mr-1 text-base">calculate</span>
                                 원가 / 마진
+                                <!-- 미입력 시에만 보이는 경고 배지: JS가 cost-warning 클래스 토글 -->
+                                <span class="cost-warning-badge">
+                                    <span class="material-symbols-outlined text-xs" style="font-size:14px;">warning</span>
+                                    입력 필요
+                                </span>
                             </h4>
+                            <!-- 가이드 텍스트 1줄: 운영자가 입력의 의미와 안전성을 즉시 이해 -->
+                            <p class="cost-guide-text">원가는 마진 분석에 사용되며, 고객에게 노출되지 않습니다.</p>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                                 <div>
                                     <p class="field-label">벌당 원가</p>

@@ -556,8 +556,16 @@ function updateMarginDisplay(order, overrideCost) {
     const marginRateEl = document.getElementById('calc-margin-rate');
     if (!marginEl || !marginRateEl) return;
 
+    // P1-5 (2026-04-29): 미입력/입력 상태에 따라 섹션/배너 강조 토글
+    // 비유: 운영자가 들어왔을 때 "원가 입력 안 했어요"를 빨간 띠로 알려주는 신호등
+    const section = document.getElementById('cost-margin-section');
+    const banner = document.getElementById('cost-missing-banner');
+    const isCostMissing = !totalCost && overrideCost === undefined && !order.payment?.costPerUnit;
+    if (section) section.classList.toggle('cost-warning', isCostMissing);
+    if (banner) banner.classList.toggle('visible', isCostMissing);
+
     // 원가 미입력(0)이면 "미입력" 표시
-    if (!totalCost && overrideCost === undefined && !order.payment?.costPerUnit) {
+    if (isCostMissing) {
         marginEl.textContent = '-';
         marginRateEl.textContent = '원가 미입력';
         marginRateEl.className = 'field-value text-gray-400 text-sm';
@@ -577,6 +585,34 @@ function updateMarginDisplay(order, overrideCost) {
     marginRateEl.textContent = marginRate + '%';
     marginRateEl.className = `field-value font-bold ${colorClass}`;
 }
+
+/**
+ * P1-5: 상단 배너 클릭 시 금융 탭 + 원가 섹션으로 부드럽게 이동
+ * 비유: "여기 입력하세요" 안내문 누르면 그 자리로 데려가주는 안내원
+ * @param {Event} ev - 클릭 이벤트 (기본 동작 막기)
+ */
+function goToCostSection(ev) {
+    if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+    // 1) 금융 탭 활성화 (탭 버튼이 있으면 클릭으로 위임 — 기존 switchTab 흐름 재사용)
+    const paymentTabBtn = document.querySelector('[data-tab="payment"]');
+    if (paymentTabBtn) {
+        paymentTabBtn.click();
+    } else {
+        // fallback: 직접 탭 콘텐츠 전환
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+        const paymentTab = document.getElementById('tab-payment');
+        if (paymentTab) paymentTab.classList.remove('hidden');
+    }
+    // 2) 원가 섹션으로 스크롤 (소량 지연으로 탭 전환 후 위치 계산)
+    setTimeout(() => {
+        const section = document.getElementById('cost-margin-section');
+        if (section) {
+            section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 80);
+}
+// 전역 노출 — HTML onclick에서 호출 가능 (C-7 패턴: 전역 함수 + fallback)
+window.goToCostSection = goToCostSection;
 
 /** 주문 아이템 목록 렌더링 */
 function renderItems() {
@@ -932,6 +968,24 @@ function convertToEditFields() {
     // 비유: "벌당 원가"를 입력하면 수량을 곱해서 "총 원가"를 자동으로 채워주는 계산기
     const costPerUnitInput = document.querySelector('[data-edit-field="payment.costPerUnit"]');
     const totalCostInput = document.querySelector('[data-edit-field="payment.totalCost"]');
+
+    // P1-5 (2026-04-29): 편집 모드 진입 시 원가 input 강조 (미입력일 때 placeholder + 빨간 보더)
+    // 비유: 편집 모드에 들어왔을 때 "여기 비어있어요!"라고 알려주는 표시
+    if (costPerUnitInput) {
+        costPerUnitInput.setAttribute('placeholder', '원가 입력 필요 — 마진 분석에 사용됩니다');
+        costPerUnitInput.setAttribute('inputmode', 'numeric');
+        const refreshCostHighlight = () => {
+            const empty = !costPerUnitInput.value || parseInt(costPerUnitInput.value) <= 0;
+            costPerUnitInput.classList.toggle('cost-input-empty', empty);
+        };
+        refreshCostHighlight();
+        costPerUnitInput.addEventListener('input', refreshCostHighlight);
+        costPerUnitInput.addEventListener('blur', refreshCostHighlight);
+    }
+    if (totalCostInput) {
+        totalCostInput.setAttribute('placeholder', '총 원가 (벌당원가 × 수량 자동계산)');
+        totalCostInput.setAttribute('inputmode', 'numeric');
+    }
 
     if (costPerUnitInput && totalCostInput) {
         costPerUnitInput.addEventListener('input', () => {
