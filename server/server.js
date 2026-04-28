@@ -21,7 +21,13 @@ const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, '..')));
 
 // 업로드 파일 정적 서빙 — /uploads/designs/xxx.png 같은 URL로 직접 접근 가능 (A-4)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// P1-3 (R-09): uploadGate를 정적 서빙 앞에 세워 미인증 접근 차단
+//  - /uploads/products/** : 공개 (상품 카탈로그 1,397장)
+//  - /uploads/references/**, /uploads/designs/** : 로그인 사용자 + 관리자
+//  - /uploads/temp/** : 관리자 전용
+//  - UPLOADS_GUARD_ENABLED=false 로 즉시 비활성 가능 (롤백 안전핀)
+import { uploadGate } from './middleware/uploadGate.js';
+app.use('/uploads', uploadGate, express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 import authRoutes from './routes/auth.js';
