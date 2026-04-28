@@ -12,8 +12,10 @@ const router = express.Router();
  * 형식: ORD-YYYYMMDD-NNN (예: ORD-20260326-001)
  * 비유: 은행 대기표처럼 날짜별로 001부터 순번이 매겨진다.
  * 같은 날 주문이 여러 건이면 002, 003... 으로 증가한다.
+ *
+ * [P0-1] payment.js에서도 재사용하기 위해 export 추가 (결제 트랜잭션 안에서 호출)
  */
-function generateOrderNumber() {
+export function generateOrderNumber() {
     // 오늘 날짜를 YYYYMMDD 형식으로 만든다
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -123,8 +125,10 @@ export const STATUS_LABELS = {
 /**
  * 기존 주문을 새 스키마에 맞게 마이그레이션 (누락 필드 기본값 채움)
  * 비유: 낡은 서류 양식에 새 항목 칸을 추가하고 빈칸에 기본값을 채워넣는 것
+ *
+ * [P0-1] payment.js의 트랜잭션 안에서 재사용하기 위해 export 추가
  */
-function migrateOrder(order) {
+export function migrateOrder(order) {
     const normalizedStatus = normalizeStatus(order.status || 'consult_started');
     return {
         ...order,

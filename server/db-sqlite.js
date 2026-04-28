@@ -62,6 +62,26 @@ try {
     // 이미 존재하면 무시
 }
 
+// --- [P0-1] 마이그레이션: orders 테이블에 paymentKey 컬럼 + 부분 UNIQUE 인덱스 추가 ---
+// 비유: 결제 영수증 번호(토스가 발급)를 봉투 앞면에 적어두는 칸을 추가하는 것.
+//       기존 8,073건 주문은 빈값(NULL)이라 중복 허용되고, 신규 PG 결제만 UNIQUE 검증된다.
+try {
+    const orderCols = db.pragma('table_info(orders)');
+    const hasPaymentKey = orderCols.some(c => c.name === 'paymentKey');
+    if (!hasPaymentKey) {
+        db.exec("ALTER TABLE orders ADD COLUMN paymentKey TEXT");
+        console.log('[DB] orders 테이블에 paymentKey 컬럼 추가 완료');
+    }
+    // 부분 UNIQUE 인덱스: 빈값/NULL은 중복 허용, 실값만 UNIQUE 검증
+    // 비유: "토스 영수증 번호 한 장당 주문 한 건"만 허용하지만, 빈 칸은 무제한 허용
+    db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_paymentKey ON orders(paymentKey)
+        WHERE paymentKey IS NOT NULL AND paymentKey != ''
+    `);
+} catch (e) {
+    console.error('[DB] paymentKey 마이그레이션 실패:', e.message);
+}
+
 // --- ID 생성 헬퍼 ---
 // Date.now()만 쓰면 같은 밀리초에 2건이 들어올 때 ID 충돌 가능
 // 타임스탬프 + 랜덤 3자리를 조합하여 충돌 방지
@@ -129,6 +149,9 @@ function extractOrderColumns(record) {
         createdAt: record.createdAt || null,
         orderReceiptDate: record.orderReceiptDate || null,
         updatedAt: record.updatedAt || null,
+        // [P0-1] paymentKey: JSON blob 안의 payment.paymentKey를 인덱스 컬럼으로 승격
+        // 부분 UNIQUE 인덱스로 결제 멱등성 보장 (빈값/NULL은 중복 허용 — 무통장·기존 주문 안전)
+        paymentKey: (record.payment && record.payment.paymentKey) || null,
     };
 }
 
@@ -207,9 +230,10 @@ export function saveAll(collection, data) {
         if (isJsonBlobCollection(collection)) {
             // orders/customers: 인덱스 컬럼 + data(JSON)
             if (collection === 'orders') {
+                // [P0-1] paymentKey 컬럼 포함 — 부분 UNIQUE로 결제 멱등성 보장
                 const stmt = db.prepare(`
-                    INSERT INTO orders (id, orderNumber, status, manager, customerId, createdAt, orderReceiptDate, updatedAt, data)
-                    VALUES (@id, @orderNumber, @status, @manager, @customerId, @createdAt, @orderReceiptDate, @updatedAt, @data)
+                    INSERT INTO orders (id, orderNumber, status, manager, customerId, createdAt, orderReceiptDate, updatedAt, paymentKey, data)
+                    VALUES (@id, @orderNumber, @status, @manager, @customerId, @createdAt, @orderReceiptDate, @updatedAt, @paymentKey, @data)
                 `);
                 for (const record of records) {
                     const cols = extractOrderColumns(record);
@@ -325,11 +349,12 @@ export function insert(collection, record) {
 
     if (isJsonBlobCollection(collection)) {
         if (collection === 'orders') {
+            // [P0-1] paymentKey 컬럼 포함 — UNIQUE 충돌 시 호출자가 catch 가능
             const cols = extractOrderColumns(record);
             cols.data = JSON.stringify(record);
             db.prepare(`
-                INSERT INTO orders (id, orderNumber, status, manager, customerId, createdAt, orderReceiptDate, updatedAt, data)
-                VALUES (@id, @orderNumber, @status, @manager, @customerId, @createdAt, @orderReceiptDate, @updatedAt, @data)
+                INSERT INTO orders (id, orderNumber, status, manager, customerId, createdAt, orderReceiptDate, updatedAt, paymentKey, data)
+                VALUES (@id, @orderNumber, @status, @manager, @customerId, @createdAt, @orderReceiptDate, @updatedAt, @paymentKey, @data)
             `).run(cols);
         } else if (collection === 'customers') {
             const cols = extractCustomerColumns(record);
@@ -419,7 +444,7 @@ export function findOne(collection, field, value) {
     if (isJsonBlobCollection(collection)) {
         // 인덱스 컬럼에 해당 필드가 있으면 직접 WHERE, 아니면 JSON_EXTRACT 사용
         const indexCols = collection === 'orders'
-            ? ['id', 'orderNumber', 'status', 'manager', 'customerId', 'createdAt', 'orderReceiptDate', 'updatedAt']
+            ? ['id', 'orderNumber', 'status', 'manager', 'customerId', 'createdAt', 'orderReceiptDate', 'updatedAt', 'paymentKey']
             : ['id', 'name', 'phone', 'email', 'teamName', 'dealType', 'orderCount', 'totalSpent', 'createdAt', 'updatedAt'];
 
         let row;
@@ -477,6 +502,7 @@ export function updateById(collection, id, updates) {
 
         // 인덱스 컬럼 + data 모두 업데이트
         if (collection === 'orders') {
+            // [P0-1] paymentKey 컬럼 동기화 — JSON blob의 payment.paymentKey를 컬럼에 반영
             const cols = extractOrderColumns(merged);
             cols.data = JSON.stringify(merged);
             cols.whereId = id; // WHERE 조건용
@@ -484,7 +510,8 @@ export function updateById(collection, id, updates) {
                 UPDATE orders SET
                     orderNumber = @orderNumber, status = @status, manager = @manager,
                     customerId = @customerId, createdAt = @createdAt,
-                    orderReceiptDate = @orderReceiptDate, updatedAt = @updatedAt, data = @data
+                    orderReceiptDate = @orderReceiptDate, updatedAt = @updatedAt,
+                    paymentKey = @paymentKey, data = @data
                 WHERE id = @whereId
             `).run(cols);
         } else if (collection === 'customers') {
@@ -608,7 +635,8 @@ export function findByFilter(collection, filters = {}, options = {}) {
     const tbl = tableName(collection);
 
     // orders/customers의 인덱스 컬럼 목록 (SQL WHERE에 직접 사용 가능한 필드)
-    const orderIndexCols = ['id', 'orderNumber', 'status', 'manager', 'customerId', 'createdAt', 'orderReceiptDate', 'updatedAt'];
+    // [P0-1] paymentKey 추가 — 결제 멱등 조회 시 인덱스 직접 사용
+    const orderIndexCols = ['id', 'orderNumber', 'status', 'manager', 'customerId', 'createdAt', 'orderReceiptDate', 'updatedAt', 'paymentKey'];
     const customerIndexCols = ['id', 'name', 'phone', 'email', 'teamName', 'dealType', 'orderCount', 'totalSpent', 'createdAt', 'updatedAt'];
 
     const conditions = [];  // WHERE 절 조건들

@@ -374,12 +374,16 @@ async function processTossPayment(formData) {
  * 토스페이먼츠 결제 성공 후 처리
  * successUrl로 리다이렉트된 후 실행되는 함수
  *
- * 흐름:
+ * [P0-1 트랜잭션 통합 후] 새 흐름:
  *  1. URL에서 paymentKey, orderId, amount 추출
  *  2. localStorage에서 임시 저장한 주문 정보 복원
- *  3. 서버에 POST /api/payment/confirm 으로 결제 승인 요청
- *  4. 서버가 토스 API로 확인 후 주문 생성
- *  5. 주문 완료 화면 표시
+ *  3. 서버에 POST /api/payment/confirm 으로 confirm + 주문생성 요청 (orderData 동봉)
+ *     → 서버가 한 트랜잭션으로 토스승인 + DB INSERT 수행 (P0-1 R-01)
+ *     → 응답에 orderNumber 포함
+ *  4. 주문 완료 화면 표시
+ *
+ * 비유: 기존엔 "결제확인" 영수증을 받아서 "주문생성" 창구에 다시 가서 줘야 했음.
+ *       이제는 "결제확인 + 주문생성"을 한 창구에서 한 번에 해결 — 중간에 끊겨도 안전.
  */
 async function handleTossPaymentSuccess(urlParams) {
   const paymentKey = urlParams.get('paymentKey');
@@ -414,21 +418,9 @@ async function handleTossPaymentSuccess(urlParams) {
   }
 
   try {
-    // 1. 서버에 결제 승인 요청 (서버가 토스 API로 최종 확인)
-    const confirmRes = await fetch('/api/payment/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentKey, orderId, amount })
-    });
-    const confirmData = await confirmRes.json();
-
-    if (!confirmData.success) {
-      throw new Error(confirmData.error || '결제 승인에 실패했습니다.');
-    }
-
-    // 2. 결제 승인 성공 → 주문 생성
-    // pendingOrder가 있으면 상세 정보 사용, 없으면 최소 정보로 생성
-    let orderData;
+    // [P0-1] orderData 사전 조립 — confirm 요청 페이로드에 동봉
+    // 서버가 confirm + INSERT를 한 트랜잭션으로 처리하기 위함
+    let orderData = null;
     if (pendingOrder && pendingOrder.formData) {
       orderData = buildOrderData(pendingOrder.formData, pendingOrder.payMethod, {
         paymentKey,
@@ -436,49 +428,47 @@ async function handleTossPaymentSuccess(urlParams) {
         tossOrderId: orderId,
         paid_amount: amount
       });
-    } else {
-      // 임시 저장 정보 없을 때 최소 주문 데이터
-      orderData = {
-        customer: { name: '결제 확인 필요', phone: '', email: '', teamName: '' },
-        items: [],
-        total: amount,
-        shipping: { address: '', recipientName: '' },
-        payment: {
-          method: 'toss',
-          totalAmount: amount,
-          paymentKey,
-          tossOrderId: orderId
-        },
-        customerMemo: '',
-        type: 'shop',
-        status: 'design_requested'
-      };
     }
+    // pendingOrder가 없으면 orderData를 보내지 않음 → 서버에서 최소 주문 폴백 처리
+    // (탭 닫기 후 별도 기기에서 successUrl 진입한 비정상 케이스 — 매우 드묾)
 
-    const orderRes = await fetch(CHECKOUT_API, {
+    // [P0-1] 통합 confirm 요청: 토스승인 + DB INSERT 한 번에
+    const confirmRes = await fetch('/api/payment/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderData)
+      body: JSON.stringify({
+        paymentKey,
+        orderId,
+        amount,
+        orderData  // null이어도 서버가 폴백 처리
+      })
     });
-    const orderResult = await orderRes.json();
+    const confirmData = await confirmRes.json();
 
-    if (!orderResult.success) {
-      throw new Error(orderResult.error || '주문 처리에 실패했습니다.');
+    if (!confirmData.success) {
+      throw new Error(confirmData.error || '결제 승인에 실패했습니다.');
     }
 
-    // 3. 주문 완료 — 장바구니 비우기 + 임시 데이터 정리
+    // [P0-1] orderNumber는 confirm 응답에서 직접 받음 (별도 POST /api/orders 호출 불필요)
+    const orderNumber = confirmData.orderNumber;
+    if (!orderNumber) {
+      // 정상 경로에서는 도달 불가 — 안전장치
+      throw new Error('주문번호가 응답에 없습니다.');
+    }
+
+    // 주문 완료 — 장바구니 비우기 + 임시 데이터 정리
     clearCart();
     localStorage.removeItem('stiz_pending_order');
 
     // URL에서 쿼리 파라미터 제거
     window.history.replaceState({}, '', 'checkout.html');
 
-    // 완료 화면 표시
-    showOrderComplete(orderResult.orderNumber, amount, 'card');
+    // 완료 화면 표시 (idempotent 응답이어도 사용자에겐 동일하게 보여줌)
+    showOrderComplete(orderNumber, amount, 'card');
 
   } catch (err) {
     console.error('[checkout] 결제 확인/주문 처리 실패:', err);
-    alert(`결제는 완료되었으나 주문 처리에 실패했습니다.\n고객센터에 문의해주세요.\n\n주문ID: ${orderId}\n${err.message}`);
+    alert(`결제 처리에 실패했습니다.\n고객센터에 문의해주세요.\n\n주문ID: ${orderId}\n${err.message}`);
     // 임시 데이터 정리
     localStorage.removeItem('stiz_pending_order');
     window.history.replaceState({}, '', 'checkout.html');

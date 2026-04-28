@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS orders (
   createdAt TEXT,
   orderReceiptDate TEXT,
   updatedAt TEXT,
+  paymentKey TEXT,    -- [P0-1] 토스페이먼츠 paymentKey — 결제 트랜잭션 멱등키
   data TEXT NOT NULL  -- 전체 주문 객체를 JSON.stringify한 값
 );
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
@@ -23,6 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_orders_customerId ON orders(customerId);
 CREATE INDEX IF NOT EXISTS idx_orders_createdAt ON orders(createdAt);
 CREATE INDEX IF NOT EXISTS idx_orders_orderReceiptDate ON orders(orderReceiptDate);
 CREATE INDEX IF NOT EXISTS idx_orders_orderNumber ON orders(orderNumber);
+-- [P0-1] paymentKey 부분 UNIQUE 인덱스는 db-sqlite.js의 ALTER 마이그레이션 직후 생성
+-- (기존 DB에 paymentKey 컬럼이 없을 수 있어 ALTER 이후로 일원화)
 
 -- customers 테이블: 자주 검색하는 필드 + 전체 JSON blob
 CREATE TABLE IF NOT EXISTS customers (
