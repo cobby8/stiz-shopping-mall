@@ -219,25 +219,35 @@ const STATUS_ORDER = {
   'delivered': 17,
 };
 
-// 상태가 역행하는지 확인 (새 상태가 현재보다 앞 단계인 경우)
-// 비유: 주문 파이프라인에서 뒤로 가는 흐름은 보통 "잘못된 매칭"이므로 차단한다.
+// 종결 status 집합 — 한 번 들어가면 회귀 차단 유지 (안전 우선)
+// 비유: 출고/배송완료/취소는 "주문 라이프사이클의 종착역" → 시트 잔재로 인한
+//       역행은 사고로 간주하고 막는다.
+const TERMINAL_STATUSES = new Set(['shipped', 'delivered', 'cancelled']);
+
+// 상태가 역행하는지 확인 (시트 진리 원칙 반영, 2026-04-29 옵션 2)
+// 비유: 시트가 진리 → 운영자가 시트에서 단계를 되돌리면 DB도 따라가야 한다.
+//       단, 출고/배송완료/취소(종결)만은 역행 차단해서 사고를 막는다.
+//
+// 동작:
+//   - 현재 status가 종결이면 → 종결끼리만 STATUS_ORDER 비교, 종결 → 비종결은 차단
+//   - 현재 status가 비종결이면 → 시트가 진리 → 어떤 회귀도 허용 (false 반환)
 function isStatusRegression(currentStatus, newStatus) {
-  const currentOrder = STATUS_ORDER[currentStatus] || 0;
-  const newOrder = STATUS_ORDER[newStatus] || 0;
+  // 종결 status 보호: shipped/delivered/cancelled로 진입한 주문은
+  // 시트 잔재로 되돌아오면 안전상 막는다.
+  if (TERMINAL_STATUSES.has(currentStatus)) {
+    if (TERMINAL_STATUSES.has(newStatus)) {
+      // 종결끼리는 STATUS_ORDER로 비교 (예: shipped → delivered는 정상 진행)
+      const currentOrder = STATUS_ORDER[currentStatus] || 0;
+      const newOrder = STATUS_ORDER[newStatus] || 0;
+      return newOrder < currentOrder;
+    }
+    // 종결 → 비종결로 회귀하는 건 차단 (예: delivered → design_requested)
+    return true;
+  }
 
-  // ⭐ 디자인 단계 양방향 예외 (draft_done ↔ design_requested)
-  // 이유: CS가 Q열(시안수정요청)에 새 차수 요청을 적으면 시트 상태는
-  //       다시 design_requested로 돌아간다. DB가 draft_done이라도
-  //       이는 "정상적인 새 수정 요청"이므로 적용해야 한다.
-  // 단, design_confirmed(시안 확정) 이후 design_requested로 회귀는
-  //     여전히 차단해서 이미 확정된 시안을 보호한다.
-  const designPhasePair =
-    (currentStatus === 'draft_done' && newStatus === 'design_requested') ||
-    (currentStatus === 'design_requested' && newStatus === 'draft_done');
-
-  if (designPhasePair) return false;
-
-  return newOrder < currentOrder;
+  // 비종결 status끼리는 시트 진리 원칙 → 모든 회귀 허용
+  // (draft_done ↔ design_requested 양방향 예외도 자동 포함됨)
+  return false;
 }
 
 // ============================================================
@@ -501,6 +511,262 @@ function normalizeSheetTeamName(name) {
 }
 
 // ============================================================
+// 시트 47컬럼 → orders 객체 매핑 헬퍼 (Phase 2 — 미존재 행 INSERT 후보 생성용)
+//
+// 비유: 시트는 가로로 47개 셀이 늘어선 행. 그걸 우리 시스템 양식(orders 객체)으로
+//       "번역"하는 사전 같은 함수들. import-sheets.js의 convertRow() 패턴을
+//       인덱스 배열용으로 옮긴 것.
+// ============================================================
+
+// 종목 한글 → 영문 매핑 (import-sheets.js 동일)
+const SPORT_MAP_SYNC = {
+  '농구': 'basketball',
+  '축구': 'soccer',
+  '배구': 'volleyball',
+  '야구': 'baseball',
+  '기타': 'other',
+};
+
+// 주문서/입금 → paymentType 매핑
+const PAYMENT_TYPE_MAP_SYNC = {
+  '입금확인': 'deposit',
+  '후결제': 'deferred',
+  '후원': 'sponsor',
+  '판매용': 'sale',
+  '업로드': 'upload',
+  '불량재제작': 'defect_remake',
+};
+
+// 거래방식 → transactionMethod 매핑
+const TRANSACTION_MAP_SYNC = {
+  '현금': 'cash',
+  '현금영수증': 'cash_receipt',
+  '세금계산서': 'tax_invoice',
+  '쇼핑몰': 'shopping_mall',
+};
+
+// 콤마 포함 숫자 문자열 → 정수 (예: "80,000" → 80000)
+function parseNumber(str) {
+  if (!str || String(str).trim() === '') return 0;
+  return parseInt(String(str).replace(/,/g, ''), 10) || 0;
+}
+
+// 품목 한글 → 영문 카테고리 (부분 매칭)
+function mapCategorySync(item) {
+  const map = {
+    '유니폼': 'uniform',
+    '반팔티': 'tshirt',
+    '후드티': 'hoodie',
+    '긴팔티': 'longsleeve',
+    '바지': 'pants',
+    '반바지': 'shorts',
+    '조끼': 'vest',
+    '점퍼': 'jumper',
+    '져지': 'jersey',
+    '암슬리브': 'arm_sleeve',
+    '워머': 'warmer',
+  };
+  for (const [kr, en] of Object.entries(map)) {
+    if (item && item.includes(kr)) return en;
+  }
+  return 'other';
+}
+
+// 제작방식 한글 → 영문
+function mapMethodSync(method) {
+  const map = {
+    '전사': 'sublimation',
+    '자수': 'embroidery',
+    '프린팅': 'printing',
+    '실크스크린': 'silkscreen',
+    '열전사': 'heat_transfer',
+  };
+  return map[method] || method || '';
+}
+
+// "진행" Q열에서 수정 횟수 추출 (revisionCount 용)
+function extractRevisionCountSync(progress) {
+  if (!progress) return 0;
+  const match = progress.match(/(\d+)차수정/);
+  if (match) return parseInt(match[1], 10);
+  if (progress === '초과수정') return 4;
+  return 0;
+}
+
+// ============================================================
+// sheetRowToOrder(row, tabContext)
+//
+// 시트의 한 행(47개 컬럼 인덱스 배열) → orders 객체로 변환.
+// Phase 2에서는 dry-run에 "INSERT 후보"로만 표시. 실 INSERT는 Phase 3.
+//
+// 매개변수:
+//   row: parseCSVToRows로 파싱된 필드 배열 (인덱스 0~46)
+//   tabContext: { gid, name, defaultStatus } — 진행/완료/완료(미수) 탭 정보
+//
+// 반환:
+//   orders 객체 (orderNumber: null로 반환 — Phase 3에서 채움)
+//   또는 null (팀명 없음 = 필수 필드 누락)
+// ============================================================
+function sheetRowToOrder(row, tabContext) {
+  const teamName = (row[2] || '').trim();
+  // 팀명은 필수 — 없으면 null 반환해서 호출 측에서 스킵
+  if (!teamName) return null;
+
+  // 날짜 6종 (extractSheetDates와 동일 패턴이지만 객체 분해 위해 재계산)
+  const consultDate = parseDate(row[0]);            // col0 상담개시일
+  const designRequestDate = parseDate(row[1]);      // col1 시안요청일
+  const orderReceiptDate = parseDate(row[21]);      // col21 주문서 접수일
+  const desiredDate = parseDate(row[22]);           // col22 희망납기
+  const releaseDate = parseDate(row[24]);           // col24 출고일
+  const shippedDate = parseDate(row[26]);           // col26 발송일
+  const paidDate = parseDate(row[19]);              // col19 입금일자 (시트 헤더 기준)
+
+  const itemName = row[7] || '';                    // col7 품목
+  const sportKr = row[6] || '';                     // col6 종목
+  const unitPrice = parseNumber(row[28]);           // col28 단가
+  const quantity = parseNumber(row[29]);            // col29 주문 수량
+  // col33 합계가 비어있으면 단가 × 수량으로 폴백
+  const subtotalSheet = parseNumber(row[33]);
+  const subtotal = subtotalSheet > 0 ? subtotalSheet : unitPrice * quantity;
+
+  // status는 탭 컨텍스트 우선 → 없으면 시트 내용 기반
+  // 진행 탭(defaultStatus=null)은 determineStatusFromSheet 사용
+  let status;
+  let designSubStatus = null;
+  let revisionStage = null;
+  if (tabContext && tabContext.defaultStatus) {
+    status = tabContext.defaultStatus; // 'delivered' (완료/완료(미수)) 등
+  } else {
+    const r = determineStatusFromSheet(row);
+    if (r) {
+      status = r.status;
+      designSubStatus = r.designSubStatus;
+      revisionStage = r.revisionStage;
+    } else {
+      // 매핑 불가 행은 가장 보수적인 시작 상태로 (consult_started)
+      status = 'consult_started';
+    }
+  }
+
+  // 시안 R열 → design.status (import-sheets convertRow와 동일)
+  const designSheetVal = row[17] || '';
+  const designStatusByR = (() => {
+    if (designSheetVal === '디자인확정') return 'confirmed';
+    if (designSheetVal === '수정완료') return 'revision_done';
+    if (designSheetVal === '초안완료') return 'draft_done';
+    if (designSheetVal === '작업중') return 'in_progress';
+    return 'requested';
+  })();
+  // determineStatusFromSheet가 designSubStatus를 정해줬으면 우선 (CS 새 요청 우선 매핑 일관성)
+  const finalDesignStatus = designSubStatus || designStatusByR;
+
+  // 제작상황 → production.status
+  const productionRaw = row[23] || '';
+  const productionStatus = (() => {
+    if (productionRaw === '생산완료') return 'done';
+    if (productionRaw === '생산중') return 'in_production';
+    if (productionRaw === '신 라인작업 완료') return 'line_work_done';
+    if (productionRaw === '신 라인작업 중') return 'line_work';
+    return '';
+  })();
+
+  const now = new Date().toISOString();
+
+  return {
+    // orderNumber는 Phase 3에서 generateOrderNumber()로 채움
+    orderNumber: null,
+
+    // 고객 정보 — col40 대표자 / col3 담당자 / col41 연락처
+    customer: {
+      name: (row[40] || row[3] || '').trim(),
+      email: '',
+      phone: (row[41] || '').trim(),
+      teamName,
+      dealType: (row[5] || '개인').trim(),
+    },
+
+    // 제품 정보 (시트 한 행 = 한 아이템)
+    items: [{
+      name: itemName,
+      sport: SPORT_MAP_SYNC[sportKr] || 'other',
+      category: mapCategorySync(itemName),
+      method: mapMethodSync(row[8] || ''),    // col8 제작방식
+      fit: row[9] || '',                       // col9 핏
+      topConfig: row[10] || '',                // col10 상의구성
+      fabricTop: row[11] || '',                // col11 상의원단
+      bottomConfig: row[12] || '',             // col12 하의구성
+      fabricBottom: row[13] || '',             // col13 하의원단
+      baseModel: row[14] || '',                // col14 베이스모델
+      quantity,
+      unitPrice,
+      subtotal,
+    }],
+
+    // 디자인 — Q열 라벨 + R열 디자이너 결정
+    design: {
+      status: finalDesignStatus,
+      revisionCount: extractRevisionCountSync(row[16] || ''),
+      designer: row[18] || '',                 // col18 최종작업자
+      orderSheetUrl: row[15] || '',            // col15 주문서 링크
+      designFileUrl: '',
+    },
+
+    // 생산
+    production: {
+      status: productionStatus,
+      factory: '',
+      gradingDone: !!(row[19] && row[19].trim() !== ''),
+    },
+
+    // 배송 (col42 주소)
+    shipping: {
+      address: row[42] || '',
+      desiredDate: desiredDate || '',
+      releaseDate: releaseDate || '',
+      shippedDate: shippedDate || '',
+      trackingNumber: row[27] || '',           // col27 송장번호
+      carrier: '',
+    },
+
+    // 결제 — col20 주문서/입금, col38 거래방식
+    payment: {
+      totalAmount: subtotal,
+      unitPrice,
+      quantity,
+      packQuantity: 0,
+      qpp: 0,
+      paidDate: paidDate || '',
+      paymentType: PAYMENT_TYPE_MAP_SYNC[row[20]] || 'deposit',
+      transactionMethod: TRANSACTION_MAP_SYNC[row[38]] || 'cash',
+      quoteUrl: '',
+      autoQuote: false,
+    },
+
+    // 관리 정보
+    manager: row[3] || '',                     // col3 담당자
+    store: row[4] || '',                       // col4 거래점
+    status,
+    memo: [row[43], row[25]].filter(Boolean).join(' | '),  // col43 비고 + col25 세부내용
+    detail: row[25] || '',
+    revenueType: row[39] || '',                // col39 매출구분
+    revisionStage,                              // 진행 탭에서만 채워짐
+
+    // 날짜 3종
+    createdAt: consultDate || now,
+    designRequestDate: designRequestDate || null,
+    orderReceiptDate: orderReceiptDate || null,
+    updatedAt: now,
+
+    // paymentKey: 시트 행은 결제 키 없음 — UNIQUE 충돌 방지용 null
+    paymentKey: null,
+
+    // INSERT 후보임을 표시 (dry-run 출력용)
+    _isInsertCandidate: true,
+    _sourceTab: tabContext ? tabContext.name : 'progress',
+  };
+}
+
+// ============================================================
 // Step 2: 견적서 배송완료 팀 목록
 // ============================================================
 // 수동 매핑: 견적서 팀명 → DB에 저장된 팀명 (자동 부분 매칭으로 안 되는 경우)
@@ -553,7 +819,7 @@ export async function runSync(options = {}) {
 
   logModeBanner(isDownload, isApply, isDryRun);
 
-  const result = { success: false, statusChanges: 0, dateOnly: 0, deliveryUpdates: 0, error: null };
+  const result = { success: false, statusChanges: 0, dateOnly: 0, deliveryUpdates: 0, insertCandidates: 0, error: null };
 
 // ── 1. 다운로드 단계 ──
 // download=true이면 3개 탭을 _sync_tabs/에 저장
@@ -639,11 +905,14 @@ if (tabsPresent) {
 
 // 시트 행별로 DB 주문과 매칭
 const step1Changes = [];     // 상태 변경 대상
-const step1NoMatch = [];     // 매칭 실패
+const step1NoMatch = [];     // 매칭 실패 (status가 null인 행 등 — 단순 미매핑)
+const step1InsertCandidates = []; // 매칭 실패했지만 INSERT 후보 (Phase 2: dry-run만 표시)
 const step1SameStatus = [];  // 매칭됐지만 상태 동일 (변경 불필요)
 const step1Regressed = [];   // 상태 역행 (안전상 제외)
 const step1DateOnly = [];    // 상태는 같지만 날짜만 변경 필요
 const alreadyProcessed = new Set(); // 같은 DB 주문이 중복 처리되지 않도록 방지
+// 같은 sync 안에서 같은 팀명이 여러 탭/행에 등장하면 INSERT 후보 1번만 생성
+const insertCandidateSeen = new Set();
 
 // 전체 주문 (delivered 포함) — C카테고리 스킵 판별용
 const allOrdersForSkip = db.prepare(
@@ -764,7 +1033,30 @@ for (const row of csvRows) {
       // delivered만 있는 팀은 매칭 실패 목록에 넣지 않고 조용히 스킵
       continue;
     }
-    step1NoMatch.push({ sheetTeamName, sheetStatus });
+
+    // ⭐ Phase 2: 미존재 행 → INSERT 후보로 분류 (dry-run에만 표시, 실 INSERT는 Phase 3)
+    // 비유: 시트가 진리이니, DB에 없는 시트 행은 "이 주문도 만들어야 한다"는 신호.
+    //       단 이번 단계는 운영자 검증을 위해 후보 목록만 노출.
+    // 같은 팀명이 여러 탭에 있을 때(예: 진행+완료) 한 번만 후보 생성
+    const candidateKey = normalizeTeamName(sheetTeamName);
+    if (candidateKey && !insertCandidateSeen.has(candidateKey)) {
+      const candidate = sheetRowToOrder(row, tabCtx);
+      // sheetRowToOrder가 null 반환하면 (팀명 누락 등) 단순 NoMatch로 처리
+      if (candidate) {
+        insertCandidateSeen.add(candidateKey);
+        step1InsertCandidates.push({
+          sheetTeamName,
+          sheetStatus,
+          tabName: tabCtx ? tabCtx.name : '진행(레거시)',
+          candidate,
+        });
+      } else {
+        step1NoMatch.push({ sheetTeamName, sheetStatus });
+      }
+    } else if (!candidateKey) {
+      step1NoMatch.push({ sheetTeamName, sheetStatus });
+    }
+    // candidateKey가 이미 등장 → 같은 팀 두 번째 행. 조용히 스킵 (Phase 3에서 합칠지 검토)
   } else {
     for (const order of matched) {
       // 중복 방지: 이미 처리된 주문번호는 스킵
@@ -927,6 +1219,38 @@ if (uniqueNoMatch.length > 0) {
   for (const m of uniqueNoMatch) {
     console.log(`  - ${m.sheetTeamName} (시트 상태: ${m.sheetStatus})`);
   }
+}
+
+// ============================================================
+// ⭐ Phase 2: 미존재 행 INSERT 후보 (dry-run만 노출, 실 INSERT는 Phase 3)
+// 비유: 시트가 진리 → DB에 없는 시트 행은 "신규 주문 후보" 명단으로 노출.
+//       운영자가 명단을 보고 OK 하면 Phase 3에서 진짜 INSERT.
+// ============================================================
+console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('  Step 0: 미존재 행 INSERT 후보 (Phase 2 검증용)');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log(`[INSERT 후보: ${step1InsertCandidates.length}건]`);
+if (step1InsertCandidates.length > 0) {
+  console.log('─────────────────────────────────────────────────────────────────');
+  // 첫 5건 미리보기 (팀명 / 단가 / 수량 / 합계 / 시트 상태 / 탭)
+  const previewCount = Math.min(5, step1InsertCandidates.length);
+  console.log(`  (첫 ${previewCount}건 미리보기)`);
+  for (let i = 0; i < previewCount; i++) {
+    const c = step1InsertCandidates[i];
+    const o = c.candidate;
+    const item = o.items[0] || {};
+    console.log(
+      `  ${i + 1}. ${c.sheetTeamName.padEnd(28)} | ` +
+      `${item.quantity || 0}장 × ${(item.unitPrice || 0).toLocaleString()}원 ` +
+      `= ${(item.subtotal || 0).toLocaleString()}원 | ` +
+      `status=${o.status} | 탭=${c.tabName}`
+    );
+  }
+  if (step1InsertCandidates.length > previewCount) {
+    console.log(`  ... 외 ${step1InsertCandidates.length - previewCount}건`);
+  }
+  console.log('  ⚠️  실제 INSERT는 Phase 3에서 별도 confirm 후 진행됩니다.');
+  console.log('  ⚠️  현재는 dry-run에만 표시 — DB는 변경되지 않습니다.');
 }
 
 // ============================================================
@@ -1164,11 +1488,15 @@ if (!isDryRun) {
 
   applyAll();
   console.log(`적용 완료! (Step1 상태: ${step1Final.length}건 + Step1 날짜: ${step1DateOnly.length}건 + Step2: ${step2Changes.length}건)`);
+  if (step1InsertCandidates.length > 0) {
+    console.log(`  ⚠️  INSERT 후보 ${step1InsertCandidates.length}건은 Phase 3에서 별도 처리 (이번 apply에선 미실행)`);
+  }
 
   // 결과 카운트 채우기 (스케줄러가 통계 표시용으로 사용)
   result.statusChanges = step1Final.length;
   result.dateOnly = step1DateOnly.length;
   result.deliveryUpdates = step2Changes.length;
+  result.insertCandidates = step1InsertCandidates.length;
 } else {
   console.log('(dry-run 모드이므로 DB는 변경되지 않았습니다)');
   console.log('실제 적용하려면: node server/data/sync-orders.js --apply');
@@ -1177,6 +1505,7 @@ if (!isDryRun) {
   result.statusChanges = step1Final.length;
   result.dateOnly = step1DateOnly.length;
   result.deliveryUpdates = step2Changes.length;
+  result.insertCandidates = step1InsertCandidates.length;
 }
 
 db.close();
