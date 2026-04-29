@@ -38,6 +38,10 @@ import opsRouter from './admin/ops.js';
 // 비유: "벽 달력 포스트잇 서비스"를 별도 미니 사무실로 옮긴 것.
 // URL은 그대로 /api/admin/calendar/events — prefix 통합 마운트(향후 /calendar/* 확장 대비)
 import calendarRouter from './admin/calendar.js';
+// 관리자 분석(analytics) 라우트 — 2026-04-29 신규 (일별 매출/미수금 집계)
+// 비유: 시트의 "2026일별매출현황" 탭을 DB로 대체하는 자동 계산기.
+// URL: /api/admin/analytics/daily-revenue — prefix 마운트
+import analyticsRouter from './admin/analytics.js';
 
 const router = express.Router();
 
@@ -61,6 +65,9 @@ router.use('/', opsRouter);
 // /calendar/* 하위 경로는 전부 calendarRouter로 위임 (URL 변경 0)
 // ⚠️ 아래에 `/calendar/*` 패턴 라우트를 절대 추가하지 말 것 — calendarRouter로 위임되므로 매칭 실패
 router.use('/calendar', calendarRouter);
+// /analytics/* 하위 경로는 전부 analyticsRouter로 위임 (2026-04-29)
+// ⚠️ 아래에 `/analytics/*` 패턴 라우트를 절대 추가하지 말 것 — analyticsRouter로 위임됨
+router.use('/analytics', analyticsRouter);
 
 // (SPORT_LABELS는 2026-04-22 D-90 6차 분리로 `server/constants/sport-labels.js`로 이동
 //  — 서버 3곳 중복을 1곳 단일 소스로 통합 (D-83). calendar.js / stats.js가 각자 import 사용.

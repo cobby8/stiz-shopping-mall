@@ -5,27 +5,37 @@
  *       웹사이트 DB에 반영하는 "동기화 도구"
  *
  * 사용법:
- *   node server/data/sync-orders.js --download                 (4개 탭 CSV 다운로드만)
+ *   node server/data/sync-orders.js --download                 (3개 탭 CSV 다운로드만)
  *   node server/data/sync-orders.js --dry-run                  (미리보기, DB 변경 없음)
  *   node server/data/sync-orders.js --apply                    (실제 DB 업데이트)
  *   node server/data/sync-orders.js --download --apply         (다운로드 + 적용 한 번에)
  *
+ * 모듈 사용 (sheetSyncScheduler):
+ *   import { runSync } from './sync-orders.js';
+ *   await runSync({ download: true, apply: true });
+ *   // returns { success, statusChanges, dateOnly, deliveryUpdates, error }
+ *
  * 2단계 동작:
- *   Step 1: 4개 시트 탭(진행/완료(미수)/완료/보류) → DB 상태 업데이트
+ *   Step 1: 3개 시트 탭(진행/완료(미수)/완료) → DB 상태 업데이트
  *   Step 2: 견적서 배송완료 목록 → DB delivered 처리
  *
- * 4개 탭 우선순위 (충돌 시 마지막이 우선):
- *   완료(미수) → 완료 → 보류 → 진행
+ * 3개 탭 우선순위 (충돌 시 마지막이 우선):
+ *   완료(미수) → 완료 → 진행
  *   (진행 탭이 마지막이지만, 같은 팀이 진행 탭에도 있으면 운영자가
  *    "아직 진행 중"이라 명시한 셈이므로 진행 status가 우선됨.
  *    실측에선 완료 탭에만 있고 진행 탭엔 없으면 자연히 완료가 적용)
+ *
+ * 보류 탭 제외 정책 (2026-04-29):
+ *   보류 탭(gid=1148162040)은 sync 대상에서 완전 제외.
+ *   DB의 hold 상태 주문(현재 17건)은 운영자가 수동으로 관리.
+ *   → 보류 탭의 컬럼 어긋남 함정(E-21 후속)도 자동 회피.
  */
 
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, 'stiz.db');
@@ -35,45 +45,42 @@ const CSV_PATH = path.join(__dirname, 'spreadsheet_orders.csv');
 const TABS_DIR = path.join(__dirname, '_sync_tabs');
 
 // ============================================================
-// Google Sheets 4개 탭 정의 (import-sheets.js L23~32 차용)
-// 비유: 하나의 엑셀 파일 안에 있는 4개의 시트(탭). 각 탭은 다른 의미를 가진다
+// Google Sheets 3개 탭 정의 (보류 탭 제외, 2026-04-29)
+// 비유: 하나의 엑셀 파일 안에 있는 3개의 시트(탭). 각 탭은 다른 의미를 가진다
 //   - 진행: 작업 중인 주문 (status는 시트 내용으로 결정)
 //   - 완료(미수): 출고 완료 + 입금 미완료 (status=delivered, paidDate 미반영)
 //   - 완료: 출고 완료 + 입금 완료 (status=delivered, paidDate 반영)
-//   - 보류: 보류 상태 (status=hold)
+//
+// 보류 탭(gid=1148162040)은 sync 대상에서 제외:
+//   - DB의 hold 주문 17건은 운영자가 수동 관리
+//   - 보류 탭은 컬럼 구조가 다른 탭과 어긋나서(E-21) 함정 회피용
 // ============================================================
 const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/1nKKsSwhEG5vl0XWXshQ34dajs7bc4_CpsVXml1QaBAw/export?format=csv';
 
-// 처리 우선순위 순서: 완료(미수) → 완료 → 보류 → 진행
+// 처리 우선순위 순서: 완료(미수) → 완료 → 진행
 // 같은 팀이 여러 탭에 있을 때, 마지막에 처리되는 탭의 status가 최종 적용됨
 // (진행 탭이 마지막에 와야 운영자가 "아직 진행 중"이라 표시한 의도가 우선됨)
 const SHEET_TABS = [
   { gid: '618544926',  name: '완료주문(미수)', file: 'completed_unpaid.csv', defaultStatus: 'delivered' },
   { gid: '1160190509', name: '완료주문',        file: 'completed.csv',         defaultStatus: 'delivered' },
-  { gid: '1148162040', name: '주문보류',        file: 'on_hold.csv',           defaultStatus: 'hold' },
   { gid: '0',          name: '진행주문',        file: 'progress.csv',          defaultStatus: null }, // null = 시트 내용으로 결정
 ];
 
-// 실행 모드 확인 (--download / --dry-run / --apply)
-const args = process.argv.slice(2);
-const isDownload = args.includes('--download');
-const isApply = args.includes('--apply');
-// --apply 없으면 dry-run (기본). --download만 있으면 다운로드만 하고 종료
-const isDryRun = !isApply;
-
-if (isDownload && !isApply && !args.includes('--dry-run')) {
-  // --download 단독: 다운로드만 수행 (DB 안 건드림)
-  console.log('========================================');
-  console.log('  DOWNLOAD 모드 (4개 탭 CSV 다운로드만)');
-  console.log('========================================\n');
-} else if (isDryRun) {
-  console.log('========================================');
-  console.log('  DRY-RUN 모드 (DB 변경 없음)');
-  console.log('========================================\n');
-} else {
-  console.log('========================================');
-  console.log('  APPLY 모드 (DB 실제 업데이트)');
-  console.log('========================================\n');
+// 실행 모드 표시 헬퍼 (CLI/모듈 양쪽에서 호출)
+function logModeBanner(isDownload, isApply, isDryRun) {
+  if (isDownload && !isApply && !isDryRun) {
+    console.log('========================================');
+    console.log('  DOWNLOAD 모드 (3개 탭 CSV 다운로드만)');
+    console.log('========================================\n');
+  } else if (isDryRun) {
+    console.log('========================================');
+    console.log('  DRY-RUN 모드 (DB 변경 없음)');
+    console.log('========================================\n');
+  } else {
+    console.log('========================================');
+    console.log('  APPLY 모드 (DB 실제 업데이트)');
+    console.log('========================================\n');
+  }
 }
 
 // ============================================================
@@ -101,8 +108,9 @@ function fetchUrl(url, maxRedirects = 5) {
 }
 
 // ============================================================
-// 4개 탭 다운로드 → _sync_tabs/*.csv 저장
-// 비유: 시트 4개를 각각 다운로드해서 디스크에 저장. 다음 sync 시 재사용 가능
+// 3개 탭 다운로드 → _sync_tabs/*.csv 저장
+// 비유: 시트 3개를 각각 다운로드해서 디스크에 저장. 다음 sync 시 재사용 가능
+// 보류 탭은 sync 대상이 아니므로 다운로드도 안 함 (2026-04-29 정책)
 // ============================================================
 async function downloadAllTabs() {
   // 캐시 디렉토리 생성 (없으면)
@@ -126,7 +134,7 @@ async function downloadAllTabs() {
       throw err; // 한 탭이라도 실패하면 전체 중단 (부분 처리 방지)
     }
   }
-  console.log('\n4개 탭 다운로드 완료.\n');
+  console.log('\n3개 탭 다운로드 완료.\n');
 }
 
 // ============================================================
@@ -467,26 +475,42 @@ const deliveredTeams = [
 ];
 
 // ============================================================
-// 메인 실행 (async IIFE — 다운로드 + 다중 탭 처리)
+// 메인 sync 함수 (모듈 export — 스케줄러 호출 + CLI 호환)
+//
+// options:
+//   download: true → 시트 3개 탭 CSV를 _sync_tabs/로 다운로드
+//   apply: true    → DB 실제 업데이트, false면 dry-run
+//
+// returns:
+//   { success: bool, statusChanges: N, dateOnly: N, deliveryUpdates: N, error: string|null }
 // ============================================================
-await (async () => {
+export async function runSync(options = {}) {
+  const isDownload = !!options.download;
+  const isApply = !!options.apply;
+  const isDryRun = !isApply;
+
+  logModeBanner(isDownload, isApply, isDryRun);
+
+  const result = { success: false, statusChanges: 0, dateOnly: 0, deliveryUpdates: 0, error: null };
 
 // ── 1. 다운로드 단계 ──
-// --download 플래그가 있으면 4개 탭을 다운로드하여 _sync_tabs/에 저장
+// download=true이면 3개 탭을 _sync_tabs/에 저장
 if (isDownload) {
   try {
     await downloadAllTabs();
   } catch (err) {
     console.error('다운로드 실패. 중단합니다:', err.message);
-    process.exit(1);
+    result.error = `다운로드 실패: ${err.message}`;
+    return result; // 모듈 호환: process.exit 대신 결과 반환
   }
 }
 
-// --download 단독(--dry-run/--apply 둘 다 없음) → 다운로드만 하고 종료
-if (isDownload && !isApply && !args.includes('--dry-run')) {
+// download만 단독 실행 → 다운로드만 하고 종료 (DB 안 건드림)
+if (isDownload && !isApply && !isDryRun) {
   console.log('--download 만 실행됨. dry-run/apply는 별도로 호출하세요.');
   console.log('  예: node server/data/sync-orders.js --dry-run');
-  process.exit(0);
+  result.success = true;
+  return result;
 }
 
 // DB 연결
@@ -527,7 +551,7 @@ if (tabsPresent) {
   // 4개 탭 모드: 우선순위 순서대로 읽고, 각 row에 _tabContext 부착
   // 우선순위: 완료(미수) → 완료 → 보류 → 진행 (SHEET_TABS 순서)
   // 같은 팀이 여러 탭에 있을 때, 마지막 탭(진행)의 처리가 alreadyProcessed로 우선됨
-  console.log('[4개 탭 모드] _sync_tabs/ 사용\n');
+  console.log('[3개 탭 모드] _sync_tabs/ 사용\n');
   for (const tab of SHEET_TABS) {
     const tabPath = path.join(TABS_DIR, tab.file);
     const tabText = fs.readFileSync(tabPath, 'utf-8');
@@ -539,12 +563,12 @@ if (tabsPresent) {
     csvRows.push(...tabRows);
     console.log(`  ${tab.name.padEnd(15)} (gid=${tab.gid.padEnd(11)}) → ${tabRows.length}행`);
   }
-  console.log(`\n총 ${csvRows.length}행 (4개 탭 합산)\n`);
+  console.log(`\n총 ${csvRows.length}행 (3개 탭 합산)\n`);
 } else {
   // 레거시 모드: spreadsheet_orders.csv 단일 파일 (이전 동작 그대로)
   // 비유: 옛 방식대로 한 파일만 처리. 호환성 유지용
   console.log('[레거시 모드] spreadsheet_orders.csv 단일 파일\n');
-  console.log('  (4개 탭 사용하려면: node sync-orders.js --download)\n');
+  console.log('  (3개 탭 사용하려면: node sync-orders.js --download)\n');
   const csvText = fs.readFileSync(CSV_PATH, 'utf-8');
   csvRows = parseCSVToRows(csvText);
   // 레거시 모드에선 _tabContext 없음 → 시트 내용으로 status 결정
@@ -1012,11 +1036,61 @@ if (!isDryRun) {
 
   applyAll();
   console.log(`적용 완료! (Step1 상태: ${step1Final.length}건 + Step1 날짜: ${step1DateOnly.length}건 + Step2: ${step2Changes.length}건)`);
+
+  // 결과 카운트 채우기 (스케줄러가 통계 표시용으로 사용)
+  result.statusChanges = step1Final.length;
+  result.dateOnly = step1DateOnly.length;
+  result.deliveryUpdates = step2Changes.length;
 } else {
   console.log('(dry-run 모드이므로 DB는 변경되지 않았습니다)');
   console.log('실제 적용하려면: node server/data/sync-orders.js --apply');
+
+  // dry-run에서도 카운트는 채워서 운영자가 변경 예정량 파악 가능
+  result.statusChanges = step1Final.length;
+  result.dateOnly = step1DateOnly.length;
+  result.deliveryUpdates = step2Changes.length;
 }
 
 db.close();
+result.success = true;
+return result;
 
-})(); // async IIFE 종료
+} // runSync 함수 종료
+
+// ============================================================
+// CLI 호환 진입점
+// 비유: 같은 함수를 두 가지 방법으로 부를 수 있다 — 모듈 import + 터미널 직접 실행
+// node sync-orders.js --apply 처럼 직접 실행되면 아래 블록이 작동
+// ============================================================
+const args = process.argv.slice(2);
+const __isDirectCli = (() => {
+  // pathToFileURL: Windows 공백/한글 경로도 정확히 인코딩 (file:///C:/0.%20Programing/...)
+  // 단순 문자열 치환은 인코딩이 안 맞아서 매칭 실패함 (디버깅으로 확인)
+  if (!process.argv[1]) return false;
+  try {
+    const argvUrl = pathToFileURL(process.argv[1]).href;
+    return import.meta.url === argvUrl;
+  } catch {
+    return false;
+  }
+})();
+
+if (__isDirectCli) {
+  // CLI 인자 파싱: --download / --apply / --dry-run
+  const cliDownload = args.includes('--download');
+  const cliApply = args.includes('--apply');
+  // --dry-run은 명시적이지 않아도 --apply 없으면 기본 dry-run
+
+  runSync({ download: cliDownload, apply: cliApply })
+    .then((res) => {
+      if (!res.success) {
+        console.error('[sync-orders] 실패:', res.error);
+        process.exit(1);
+      }
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('[sync-orders] 예외:', err);
+      process.exit(1);
+    });
+}

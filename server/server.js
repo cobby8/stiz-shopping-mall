@@ -50,6 +50,7 @@ import { adminAuth } from './middleware/adminAuth.js';
 // 관리자 토큰은 skip → 운영자가 자기 발에 걸리지 않음
 import { loginLimiter, aiLimiter, paymentLimiter } from './middleware/rateLimit.js';
 import { startBackupScheduler } from './backup.js';  // 데이터 자동 백업 모듈
+import { startScheduler as startSheetSyncScheduler } from './services/sheetSyncScheduler.js';  // 시트 5분 자동 sync
 import { database as sqliteDb } from './db-sqlite.js'; // settings 시딩용 직접 DB 접근
 import fs from 'fs';  // CSV 파일 읽기용
 
@@ -824,5 +825,10 @@ app.listen(port, () => {
     // 서버 시작 시 자동 백업 스케줄러 가동
     // 비유: 서버가 문을 열면 금고 관리인도 함께 출근하는 것
     startBackupScheduler();
+
+    // 시트 → DB 5분 자동 동기화 스케줄러 (AUTO_SYNC_ENABLED=true 일 때만 실제 작동)
+    // 비유: 우체부도 함께 출근시킴. 환경변수 OFF면 출근 안 하고 조용히 대기
+    startSheetSyncScheduler();
+
     console.log('');
 });
