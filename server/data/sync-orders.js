@@ -594,6 +594,60 @@ function extractRevisionCountSync(progress) {
 }
 
 // ============================================================
+// generateOrderNumberFromSheet — 시트 col0(상담개시일) 기반 주문번호 생성
+//
+// 비유: 은행 대기표가 매일 001부터 시작하듯, 시트의 상담개시일(예: 260315)을
+//       날짜 prefix(ORD-20260315)로 만들고, DB에서 같은 prefix를 카운트해 +1.
+//
+// 매개변수:
+//   consultDateStr: 시트 col0 값 (YYMMDD 또는 YYYYMMDD 또는 빈 칸)
+//   db: better-sqlite3 Database 인스턴스 (orderNumber LIKE 카운트용)
+//   memoryCache: Map<prefix, lastSeq> — 같은 sync 세션 안에서 메모리 카운터 캐시
+//                (102건 일괄 INSERT 시 매번 DB 쿼리 + 충돌 방지)
+//
+// 반환: 'ORD-YYYYMMDD-NNN' 문자열 (NNN은 3자리 zero-pad)
+// ============================================================
+function generateOrderNumberFromSheet(consultDateStr, db, memoryCache) {
+  // 시트의 상담개시일을 YYYYMMDD로 변환
+  // parseDate는 'YYYY-MM-DDT00:00:00.000Z' 반환 → 슬라이스 후 하이픈 제거
+  let dateStr;
+  const iso = parseDate(consultDateStr); // '2026-03-15T00:00:00.000Z' 또는 null
+  if (iso) {
+    dateStr = iso.slice(0, 10).replace(/-/g, '');  // '20260315'
+  } else {
+    // 시트에 상담개시일 없으면 오늘 날짜 사용 (운영 정책: 폴백)
+    const today = new Date();
+    dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  }
+
+  const prefix = `ORD-${dateStr}-`;
+
+  // 메모리 캐시 우선 — 이미 같은 prefix를 처리했으면 +1만
+  // 비유: 한 번 카운트한 날짜는 메모해두고, 다음엔 그 메모 + 1을 사용 (DB 쿼리 절약 + 동일 sync 안에서 중복 방지)
+  if (memoryCache && memoryCache.has(prefix)) {
+    const next = memoryCache.get(prefix) + 1;
+    memoryCache.set(prefix, next);
+    return `${prefix}${String(next).padStart(3, '0')}`;
+  }
+
+  // DB에서 같은 prefix 카운트 → 가장 큰 순번 추출
+  const rows = db.prepare(
+    `SELECT orderNumber FROM orders WHERE orderNumber LIKE ?`
+  ).all(`${prefix}%`);
+
+  let maxSeq = 0;
+  for (const r of rows) {
+    // 'ORD-20260315-007' → '007' → 7
+    const seq = parseInt(r.orderNumber.slice(prefix.length), 10);
+    if (!Number.isNaN(seq) && seq > maxSeq) maxSeq = seq;
+  }
+
+  const next = maxSeq + 1;
+  if (memoryCache) memoryCache.set(prefix, next);
+  return `${prefix}${String(next).padStart(3, '0')}`;
+}
+
+// ============================================================
 // sheetRowToOrder(row, tabContext)
 //
 // 시트의 한 행(47개 컬럼 인덱스 배열) → orders 객체로 변환.
@@ -819,7 +873,17 @@ export async function runSync(options = {}) {
 
   logModeBanner(isDownload, isApply, isDryRun);
 
-  const result = { success: false, statusChanges: 0, dateOnly: 0, deliveryUpdates: 0, insertCandidates: 0, error: null };
+  const result = {
+    success: false,
+    statusChanges: 0,
+    dateOnly: 0,
+    deliveryUpdates: 0,
+    insertCandidates: 0,
+    // Phase 3 신규 — 실제 INSERT 적용 결과 (--apply 모드에서만 채워짐)
+    inserted: 0,
+    insertFailed: 0,
+    error: null,
+  };
 
 // ── 1. 다운로드 단계 ──
 // download=true이면 3개 탭을 _sync_tabs/에 저장
@@ -1049,6 +1113,9 @@ for (const row of csvRows) {
           sheetStatus,
           tabName: tabCtx ? tabCtx.name : '진행(레거시)',
           candidate,
+          // Phase 3: 주문번호 생성 시 시트 col0(상담개시일 'YYMMDD' 원본) 직접 사용
+          // 비유: createdAt ISO를 다시 잘라쓰는 것보다 원본 그대로 전달하는 게 깔끔
+          rawConsultDate: row[0] || '',
         });
       } else {
         step1NoMatch.push({ sheetTeamName, sheetStatus });
@@ -1340,10 +1407,149 @@ console.log(`총 변경 예정:     ${step1Final.length + step1DateOnly.length +
 // 실제 적용 (--apply 모드일 때만)
 // ============================================================
 if (!isDryRun) {
-  // DB 백업
+  // DB 백업 (자동 — 매 sync 시 덮어씀)
   const backupPath = DB_PATH + '.pre-sync';
   fs.copyFileSync(DB_PATH, backupPath);
   console.log(`DB 백업 완료: ${backupPath}\n`);
+
+  // ============================================================
+  // ⭐ Phase 3 (2026-04-29): Step 0 — 미존재 시트 행 INSERT
+  //
+  // 비유: 시트가 진리 → DB에 없는 시트 행 102건을 "신규 주문"으로 일괄 INSERT.
+  //       단, 트랜잭션 밖에서 개별 try/catch로 처리 (1건 실패해도 나머지 살림).
+  //       Step 1/Step 2는 기존대로 트랜잭션 보호.
+  //
+  // 추가 백업: Phase 3 specific 라벨로 별도 백업 (운영자가 롤백 결정 시 참조)
+  // ============================================================
+  if (step1InsertCandidates.length > 0) {
+    // 추가 백업 — 날짜 라벨로 영구 보존 (자동 sync .pre-sync 와 별도)
+    // 비유: 자동 백업은 매번 덮어쓰지만, Phase 3 적용 시점은 "큰 변경"이므로 따로 보관
+    const phase3DateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const phase3BackupPath = DB_PATH + `.pre-phase3-${phase3DateTag}`;
+    if (!fs.existsSync(phase3BackupPath)) {
+      // 같은 날 두 번 돌리면 첫 번째 백업을 덮어쓰지 않음 (운영자가 직접 의도한 첫 백업 보존)
+      fs.copyFileSync(DB_PATH, phase3BackupPath);
+      console.log(`Phase 3 추가 백업 완료: ${phase3BackupPath}\n`);
+    } else {
+      console.log(`Phase 3 백업 이미 존재 (스킵): ${phase3BackupPath}\n`);
+    }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`  Step 0: 미존재 행 INSERT 시작 — ${step1InsertCandidates.length}건`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    // INSERT용 prepared statement (db-sqlite.js insert() 패턴 동일)
+    // [P0-1] paymentKey 컬럼 포함 — 시트 행은 paymentKey=null이라 부분 UNIQUE 통과
+    const insertOrder = db.prepare(`
+      INSERT INTO orders (id, orderNumber, status, manager, customerId, createdAt, orderReceiptDate, updatedAt, paymentKey, data)
+      VALUES (@id, @orderNumber, @status, @manager, @customerId, @createdAt, @orderReceiptDate, @updatedAt, @paymentKey, @data)
+    `);
+
+    // ID 생성 헬퍼 (db-sqlite.js generateId 동일 패턴 — 충돌 방지용 ms*1000+rand3)
+    // 비유: 같은 밀리초에 INSERT 여러 건 들어올 때 ID 충돌 막는 안전장치
+    const generateInsertId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000);
+
+    // 메모리 캐시 — 같은 sync 안에서 같은 prefix(예: ORD-20260315-) 카운터 누적
+    // 비유: 102건 중 같은 날짜가 여러 개일 때 매번 DB 쿼리 안 하고 메모만 +1
+    const orderNumberCache = new Map();
+
+    let inserted = 0;
+    let failed = 0;
+    const failures = [];
+
+    for (const cand of step1InsertCandidates) {
+      const order = cand.candidate; // sheetRowToOrder 결과 (orderNumber=null 상태)
+      try {
+        // ID 부여 (db-sqlite.js insert와 동일 — id 우선, 없으면 generate)
+        order.id = order.id || generateInsertId();
+
+        // 주문번호 생성 — 시트 col0 원본('YYMMDD') 그대로 전달 (parseDate가 처리)
+        order.orderNumber = generateOrderNumberFromSheet(
+          cand.rawConsultDate || '',
+          db,
+          orderNumberCache,
+        );
+
+        // INSERT 실행 — extractOrderColumns 패턴과 동일하게 컬럼 추출
+        const cols = {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status || 'design_requested',
+          manager: order.manager || '',
+          customerId: order.customerId || null,
+          createdAt: order.createdAt || null,
+          orderReceiptDate: order.orderReceiptDate || null,
+          updatedAt: order.updatedAt || null,
+          paymentKey: null,  // 시트 행은 결제 키 없음 (UNIQUE 충돌 회피)
+          data: JSON.stringify(order),
+        };
+
+        try {
+          insertOrder.run(cols);
+          inserted++;
+        } catch (err) {
+          // UNIQUE 충돌 시(orderNumber 중복) — 캐시 카운터를 한 번 더 올려서 재시도
+          // 비유: 같은 번호가 이미 있으면 다음 번호로 다시 시도
+          if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || /UNIQUE/i.test(err.message)) {
+            // 캐시에 강제 +1 (다음 번호 사용)
+            const prefix = order.orderNumber.replace(/-\d{3}$/, '-');
+            const lastSeq = orderNumberCache.get(prefix) || 0;
+            orderNumberCache.set(prefix, lastSeq + 1);
+
+            // 재생성 + 재시도 1회
+            const retryNum = `${prefix}${String(lastSeq + 1).padStart(3, '0')}`;
+            order.orderNumber = retryNum;
+            cols.orderNumber = retryNum;
+            cols.data = JSON.stringify(order);
+            // ID도 새로 — 이전 INSERT가 부분 적용됐을 가능성 회피 (실제론 INSERT는 atomic이라 불필요하지만 방어적)
+            cols.id = generateInsertId();
+            order.id = cols.id;
+
+            try {
+              insertOrder.run(cols);
+              inserted++;
+            } catch (retryErr) {
+              failures.push({
+                teamName: order.customer?.teamName || cand.sheetTeamName || '?',
+                orderNumber: order.orderNumber,
+                error: retryErr.message,
+              });
+              failed++;
+            }
+          } else {
+            // UNIQUE 외 에러 (NOT NULL/타입 등) — 재시도 없이 실패 기록
+            failures.push({
+              teamName: order.customer?.teamName || cand.sheetTeamName || '?',
+              orderNumber: order.orderNumber,
+              error: err.message,
+            });
+            failed++;
+          }
+        }
+      } catch (outerErr) {
+        // sheetRowToOrder 후처리에서 예외 (이론상 거의 없음)
+        failures.push({
+          teamName: cand.sheetTeamName || '?',
+          orderNumber: '(미생성)',
+          error: outerErr.message,
+        });
+        failed++;
+      }
+    }
+
+    console.log(`[Step 0 완료] INSERT 성공 ${inserted}건 / 실패 ${failed}건`);
+    if (failures.length > 0) {
+      console.log('[INSERT 실패 상세]');
+      failures.slice(0, 10).forEach(f => {
+        console.log(`  - ${f.teamName} (${f.orderNumber}): ${f.error}`);
+      });
+      if (failures.length > 10) console.log(`  ... 외 ${failures.length - 10}건`);
+    }
+    console.log('');
+
+    result.inserted = inserted;
+    result.insertFailed = failed;
+  }
 
   // order_history에 이력 기록하는 prepared statement
   const insertHistory = db.prepare(`
@@ -1487,10 +1693,11 @@ if (!isDryRun) {
   });
 
   applyAll();
-  console.log(`적용 완료! (Step1 상태: ${step1Final.length}건 + Step1 날짜: ${step1DateOnly.length}건 + Step2: ${step2Changes.length}건)`);
-  if (step1InsertCandidates.length > 0) {
-    console.log(`  ⚠️  INSERT 후보 ${step1InsertCandidates.length}건은 Phase 3에서 별도 처리 (이번 apply에선 미실행)`);
-  }
+  console.log(
+    `적용 완료! (Step0 INSERT: ${result.inserted}건` +
+    (result.insertFailed > 0 ? `/실패 ${result.insertFailed}건` : '') +
+    ` + Step1 상태: ${step1Final.length}건 + Step1 날짜: ${step1DateOnly.length}건 + Step2: ${step2Changes.length}건)`
+  );
 
   // 결과 카운트 채우기 (스케줄러가 통계 표시용으로 사용)
   result.statusChanges = step1Final.length;
