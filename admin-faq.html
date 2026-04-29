@@ -142,6 +142,78 @@
             white-space: pre-wrap;
             word-break: break-all;
         }
+
+        /* ============================================== */
+        /* 헤더 드롭다운 — "주문현황 ▼" (5개 파트 묶음, 2026-04-29) */
+        /* ============================================== */
+        .nav-dropdown { position: relative; }
+        .nav-dropdown-trigger {
+            display: inline-flex; align-items: center; gap: 4px;
+            color: #9ca3af; transition: color 0.15s;
+            background: transparent; border: none; cursor: pointer;
+            font: inherit; padding: 0;
+        }
+        .nav-dropdown-trigger:hover { color: #ffffff; }
+        .nav-dropdown-chevron { width: 14px; height: 14px; transition: transform 0.15s; }
+        .nav-dropdown-trigger[aria-expanded="true"] { color: #ffffff; }
+        .nav-dropdown-trigger[aria-expanded="true"] .nav-dropdown-chevron { transform: rotate(180deg); }
+        .nav-dropdown-trigger.is-active {
+            color: #ffffff; font-weight: 500;
+            border-bottom: 2px solid #E63946; padding-bottom: 4px;
+        }
+        .nav-dropdown-panel {
+            display: none; position: absolute; top: calc(100% + 8px); left: 0;
+            min-width: 180px; background: #111111;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            padding: 6px 0; z-index: 50;
+        }
+        @media (min-width: 768px) {
+            .nav-dropdown:hover .nav-dropdown-panel,
+            .nav-dropdown-trigger[aria-expanded="true"] + .nav-dropdown-panel { display: block; }
+            .nav-dropdown::after {
+                content: ''; position: absolute; top: 100%; left: 0; right: 0;
+                height: 8px; pointer-events: none;
+            }
+            .nav-dropdown:hover::after { pointer-events: auto; }
+        }
+        .nav-dropdown-item {
+            display: block; padding: 8px 16px; color: #d1d5db;
+            font-size: 14px; white-space: nowrap;
+            transition: background-color 0.12s, color 0.12s;
+        }
+        .nav-dropdown-item:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+        .nav-dropdown-item.is-active {
+            color: #ffffff; background: rgba(230,57,70,0.15);
+            font-weight: 500; border-left: 3px solid #E63946; padding-left: 13px;
+        }
+        @media (max-width: 767px) {
+            #adminMobileDrawer .nav-dropdown { display: block; }
+            #adminMobileDrawer .nav-dropdown-trigger {
+                width: 100%; padding: 12px 24px 6px;
+                color: #9ca3af; font-size: 12px; font-weight: 500;
+                letter-spacing: 0.04em; text-transform: none;
+                cursor: default; pointer-events: none;
+            }
+            #adminMobileDrawer .nav-dropdown-trigger .nav-dropdown-chevron { display: none; }
+            #adminMobileDrawer .nav-dropdown-trigger.is-active {
+                border: none; padding-bottom: 6px; color: #ffffff;
+            }
+            #adminMobileDrawer .nav-dropdown-panel {
+                display: block !important; position: static;
+                background: transparent; border: none; box-shadow: none;
+                padding: 0; min-width: 0;
+            }
+            #adminMobileDrawer .nav-dropdown-item {
+                display: flex; align-items: center; min-height: 44px;
+                padding: 10px 24px 10px 40px; color: #d1d5db; font-size: 14px;
+            }
+            #adminMobileDrawer .nav-dropdown-item:hover { background: rgba(255,255,255,0.05); color: #ffffff; }
+            #adminMobileDrawer .nav-dropdown-item.is-active {
+                background: rgba(255,255,255,0.1); color: #ffffff;
+                border-left: 3px solid #E63946; padding-left: 37px;
+            }
+        }
     </style>
 </head>
 
@@ -166,11 +238,27 @@
             <!-- 네비게이션: 본인 페이지(챗봇 FAQ)는 active 스타일 적용 -->
             <nav class="hidden md:flex items-center space-x-8">
                 <a id="nav-home" href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
-                <a id="nav-all" href="admin.html" class="text-gray-400 hover:text-white transition-colors">전체 주문</a>
-                <a id="nav-design" href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
-                <a id="nav-cs" href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
-                <a id="nav-production" href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
-                <a id="nav-shipping" href="admin-shipping.html" data-admin-scope="all,shipping" class="text-gray-400 hover:text-white transition-colors">출고 파트</a>
+
+                <!-- 주문현황 드롭다운: 5개 파트(전체/디자인/CS/제작/출고) 묶음 (2026-04-29 통합) -->
+                <div class="nav-dropdown" data-nav-group="orders">
+                    <button id="nav-orders-trigger" type="button"
+                        class="nav-dropdown-trigger"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        aria-controls="nav-orders-panel">
+                        <span>주문현황</span>
+                        <svg class="nav-dropdown-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div id="nav-orders-panel" class="nav-dropdown-panel" role="menu" aria-labelledby="nav-orders-trigger">
+                        <a href="admin.html" role="menuitem" data-nav-child="all" class="nav-dropdown-item">전체 주문</a>
+                        <a href="admin.html?view=design" role="menuitem" data-nav-child="design" data-admin-scope="all,design" class="nav-dropdown-item">디자인 파트</a>
+                        <a href="admin.html?view=cs" role="menuitem" data-nav-child="cs" data-admin-scope="all,cs" class="nav-dropdown-item">CS 파트</a>
+                        <a href="admin.html?view=production" role="menuitem" data-nav-child="production" data-admin-scope="all,production" class="nav-dropdown-item">제작 파트</a>
+                        <a href="admin.html?view=shipping" role="menuitem" data-nav-child="shipping" data-admin-scope="all,shipping" class="nav-dropdown-item">출고 파트</a>
+                    </div>
+                </div>
                 <a id="nav-calendar" href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
                 <a id="nav-analytics" href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
                 <a id="nav-customers" href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
@@ -214,11 +302,22 @@
                 </div>
                 <nav class="flex-1 overflow-y-auto py-2">
                     <a href="admin-home.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">홈</a>
-                    <a href="admin.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">전체 주문</a>
-                    <a href="admin-design.html" data-admin-scope="all,design" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">디자인 파트</a>
-                    <a href="admin-cs.html" data-admin-scope="all,cs" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">CS 파트</a>
-                    <a href="admin-production.html" data-admin-scope="all,production" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">제작 파트</a>
-                    <a href="admin-shipping.html" data-admin-scope="all,shipping" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">출고 파트</a>
+                    <!-- 주문현황 드롭다운(모바일에선 그룹 헤더 + 들여쓰기 정적 펼침) -->
+                    <div class="nav-dropdown" data-nav-group="orders">
+                        <button type="button" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="true" tabindex="-1">
+                            <span>주문현황</span>
+                            <svg class="nav-dropdown-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <div class="nav-dropdown-panel" role="menu">
+                            <a href="admin.html" role="menuitem" data-nav-child="all" class="nav-dropdown-item">전체 주문</a>
+                            <a href="admin.html?view=design" role="menuitem" data-nav-child="design" data-admin-scope="all,design" class="nav-dropdown-item">디자인 파트</a>
+                            <a href="admin.html?view=cs" role="menuitem" data-nav-child="cs" data-admin-scope="all,cs" class="nav-dropdown-item">CS 파트</a>
+                            <a href="admin.html?view=production" role="menuitem" data-nav-child="production" data-admin-scope="all,production" class="nav-dropdown-item">제작 파트</a>
+                            <a href="admin.html?view=shipping" role="menuitem" data-nav-child="shipping" data-admin-scope="all,shipping" class="nav-dropdown-item">출고 파트</a>
+                        </div>
+                    </div>
                     <a href="admin-calendar.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">일정표</a>
                     <a href="admin-analytics.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">매출 분석</a>
                     <a href="admin-customers.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">고객 관리</a>
@@ -496,6 +595,58 @@
     <script src="js/admin-common.js"></script>
     <!-- FAQ 페이지 전용 JS -->
     <script src="js/admin-faq.js"></script>
+
+    <!-- ============================================== -->
+    <!-- 헤더 "주문현황" 드롭다운 동작 (2026-04-29 단위 5 복붙) -->
+    <!-- ============================================== -->
+    <script>
+    (function initOrderStatusDropdown() {
+        const trigger = document.getElementById('nav-orders-trigger');
+        if (!trigger) return;
+        const panelId = trigger.getAttribute('aria-controls');
+        const panel = panelId ? document.getElementById(panelId) : null;
+        if (!panel) return;
+        const container = trigger.closest('[data-nav-group="orders"]');
+        const setOpen = (open) => {
+            trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+            setOpen(!isOpen);
+        });
+        trigger.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+                setOpen(!isOpen);
+            } else if (e.key === 'Escape') {
+                setOpen(false);
+                trigger.blur();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setOpen(true);
+                const firstItem = panel.querySelector('.nav-dropdown-item');
+                if (firstItem) firstItem.focus();
+            }
+        });
+        panel.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                setOpen(false);
+                trigger.focus();
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!container) return;
+            if (!container.contains(e.target)) {
+                setOpen(false);
+            }
+        });
+        panel.querySelectorAll('a').forEach(a => {
+            a.addEventListener('click', () => setOpen(false));
+        });
+    })();
+    </script>
 
 </body>
 </html>

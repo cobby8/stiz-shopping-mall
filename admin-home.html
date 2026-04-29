@@ -212,6 +212,154 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
+
+        /* ============================================== */
+        /* 헤더 드롭다운 — "주문현황 ▼" (5개 파트 묶음, 2026-04-29) */
+        /* 비유: 폴더 1개 안에 5개 안건을 넣어 칠판을 깔끔하게.
+                 PC에선 호버/클릭으로 펼치는 패널, 모바일 햄버거 안에선 들여쓰기 정적 표시 */
+        /* ============================================== */
+        .nav-dropdown { position: relative; }
+
+        /* 트리거 버튼: 일반 nav <a>와 동일한 톤 (text-gray-400 hover:text-white) */
+        .nav-dropdown-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #9ca3af;                  /* tailwind text-gray-400 */
+            transition: color 0.15s;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font: inherit;
+            padding: 0;
+        }
+        .nav-dropdown-trigger:hover { color: #ffffff; }
+        .nav-dropdown-chevron {
+            width: 14px; height: 14px;
+            transition: transform 0.15s;
+        }
+        /* 펼친 상태: chevron 회전 + 텍스트 색 강조 */
+        .nav-dropdown-trigger[aria-expanded="true"] { color: #ffffff; }
+        .nav-dropdown-trigger[aria-expanded="true"] .nav-dropdown-chevron { transform: rotate(180deg); }
+
+        /* 부모 active 강조 (admin.js applyNavActiveState에서 .is-active 부여) */
+        .nav-dropdown-trigger.is-active {
+            color: #ffffff;
+            font-weight: 500;
+            border-bottom: 2px solid #E63946; /* brand-red */
+            padding-bottom: 4px;
+        }
+
+        /* 패널 — 데스크톱 기본 숨김 (md 미만에서는 다른 분기) */
+        .nav-dropdown-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            min-width: 180px;
+            background: #111111;             /* brand-black 일관성 */
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            padding: 6px 0;
+            z-index: 50;
+        }
+        /* PC(≥768px): hover 시 펼침 + aria-expanded=true일 때 펼침 (click 토글 호환) */
+        @media (min-width: 768px) {
+            .nav-dropdown:hover .nav-dropdown-panel,
+            .nav-dropdown-trigger[aria-expanded="true"] + .nav-dropdown-panel {
+                display: block;
+            }
+            /* 트리거 ↔ 패널 사이 8px gap을 투명 브리지로 메움.
+               비유: 두 발판(트리거/패널) 사이에 보이지 않는 다리를 놓아
+               마우스가 빈 공간에 들어가도 hover가 풀리지 않게 함.
+               시각적으로는 변화 없음(투명) — gap 자체는 패널 top: calc(100% + 8px)로 그대로 유지 */
+            .nav-dropdown::after {
+                content: '';
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                height: 8px;                  /* 패널 top offset(+8px)과 동일 */
+                /* 평소엔 hover 영역에서 제외(클릭 방해 방지). hover 시에만 활성화 */
+                pointer-events: none;
+            }
+            /* 트리거에 마우스가 올라가 hover가 시작되면 브리지 활성화 →
+               마우스가 트리거에서 패널로 이동하는 사이에도 hover 유지 */
+            .nav-dropdown:hover::after {
+                pointer-events: auto;
+            }
+        }
+
+        /* 패널 내부 항목 */
+        .nav-dropdown-item {
+            display: block;
+            padding: 8px 16px;
+            color: #d1d5db;                  /* text-gray-300 */
+            font-size: 14px;
+            white-space: nowrap;
+            transition: background-color 0.12s, color 0.12s;
+        }
+        .nav-dropdown-item:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+        /* 자식 active 강조 (admin.js에서 .is-active 부여) */
+        .nav-dropdown-item.is-active {
+            color: #ffffff;
+            background: rgba(230,57,70,0.15); /* brand-red tint */
+            font-weight: 500;
+            border-left: 3px solid #E63946;
+            padding-left: 13px;               /* 좌측 액센트 들어간 만큼 보정 */
+        }
+
+        /* ============================================== */
+        /* 모바일 햄버거 드로어 안에서의 동일 드롭다운 */
+        /* 패널을 정적 표시 + 들여쓰기로 계층 시각화 (아코디언 X) */
+        /* ============================================== */
+        @media (max-width: 767px) {
+            #adminMobileDrawer .nav-dropdown { display: block; }
+            #adminMobileDrawer .nav-dropdown-trigger {
+                /* 모바일에선 트리거가 그룹 라벨 역할 — 클릭 비활성, 시각 그룹 헤더 */
+                width: 100%;
+                padding: 12px 24px 6px;
+                color: #9ca3af;
+                font-size: 12px;
+                font-weight: 500;
+                letter-spacing: 0.04em;
+                text-transform: none;
+                cursor: default;
+                pointer-events: none;          /* 모바일은 항상 펼친 상태 → 토글 비활성 */
+            }
+            #adminMobileDrawer .nav-dropdown-trigger .nav-dropdown-chevron { display: none; }
+            #adminMobileDrawer .nav-dropdown-trigger.is-active {
+                /* 모바일에선 부모 라벨 강조는 색상만 (border-bottom 빼기) */
+                border: none;
+                padding-bottom: 6px;
+                color: #ffffff;
+            }
+            #adminMobileDrawer .nav-dropdown-panel {
+                display: block !important;     /* 항상 펼침 */
+                position: static;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                min-width: 0;
+            }
+            #adminMobileDrawer .nav-dropdown-item {
+                display: flex;
+                align-items: center;
+                min-height: 44px;              /* 터치 타겟 (C-9) */
+                padding: 10px 24px 10px 40px;  /* 좌측 들여쓰기로 자식 시각화 */
+                color: #d1d5db;
+                font-size: 14px;
+            }
+            #adminMobileDrawer .nav-dropdown-item:hover { background: rgba(255,255,255,0.05); color: #ffffff; }
+            #adminMobileDrawer .nav-dropdown-item.is-active {
+                background: rgba(255,255,255,0.1);
+                color: #ffffff;
+                border-left: 3px solid #E63946;
+                padding-left: 37px;             /* border 두께 보정 */
+            }
+        }
     </style>
 </head>
 
@@ -238,11 +386,27 @@
             <!-- 네비게이션: admin.html과 동일한 구조 — 홈이 활성 상태 -->
             <nav class="hidden md:flex items-center space-x-8">
                 <a id="nav-home" href="admin-home.html" class="text-white font-medium border-b-2 border-brand-red pb-1">홈</a>
-                <a id="nav-all" href="admin.html" class="text-gray-400 hover:text-white transition-colors">전체 주문</a>
-                <a id="nav-design" href="admin-design.html" data-admin-scope="all,design" class="text-gray-400 hover:text-white transition-colors">디자인 파트</a>
-                <a id="nav-cs" href="admin-cs.html" data-admin-scope="all,cs" class="text-gray-400 hover:text-white transition-colors">CS 파트</a>
-                <a id="nav-production" href="admin-production.html" data-admin-scope="all,production" class="text-gray-400 hover:text-white transition-colors">제작 파트</a>
-                <a id="nav-shipping" href="admin-shipping.html" data-admin-scope="all,shipping" class="text-gray-400 hover:text-white transition-colors">출고 파트</a>
+
+                <!-- 주문현황 드롭다운: 5개 파트(전체/디자인/CS/제작/출고) 묶음 (2026-04-29 통합) -->
+                <div class="nav-dropdown" data-nav-group="orders">
+                    <button id="nav-orders-trigger" type="button"
+                        class="nav-dropdown-trigger"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        aria-controls="nav-orders-panel">
+                        <span>주문현황</span>
+                        <svg class="nav-dropdown-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div id="nav-orders-panel" class="nav-dropdown-panel" role="menu" aria-labelledby="nav-orders-trigger">
+                        <a href="admin.html" role="menuitem" data-nav-child="all" class="nav-dropdown-item">전체 주문</a>
+                        <a href="admin.html?view=design" role="menuitem" data-nav-child="design" data-admin-scope="all,design" class="nav-dropdown-item">디자인 파트</a>
+                        <a href="admin.html?view=cs" role="menuitem" data-nav-child="cs" data-admin-scope="all,cs" class="nav-dropdown-item">CS 파트</a>
+                        <a href="admin.html?view=production" role="menuitem" data-nav-child="production" data-admin-scope="all,production" class="nav-dropdown-item">제작 파트</a>
+                        <a href="admin.html?view=shipping" role="menuitem" data-nav-child="shipping" data-admin-scope="all,shipping" class="nav-dropdown-item">출고 파트</a>
+                    </div>
+                </div>
                 <a id="nav-calendar" href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
                 <a id="nav-analytics" href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
                 <a id="nav-customers" href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
@@ -285,11 +449,23 @@
                 </div>
                 <nav class="flex-1 overflow-y-auto py-2">
                     <a href="admin-home.html" class="flex items-center min-h-[44px] px-6 py-3 text-white font-medium bg-white/10" aria-current="page">홈</a>
-                    <a href="admin.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">전체 주문</a>
-                    <a href="admin-design.html" data-admin-scope="all,design" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">디자인 파트</a>
-                    <a href="admin-cs.html" data-admin-scope="all,cs" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">CS 파트</a>
-                    <a href="admin-production.html" data-admin-scope="all,production" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">제작 파트</a>
-                    <a href="admin-shipping.html" data-admin-scope="all,shipping" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">출고 파트</a>
+
+                    <!-- 주문현황 드롭다운(모바일에선 그룹 헤더 + 들여쓰기 정적 펼침) -->
+                    <div class="nav-dropdown" data-nav-group="orders">
+                        <button type="button" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="true" tabindex="-1">
+                            <span>주문현황</span>
+                            <svg class="nav-dropdown-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <div class="nav-dropdown-panel" role="menu">
+                            <a href="admin.html" role="menuitem" data-nav-child="all" class="nav-dropdown-item">전체 주문</a>
+                            <a href="admin.html?view=design" role="menuitem" data-nav-child="design" data-admin-scope="all,design" class="nav-dropdown-item">디자인 파트</a>
+                            <a href="admin.html?view=cs" role="menuitem" data-nav-child="cs" data-admin-scope="all,cs" class="nav-dropdown-item">CS 파트</a>
+                            <a href="admin.html?view=production" role="menuitem" data-nav-child="production" data-admin-scope="all,production" class="nav-dropdown-item">제작 파트</a>
+                            <a href="admin.html?view=shipping" role="menuitem" data-nav-child="shipping" data-admin-scope="all,shipping" class="nav-dropdown-item">출고 파트</a>
+                        </div>
+                    </div>
                     <a href="admin-calendar.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">일정표</a>
                     <a href="admin-analytics.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">매출 분석</a>
                     <a href="admin-customers.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">고객 관리</a>
@@ -491,6 +667,78 @@
     <script src="js/admin-common.js"></script>
     <!-- 대시보드 JS -->
     <script src="js/admin-home.js"></script>
+
+    <!-- ============================================== -->
+    <!-- 헤더 "주문현황" 드롭다운 동작 (2026-04-29 단위 5 복붙) -->
+    <!-- 비유: PC에선 마우스 올리면 자동 펼침(호버) + 키보드/터치 사용자도 클릭으로 토글 가능.
+             ESC 또는 패널 바깥 클릭 시 닫힘. 모바일은 CSS에서 항상 펼친 상태로 처리(여기 JS는 PC만 의미). -->
+    <!-- ============================================== -->
+    <script>
+    (function initOrderStatusDropdown() {
+        // PC nav 안의 드롭다운만 대상 (모바일 드로어 안의 트리거는 pointer-events: none으로 비활성)
+        const trigger = document.getElementById('nav-orders-trigger');
+        if (!trigger) return;
+
+        // aria-controls 로 패널 찾기 (실수 방지: 직접 ID hardcode 대신 속성 경유)
+        const panelId = trigger.getAttribute('aria-controls');
+        const panel = panelId ? document.getElementById(panelId) : null;
+        if (!panel) return;
+
+        // 드롭다운 컨테이너(부모) — 외부 클릭 판정에 사용
+        const container = trigger.closest('[data-nav-group="orders"]');
+
+        // 펼침/접힘 상태 토글 — aria-expanded로만 관리(시각은 CSS가 처리)
+        const setOpen = (open) => {
+            trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
+        // 클릭 토글 — PC라도 키보드/터치 사용자에게 명시적 동작 보장
+        // (호버 펼침은 CSS .nav-dropdown:hover에서 처리)
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+            setOpen(!isOpen);
+        });
+
+        // 키보드 접근성 — Enter/Space 토글, Escape 닫기, ArrowDown으로 첫 메뉴 항목 포커스
+        trigger.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+                setOpen(!isOpen);
+            } else if (e.key === 'Escape') {
+                setOpen(false);
+                trigger.blur();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setOpen(true);
+                const firstItem = panel.querySelector('.nav-dropdown-item');
+                if (firstItem) firstItem.focus();
+            }
+        });
+
+        // 패널 내부 ESC 처리 — 메뉴 항목에 포커스 둔 채 ESC 누르면 닫고 트리거로 포커스 복귀
+        panel.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                setOpen(false);
+                trigger.focus();
+            }
+        });
+
+        // 외부 클릭 시 닫기 — 드롭다운 컨테이너 바깥을 누르면 자동 접힘
+        document.addEventListener('click', (e) => {
+            if (!container) return;
+            if (!container.contains(e.target)) {
+                setOpen(false);
+            }
+        });
+
+        // 패널 항목 클릭(페이지 이동) 시에도 닫기 (시각적 깔끔함; 실제로는 페이지 이동되니 큰 의미 없음)
+        panel.querySelectorAll('a').forEach(a => {
+            a.addEventListener('click', () => setOpen(false));
+        });
+    })();
+    </script>
 
 </body>
 </html>

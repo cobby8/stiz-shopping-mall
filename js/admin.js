@@ -322,26 +322,32 @@ function applyFilterVisibility() {
 }
 
 function applyNavActiveState() {
-    // 네비게이션 탭 매핑 — shipping(출고/배송) 파트 추가
-    const navMap = {
-        all: 'nav-all',
-        design: 'nav-design',
-        cs: 'nav-cs',
-        production: 'nav-production',
-        shipping: 'nav-shipping'
-    };
+    // ============================================
+    // 헤더 "주문현황" 드롭다운 active 강조 — 부모+자식 동시 (2026-04-29)
+    // 비유: 폴더(부모 "주문현황")에 빨간 띠를 두르고, 그 안에서 펼친 문서(자식 항목)도 동시에 강조
+    // 이전 구조: 5개 평면 nav-* <a>에 단일 className 토글
+    // 신구조: 부모 [data-nav-group="orders"] .nav-dropdown-trigger + 자식 [data-nav-child="..."] 동시 .is-active
+    // ============================================
+    const preset = getCurrentPagePreset();
+    // requiredScope가 비어있으면 '전체' 뷰로 간주 → child='all'
+    const childKey = preset && preset.requiredScope ? preset.requiredScope : 'all';
 
-    Object.values(navMap).forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.className = 'text-gray-400 hover:text-white transition-colors';
-    });
-
-    const activeId = navMap[getCurrentPagePreset().requiredScope ? getCurrentPagePreset().requiredScope : 'all'] || navMap.all;
-    const activeEl = document.getElementById(activeId);
-    if (activeEl) {
-        activeEl.className = 'text-white font-medium border-b-2 border-brand-red pb-1';
+    // 부모 트리거 — 5개 파트 어느 뷰든 "주문현황"은 항상 active
+    const parentTrigger = document.querySelector('[data-nav-group="orders"] .nav-dropdown-trigger');
+    if (parentTrigger) {
+        // 다른 페이지(홈/일정표 등)에서 진입했다가 admin.html 계열로 들어왔다면 무조건 강조
+        // (admin.html에선 항상 적용되지만, 향후 단위 5에서 13개 파일에 복붙되면 비-주문 페이지에선 미적용 필요)
+        parentTrigger.classList.add('is-active');
     }
+
+    // 자식 항목 — 기존 활성 .is-active 모두 제거 후 현재 childKey만 부여 (재호출 안전성)
+    document.querySelectorAll('[data-nav-child]').forEach(el => {
+        el.classList.remove('is-active');
+    });
+    document.querySelectorAll(`[data-nav-child="${childKey}"]`).forEach(el => {
+        // PC 패널 + 모바일 드로어 둘 다 동일 data-nav-child가 존재 → 모두 강조
+        el.classList.add('is-active');
+    });
 }
 
 function applyStatusOptionVisibility() {
