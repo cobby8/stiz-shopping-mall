@@ -46,6 +46,28 @@ const TRANSACTION_METHOD_LABELS = {
     cash: '현금', tax_invoice: '세금계산서', shopping_mall: '쇼핑몰'
 };
 
+// 시안 진행 단계 라벨 (C3, 2026-04-29) — sync가 시트 Q열에서 추출한 revisionStage용
+// 비유: 빵집의 "주문 → 1차 견적 → 수정 견적" 처럼 "지금 어디까지 왔는지" 나타내는 표지판
+const REVISION_STAGE_LABELS = {
+    '초안요청': '초안 요청',
+    '1차수정': '1차 수정 요청',
+    '2차수정': '2차 수정 요청',
+    '3차수정': '3차 수정 요청',
+    '4차수정': '4차 수정 요청',
+    '5차수정': '5차 수정 요청',
+    '초과수정': '초과 수정 요청'
+};
+
+// 디자인 서브 상태 라벨 (C3, 2026-04-29) — data.design.status 값 매핑
+// "draft_done"(초안 완료) vs "revision_done"(수정 완료) 구분 — 같은 draft_done 상태 안의 디테일
+const DESIGN_SUB_STATUS_LABELS = {
+    'draft_done': '초안 완료',
+    'revision_done': '수정 완료',
+    'confirmed': '디자인 확정',
+    'in_progress': '작업 중',
+    'requested': '시안 요청'
+};
+
 // 현재 주문 데이터 (전역 상태)
 let currentOrder = null;
 let currentHistory = [];
@@ -335,6 +357,9 @@ function renderOrderDetail() {
     // 시안/주문서 미리보기 렌더링
     if (currentDetailPreset.showDesignPreview) {
         renderDesignPreview();
+        // C3 (2026-04-29): 시안 미리보기 카드 아래에 "디자인 진행 상태" 카드도 함께 렌더링
+        // 이유: 운영자가 한 번에 "현재 몇 차 수정 / 초안 vs 수정 완료"까지 파악 가능
+        renderDesignProgress();
     }
     if (currentDetailPreset.showOrderSheetPreview) {
         renderOrderSheetPreview();
@@ -420,6 +445,112 @@ function renderDesignPreview() {
                 열기
             </a>
         </div>
+    `;
+}
+
+// ============================================================
+// 디자인 진행 상태 카드 렌더링 (C3, 2026-04-29)
+// 왜 필요한가?
+//   sync-orders.js가 시트 Q열(진행)·R열(시안)을 읽어 DB에 다음 정보를 채워둠:
+//     - order.status              : 'design_requested' | 'draft_done' | 'design_confirmed' | ...
+//     - order.revisionStage       : '초안요청' | '1차수정' | ... | '초과수정' (Q열 — design_requested 단계에서만 의미)
+//     - order.design.status       : 'draft_done' | 'revision_done' | 'confirmed' (R열 디테일)
+//     - order.design.revisionCount: 누적 수정 횟수
+//     - order.design.designer     : 담당 디자이너
+//   기존 UI는 "디자인 상태" 한 줄만 보여줘서 "지금 1차 수정 중인지 / 초안 vs 수정 완료" 구분 불가.
+//   이 함수는 그 정보를 시안 미리보기 아래 카드 하나로 시각화한다.
+// ============================================================
+function renderDesignProgress() {
+    const container = document.getElementById('design-progress-content');
+    if (!container) return;
+
+    const order = currentOrder;
+    if (!order) {
+        container.innerHTML = '';
+        return;
+    }
+
+    // 데이터 추출 — 어느 필드도 없을 수 있음
+    const orderStatus = order.status;                          // 메인 상태 (design_requested/draft_done/design_confirmed)
+    const revisionStage = order.revisionStage;                 // Q열 운영 라벨 (시트→DB 동기화)
+    const designSubStatus = order.design?.status;              // R열 디테일 (draft_done/revision_done/confirmed)
+    const designer = order.design?.designer;                   // 담당 디자이너
+    const revisionCount = order.design?.revisionCount;         // 총 수정 횟수
+
+    // 진행 정보가 모두 비어있는 경우 → 회색 안내문 (카드 자체는 표시)
+    // 비유: 메뉴판은 항상 펼쳐두되, 주문이 없으면 "주문 대기 중" 표시
+    const hasAnyInfo = revisionStage || designSubStatus || designer || (typeof revisionCount === 'number' && revisionCount > 0);
+    if (!hasAnyInfo) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-6 text-gray-400">
+                <span class="material-symbols-outlined text-3xl mb-1.5">info</span>
+                <p class="text-sm">디자인 진행 정보 없음</p>
+                <p class="text-xs mt-1">시트 동기화 후 표시됩니다 (5분 주기)</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 메인 배지 라벨/색상 결정 — 우선순위: revisionStage > designSubStatus > orderStatus 보조
+    // "지금 어느 단계인지"를 한 단어로 압축
+    let badgeLabel = '진행 중';
+    let badgeClass = 'bg-gray-100 text-gray-700';
+    let subLabel = '';
+
+    if (orderStatus === 'design_confirmed' || designSubStatus === 'confirmed') {
+        // 디자인 확정 — 보라
+        badgeLabel = '디자인 확정';
+        badgeClass = 'bg-purple-100 text-purple-700';
+    } else if (designSubStatus === 'draft_done') {
+        // 시안 완료 (초안) — 녹색 + 보조 라벨로 "초안 완료"
+        badgeLabel = '시안 완료';
+        badgeClass = 'bg-emerald-100 text-emerald-700';
+        subLabel = DESIGN_SUB_STATUS_LABELS[designSubStatus]; // "초안 완료"
+    } else if (designSubStatus === 'revision_done') {
+        // 시안 완료 (수정) — 녹색 + 보조 라벨로 "수정 완료"
+        badgeLabel = '시안 완료';
+        badgeClass = 'bg-emerald-100 text-emerald-700';
+        subLabel = DESIGN_SUB_STATUS_LABELS[designSubStatus]; // "수정 완료"
+    } else if (revisionStage) {
+        // 시안 요청 단계 — 파랑 + 보조 라벨로 "1차 수정 요청" 등
+        badgeLabel = '시안 요청';
+        badgeClass = 'bg-blue-100 text-blue-700';
+        subLabel = REVISION_STAGE_LABELS[revisionStage] || revisionStage;
+    } else if (orderStatus === 'design_requested') {
+        // revisionStage 없이 design_requested만 있는 경우 (예: 시트 R='작업중', Q=빈값)
+        badgeLabel = '시안 요청';
+        badgeClass = 'bg-blue-100 text-blue-700';
+        subLabel = '작업 중';
+    } else if (orderStatus === 'draft_done') {
+        // designSubStatus가 비어있지만 메인 상태는 draft_done인 케이스 (sync 전 / 백필 누락)
+        badgeLabel = '시안 완료';
+        badgeClass = 'bg-emerald-100 text-emerald-700';
+    }
+
+    // 부가 정보 (디자이너, 수정 횟수) — 있을 때만 표시
+    const metaParts = [];
+    if (designer) metaParts.push(`담당 디자이너: <span class="text-gray-700">${escapeHtml(designer)}</span>`);
+    if (typeof revisionCount === 'number' && revisionCount > 0) {
+        metaParts.push(`총 <span class="text-gray-700">${revisionCount}회</span> 수정`);
+    }
+    const metaHtml = metaParts.length
+        ? `<div class="mt-3 text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1">${metaParts.join('<span class="text-gray-300">|</span>')}</div>`
+        : '';
+
+    // 보조 라벨 영역 — subLabel 있을 때만
+    const subHtml = subLabel
+        ? `<span class="ml-2 text-sm text-gray-600">${escapeHtml(subLabel)}</span>`
+        : '';
+
+    // 최종 카드 — 모바일에서도 깨지지 않도록 flex-wrap 적용
+    container.innerHTML = `
+        <div class="flex flex-wrap items-center gap-y-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${badgeClass}">
+                ${escapeHtml(badgeLabel)}
+            </span>
+            ${subHtml}
+        </div>
+        ${metaHtml}
     `;
 }
 

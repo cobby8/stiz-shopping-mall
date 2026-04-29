@@ -718,6 +718,18 @@
                             <div id="design-preview-content"></div>
                         </div>
 
+                        <!-- 디자인 진행 상태 카드 (C3, 2026-04-29)
+                             왜? sync가 시트 Q열(진행)·R열(시안)을 읽어 design.status / revisionStage를 채워주는데,
+                             운영자가 "현재 몇 차 수정인지 / 초안 vs 수정 완료인지"를 한눈에 보려면 별도 카드 필요.
+                             내용은 js/admin-order.js renderDesignProgress()에서 동적으로 채움. -->
+                        <div id="design-progress-section" class="mt-5 pt-5 border-t border-gray-100">
+                            <h4 class="font-semibold text-base mb-3 flex items-center">
+                                <span class="material-symbols-outlined mr-1.5 text-gray-400 text-lg">flag</span>
+                                디자인 진행 상태
+                            </h4>
+                            <div id="design-progress-content"></div>
+                        </div>
+
                         <!-- 주문서 미리보기 영역 -->
                         <div id="ordersheet-preview-section" class="mt-5 pt-5 border-t border-gray-100 hidden">
                             <h4 class="font-semibold text-base mb-3 flex items-center">
