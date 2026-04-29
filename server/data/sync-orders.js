@@ -220,9 +220,23 @@ const STATUS_ORDER = {
 };
 
 // 상태가 역행하는지 확인 (새 상태가 현재보다 앞 단계인 경우)
+// 비유: 주문 파이프라인에서 뒤로 가는 흐름은 보통 "잘못된 매칭"이므로 차단한다.
 function isStatusRegression(currentStatus, newStatus) {
   const currentOrder = STATUS_ORDER[currentStatus] || 0;
   const newOrder = STATUS_ORDER[newStatus] || 0;
+
+  // ⭐ 디자인 단계 양방향 예외 (draft_done ↔ design_requested)
+  // 이유: CS가 Q열(시안수정요청)에 새 차수 요청을 적으면 시트 상태는
+  //       다시 design_requested로 돌아간다. DB가 draft_done이라도
+  //       이는 "정상적인 새 수정 요청"이므로 적용해야 한다.
+  // 단, design_confirmed(시안 확정) 이후 design_requested로 회귀는
+  //     여전히 차단해서 이미 확정된 시안을 보호한다.
+  const designPhasePair =
+    (currentStatus === 'draft_done' && newStatus === 'design_requested') ||
+    (currentStatus === 'design_requested' && newStatus === 'draft_done');
+
+  if (designPhasePair) return false;
+
   return newOrder < currentOrder;
 }
 
@@ -413,14 +427,33 @@ function determineStatusFromSheet(row) {
     // 기타 제작상황도 작업지시서 접수로 처리
     return { status: 'work_instruction_received', designSubStatus: null, revisionStage: null };
   }
-  // 시안 상태로 판단 — R열(디자이너 최종) 우선
+  // ─────────────────────────────────────────────────────────────
+  // 후보 B' (2026-04-29): CS 새 요청 우선 매핑
+  // 비유: CS가 시트 Q열에 "1차수정"을 새로 적었다면, R열에 옛 "수정완료"가
+  //       남아있어도 → 디자이너 입장에선 "새 시안요청"으로 봐야 한다.
+  //       다만 R='디자인확정'은 디자이너 최종 결정이므로 Q열보다 우선.
+  // ─────────────────────────────────────────────────────────────
+
+  // (2) R='디자인확정' 항상 우선 — 디자이너 최종 확정은 어떤 Q열보다 우선
   if (시안 === '디자인확정') return { status: 'design_confirmed', designSubStatus: 'confirmed', revisionStage: null };
+
+  // (3) ⭐ Q='N차수정' 또는 '초과수정' → R열 무시하고 design_requested
+  //      CS가 시트에 새 수정 요청을 입력한 경우, 옛 R='수정완료'가 남아있어도
+  //      디자이너에게는 새 작업 요청으로 표시되어야 한다 (사용자 결정).
+  if (진행 && (진행.match(/\d+차수정/) || 진행.includes('초과수정'))) {
+    return { status: 'design_requested', designSubStatus: null, revisionStage };
+  }
+
+  // (4) R='초안완료'/'수정완료' (자연 페어) → 시안완료
+  //      Q='초안요청' + R='초안완료'처럼 자연스러운 워크플로 페어는 그대로 보존
   if (시안 === '초안완료') return { status: 'draft_done', designSubStatus: 'draft_done', revisionStage: null };
   if (시안 === '수정완료') return { status: 'draft_done', designSubStatus: 'revision_done', revisionStage: null };
+
+  // (5) R='작업중' (디자이너가 명시적으로 작업 중이라고 표기)
   if (시안 === '작업중') return { status: 'design_requested', designSubStatus: null, revisionStage };
 
-  // R열이 비어있고 Q열(운영자 라벨)에 정보가 있으면 design_requested 단계로 추정
-  // 비유: 디자이너 최종 결과가 아직 없지만 운영자가 "1차수정"을 메모해놨다면 작업 진행 중
+  // (6) R열이 비어있고 Q열(운영자 라벨)에 '초안요청' 등 정보가 있으면 design_requested
+  //      비유: 디자이너 최종 결과가 아직 없지만 운영자가 "초안요청"을 메모해놨다면 작업 진행 중
   if (revisionStage) return { status: 'design_requested', designSubStatus: null, revisionStage };
 
   return null; // 매핑 불가 → 변경하지 않음
