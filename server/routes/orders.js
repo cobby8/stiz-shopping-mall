@@ -103,7 +103,7 @@ export function getCustomerStatus(detailedStatus) {
 export const STATUS_LABELS = {
     consult_started: '상담개시',
     design_requested: '시안요청',
-    draft_done: '초안 완료',
+    draft_done: '시안완료',
     revision: '수정 중',
     design_confirmed: '디자인확정',
     order_received: '주문서접수',
@@ -522,7 +522,7 @@ router.post('/:orderNumber/design-confirm', (req, res) => {
         if (designStatus !== 'draft_done' && designStatus !== 'revision_done') {
             return res.status(400).json({
                 success: false,
-                error: '현재 시안을 확정할 수 없는 상태입니다 (초안 완료 후 확정 가능)'
+                error: '현재 시안을 확정할 수 없는 상태입니다 (시안완료 후 확정 가능)'
             });
         }
 

@@ -369,30 +369,59 @@ function compareDates(dbData, sheetDates) {
 // Step 1: 스프레드시트 상태 결정 로직
 // 비유: 시트의 여러 컬럼을 종합하여 "이 주문의 진짜 상태"를 결정
 // ============================================================
+// 시트 Q열(col16, "진행")에서 N차수정/초안요청/초과수정 추출
+// 비유: 운영자가 손으로 메모한 워크플로 라벨을 부가 정보로 보존
+function extractRevisionStage(qValue) {
+  if (!qValue) return null;
+  if (qValue.includes('초안요청')) return '초안요청';
+  if (qValue.includes('초과수정')) return '초과수정';
+  // "1차수정", "2차수정", ... 패턴 매칭
+  const match = qValue.match(/(\d+)차수정/);
+  if (match) return `${match[1]}차수정`;
+  return null;
+}
+
+// ============================================================
+// determineStatusFromSheet — 시트 행에서 status + 부가 필드 결정
+// 비유: 시트의 여러 컬럼을 종합해 "이 주문의 진짜 상태 + 디자인 단계 + 수정 차수"를 한 번에 결정
+// 반환: { status, designSubStatus, revisionStage } 또는 null (매핑 불가)
+//   - status: DB orders.status 컬럼 값
+//   - designSubStatus: data.design.status (draft_done/revision_done/null)
+//   - revisionStage: 운영 워크플로 라벨 (초안요청/N차수정/초과수정/null)
+// ============================================================
 function determineStatusFromSheet(row) {
   // row는 필드 배열 (인덱스로 접근)
-  const 시안 = row[17] || '';        // col17: 시안 상태
+  const 진행 = row[16] || '';        // col16: Q열 운영자 워크플로 라벨
+  const 시안 = row[17] || '';        // col17: R열 시안 상태 (디자이너 최종)
   const 제작상황 = row[23] || '';    // col23: 제작상황
   const 출고일 = row[24] || '';      // col24: 출고일
   const 발송일 = row[26] || '';      // col26: 발송일
 
-  // 발송일이 있으면 → 배송중
-  if (발송일) return 'shipped';
+  // Q열에서 수정 차수 라벨 미리 추출 — design_requested 단계에서만 의미
+  const revisionStage = extractRevisionStage(진행);
+
+  // 발송일이 있으면 → 배송중 (revisionStage는 의미 없음 → null)
+  if (발송일) return { status: 'shipped', designSubStatus: null, revisionStage: null };
   // 출고일이 있으면 → 출고
-  if (출고일) return 'released';
+  if (출고일) return { status: 'released', designSubStatus: null, revisionStage: null };
   // 제작상황이 있으면 제작 단계에서 세분화
   if (제작상황) {
-    if (제작상황.includes('생산완료')) return 'production_done';
-    if (제작상황.includes('생산중')) return 'in_production';
+    if (제작상황.includes('생산완료')) return { status: 'production_done', designSubStatus: null, revisionStage: null };
+    if (제작상황.includes('생산중')) return { status: 'in_production', designSubStatus: null, revisionStage: null };
     // "신 라인작업", "신 라인작업 완료" 모두 작업지시서 접수 단계
-    if (제작상황.includes('라인작업')) return 'work_instruction_received';
+    if (제작상황.includes('라인작업')) return { status: 'work_instruction_received', designSubStatus: null, revisionStage: null };
     // 기타 제작상황도 작업지시서 접수로 처리
-    return 'work_instruction_received';
+    return { status: 'work_instruction_received', designSubStatus: null, revisionStage: null };
   }
-  // 시안 상태로 판단
-  if (시안 === '디자인확정') return 'design_confirmed';
-  if (시안 === '초안완료' || 시안 === '수정완료') return 'draft_done';
-  if (시안 === '작업중') return 'design_requested';
+  // 시안 상태로 판단 — R열(디자이너 최종) 우선
+  if (시안 === '디자인확정') return { status: 'design_confirmed', designSubStatus: 'confirmed', revisionStage: null };
+  if (시안 === '초안완료') return { status: 'draft_done', designSubStatus: 'draft_done', revisionStage: null };
+  if (시안 === '수정완료') return { status: 'draft_done', designSubStatus: 'revision_done', revisionStage: null };
+  if (시안 === '작업중') return { status: 'design_requested', designSubStatus: null, revisionStage };
+
+  // R열이 비어있고 Q열(운영자 라벨)에 정보가 있으면 design_requested 단계로 추정
+  // 비유: 디자이너 최종 결과가 아직 없지만 운영자가 "1차수정"을 메모해놨다면 작업 진행 중
+  if (revisionStage) return { status: 'design_requested', designSubStatus: null, revisionStage };
 
   return null; // 매핑 불가 → 변경하지 않음
 }
@@ -607,12 +636,23 @@ for (const row of csvRows) {
   // 또한 완료/보류 탭의 행은 시트가 옛 날짜를 갖고 있을 수 있으므로
   // 날짜는 건드리지 않음 (skipDates 플래그). 진행 탭만 날짜 동기화.
   let sheetStatus;
+  // 디자인 부가 정보 (Q열 + R열 분기) — 진행 탭에서만 채워지고, 완료/보류 탭은 null
+  let designSubStatus = null;
+  let revisionStage = null;
   let skipDates = false;
   if (tabCtx && tabCtx.defaultStatus) {
     sheetStatus = tabCtx.defaultStatus; // 'delivered' 또는 'hold'
     skipDates = true; // 완료/완료(미수)/보류 탭은 date 변경 금지
   } else {
-    sheetStatus = determineStatusFromSheet(row);
+    // 진행 탭: determineStatusFromSheet 객체 반환 → status + 디자인 부가 필드 분해
+    const result = determineStatusFromSheet(row);
+    if (result) {
+      sheetStatus = result.status;
+      designSubStatus = result.designSubStatus;
+      revisionStage = result.revisionStage;
+    } else {
+      sheetStatus = null;
+    }
   }
 
   // 상태 결정 불가능한 행은 건너뛰기
@@ -635,8 +675,12 @@ for (const row of csvRows) {
       const dateChanges = skipDates ? null : compareDates(order.data, sheetDates);
       if (order.normalizedStatus === sheetStatus) {
         // 상태는 동일하지만, 날짜가 다르면 날짜만 업데이트 대상에 추가
+        // 디자인 부가 필드(designSubStatus/revisionStage)도 함께 운반 — 동일 상태여도 디자인 단계 갱신 가능
         if (dateChanges) {
-          step1DateOnly.push({ orderNumber: order.orderNumber, teamName: order.teamName, status: order.normalizedStatus, dateChanges, orderId: order.id, data: order.data });
+          step1DateOnly.push({ orderNumber: order.orderNumber, teamName: order.teamName, status: order.normalizedStatus, dateChanges, orderId: order.id, data: order.data, designSubStatus, revisionStage });
+        } else if (designSubStatus || revisionStage) {
+          // 상태/날짜는 그대로지만 디자인 부가 필드만 갱신할 가치가 있는 경우
+          step1DateOnly.push({ orderNumber: order.orderNumber, teamName: order.teamName, status: order.normalizedStatus, dateChanges: null, orderId: order.id, data: order.data, designSubStatus, revisionStage });
         } else {
           step1SameStatus.push({ orderNumber: order.orderNumber, teamName: order.teamName, status: order.normalizedStatus });
         }
@@ -645,7 +689,7 @@ for (const row of csvRows) {
       } else if (isStatusRegression(order.normalizedStatus, sheetStatus)) {
         step1Regressed.push({ orderNumber: order.orderNumber, teamName: order.teamName, currentStatus: order.normalizedStatus, newStatus: sheetStatus });
       } else {
-        step1Changes.push({ orderNumber: order.orderNumber, teamName: order.teamName, currentStatus: order.dbStatus, currentNormalized: order.normalizedStatus, newStatus: sheetStatus, orderId: order.id, data: order.data, dateChanges });
+        step1Changes.push({ orderNumber: order.orderNumber, teamName: order.teamName, currentStatus: order.dbStatus, currentNormalized: order.normalizedStatus, newStatus: sheetStatus, orderId: order.id, data: order.data, dateChanges, designSubStatus, revisionStage });
       }
     }
     // 수동 매핑 주문이 activeOrders에 없으면 (이미 delivered 등) 무시
@@ -731,9 +775,11 @@ for (const row of csvRows) {
           orderId: order.id,
           data: order.data,
           dateChanges,  // 날짜 변경사항도 함께 저장
+          designSubStatus,  // 디자인 상세 단계 (draft_done/revision_done/confirmed/null)
+          revisionStage,    // 운영자 워크플로 라벨 (초안요청/N차수정/초과수정/null)
         });
       } else {
-        // 상태는 동일하지만, 날짜가 다르면 날짜만 업데이트 대상
+        // 상태는 동일하지만, 날짜가 다르거나 디자인 부가 필드가 새로 들어온 경우 업데이트 대상
         if (dateChanges) {
           step1DateOnly.push({
             orderNumber: order.orderNumber,
@@ -742,6 +788,20 @@ for (const row of csvRows) {
             dateChanges,
             orderId: order.id,
             data: order.data,
+            designSubStatus,
+            revisionStage,
+          });
+        } else if (designSubStatus || revisionStage) {
+          // 상태/날짜는 그대로지만 디자인 부가 필드만 갱신할 가치가 있는 경우
+          step1DateOnly.push({
+            orderNumber: order.orderNumber,
+            teamName: order.teamName,
+            status: order.normalizedStatus,
+            dateChanges: null,
+            orderId: order.id,
+            data: order.data,
+            designSubStatus,
+            revisionStage,
           });
         } else {
           step1SameStatus.push({
@@ -779,18 +839,24 @@ if (step1Unique.length > 0) {
 }
 
 // 날짜만 업데이트 대상 출력
-console.log(`\n[날짜만 업데이트: ${step1DateOnly.length}건]`);
+// dateChanges가 null인 경우(디자인 부가 필드만 갱신)도 포함되므로 안전 처리
+console.log(`\n[날짜/디자인 부가 업데이트: ${step1DateOnly.length}건]`);
 if (step1DateOnly.length > 0) {
   console.log('─────────────────────────────────────────────────────────────────');
   for (const d of step1DateOnly) {
-    const fields = Object.entries(d.dateChanges).map(([k, v]) => {
+    const dateFields = d.dateChanges ? Object.entries(d.dateChanges).map(([k, v]) => {
       // DB의 기존 값 찾기
       const oldVal = k.startsWith('desired') || k.startsWith('release') || k.startsWith('shipped')
         ? (d.data.shipping?.[k] || 'null')
         : (d.data[k] || 'null');
       return `${k}: ${oldVal} -> ${v}`;
-    }).join(', ');
-    console.log(`  ${d.teamName} | ${fields} | ${d.orderNumber}`);
+    }).join(', ') : '';
+    // 디자인 부가 필드도 함께 표시
+    const designFields = [];
+    if (d.designSubStatus) designFields.push(`design.status=${d.designSubStatus}`);
+    if (d.revisionStage) designFields.push(`revisionStage=${d.revisionStage}`);
+    const allFields = [dateFields, designFields.join(', ')].filter(Boolean).join(' | ');
+    console.log(`  ${d.teamName} | ${allFields} | ${d.orderNumber}`);
   }
 }
 
@@ -959,6 +1025,21 @@ if (!isDryRun) {
           updatedData.shipping.shippedDate = c.dateChanges.shippedDate;
         }
       }
+
+      // 디자인 부가 필드 갱신 — design.status (draft_done/revision_done/confirmed)
+      // 비유: 시안 페이지에 "초안 완료" vs "수정 완료" 구분을 살리기 위한 부가 정보
+      // 주의: revisionCount 등 기존 필드는 보존 (덮어쓰지 않고 부분 갱신)
+      if (c.designSubStatus) {
+        updatedData.design = { ...(updatedData.design || {}), status: c.designSubStatus };
+      }
+      // revisionStage: design_requested 단계에서만 의미 있음. 다른 상태로 진입하면 null로 정리
+      if (c.newStatus === 'design_requested') {
+        updatedData.revisionStage = c.revisionStage || null;
+      } else if (c.newStatus === 'design_confirmed' || c.newStatus === 'draft_done') {
+        // 시안 단계가 진전되면 운영자 워크플로 라벨은 의미 잃음 → 클리어
+        updatedData.revisionStage = null;
+      }
+
       updateOrder.run(c.newStatus, JSON.stringify(updatedData), now, c.orderId);
 
       // orderReceiptDate, createdAt 테이블 컬럼도 업데이트 (별도 컬럼이 있는 필드)
@@ -979,33 +1060,47 @@ if (!isDryRun) {
       );
     }
 
-    // Step 1 날짜만 업데이트 (상태는 동일, 날짜만 다른 건)
+    // Step 1 날짜만 업데이트 (상태는 동일, 날짜 또는 디자인 부가 필드만 다른 건)
+    // 비유: 같은 단계에 머물지만 "1차수정 → 2차수정" 처럼 안에서 진척이 있을 때 그 정보를 살림
     for (const d of step1DateOnly) {
       const updatedData = { ...d.data, updatedAt: now };
-      if (d.dateChanges.createdAt) updatedData.createdAt = d.dateChanges.createdAt;
-      if (d.dateChanges.designRequestDate) updatedData.designRequestDate = d.dateChanges.designRequestDate;
-      if (d.dateChanges.orderReceiptDate) updatedData.orderReceiptDate = d.dateChanges.orderReceiptDate;
-      if (d.dateChanges.desiredDate) {
-        updatedData.shipping = updatedData.shipping || {};
-        updatedData.shipping.desiredDate = d.dateChanges.desiredDate;
+      // dateChanges가 null인 경우(부가 필드만 갱신)에도 안전하게 처리
+      if (d.dateChanges) {
+        if (d.dateChanges.createdAt) updatedData.createdAt = d.dateChanges.createdAt;
+        if (d.dateChanges.designRequestDate) updatedData.designRequestDate = d.dateChanges.designRequestDate;
+        if (d.dateChanges.orderReceiptDate) updatedData.orderReceiptDate = d.dateChanges.orderReceiptDate;
+        if (d.dateChanges.desiredDate) {
+          updatedData.shipping = updatedData.shipping || {};
+          updatedData.shipping.desiredDate = d.dateChanges.desiredDate;
+        }
+        if (d.dateChanges.releaseDate) {
+          updatedData.shipping = updatedData.shipping || {};
+          updatedData.shipping.releaseDate = d.dateChanges.releaseDate;
+        }
+        if (d.dateChanges.shippedDate) {
+          updatedData.shipping = updatedData.shipping || {};
+          updatedData.shipping.shippedDate = d.dateChanges.shippedDate;
+        }
       }
-      if (d.dateChanges.releaseDate) {
-        updatedData.shipping = updatedData.shipping || {};
-        updatedData.shipping.releaseDate = d.dateChanges.releaseDate;
+      // 디자인 부가 필드 갱신 — design.status (revisionCount/designer 등 기존 값 보존)
+      if (d.designSubStatus) {
+        updatedData.design = { ...(updatedData.design || {}), status: d.designSubStatus };
       }
-      if (d.dateChanges.shippedDate) {
-        updatedData.shipping = updatedData.shipping || {};
-        updatedData.shipping.shippedDate = d.dateChanges.shippedDate;
+      // revisionStage: design_requested 상태일 때만 의미 — 다른 상태면 클리어
+      if (d.status === 'design_requested') {
+        updatedData.revisionStage = d.revisionStage || null;
+      } else if (d.status === 'design_confirmed' || d.status === 'draft_done') {
+        updatedData.revisionStage = null;
       }
       // data JSON 업데이트 (상태는 그대로 유지)
       db.prepare('UPDATE orders SET data = ?, updatedAt = ? WHERE id = ?').run(
         JSON.stringify(updatedData), now, d.orderId
       );
-      // 테이블 컬럼 업데이트
-      if (d.dateChanges.orderReceiptDate) {
+      // 테이블 컬럼 업데이트 (dateChanges 있을 때만)
+      if (d.dateChanges?.orderReceiptDate) {
         db.prepare('UPDATE orders SET orderReceiptDate = ? WHERE id = ?').run(d.dateChanges.orderReceiptDate, d.orderId);
       }
-      if (d.dateChanges.createdAt) {
+      if (d.dateChanges?.createdAt) {
         db.prepare('UPDATE orders SET createdAt = ? WHERE id = ?').run(d.dateChanges.createdAt, d.orderId);
       }
     }

@@ -19,7 +19,7 @@
 const STATUS_LABELS = {
     consult_started: '상담개시',
     design_requested: '시안요청',
-    draft_done: '초안 완료',
+    draft_done: '시안완료',
     revision: '수정 중',
     design_confirmed: '디자인확정',
     order_received: '주문서접수',

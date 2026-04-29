@@ -70,7 +70,7 @@ const STATUS_TABS = [
     { code: '', label: '전체 진행중' },
     { code: 'consult_started', label: '상담개시' },
     { code: 'design_requested', label: '시안요청' },
-    { code: 'draft_done', label: '초안완료' },
+    { code: 'draft_done', label: '시안완료' },
     { code: 'revision', label: '수정중' },
     { code: 'design_confirmed', label: '디자인확정' },
     { code: 'order_received', label: '주문서접수' },
