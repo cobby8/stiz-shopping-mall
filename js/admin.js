@@ -58,13 +58,11 @@ function getTagBadges(tags) {
 // 상태별 탭 정의 — STATUS_FLOW 순서에 맞춤
 // 수정: revision(수정중), production_done(생산완료), shipped(배송중) 누락 추가
 //
-// #5 CS 파트 슬림화 (2026-04-22): 아래 HIDDEN_CS_STATUSES 배열에 포함된 상태는
-// UI 렌더 단계에서만 탭이 숨겨진다. STATUS_TABS/PAGE_PRESETS.cs/STATUS_LABELS 원본은 보존.
-// 복구 방법: HIDDEN_CS_STATUSES = [] 로 비우면 즉시 3개 탭 복구.
-// 대상: payment_completed/work_instruction_pending/work_instruction_sent (stiz.db 실측 각 0건)
-// 살아있는 코드: consult_started(7건)/order_received(2건)은 계속 표시
-// 보존 이유: notification-templates.js L217 결제완료 알림톡 템플릿, 향후 확장 자산
-const HIDDEN_CS_STATUSES = ['payment_completed', 'work_instruction_pending', 'work_instruction_sent'];
+// #5 CS 파트 슬림화 (2026-04-22 → 2026-04-30 복구):
+// 결제확인/작업지시서 단계 자동화(SOLAPI 7종 등록 + popbill 세금계산서 + 토스 가상계좌)
+// 진행을 위해 HIDDEN 데드 스위치 해제. 3개 탭 모두 복구.
+// 향후 다시 숨기려면 ['payment_completed', 'work_instruction_pending', 'work_instruction_sent'].
+const HIDDEN_CS_STATUSES = [];
 
 const STATUS_TABS = [
     { code: '', label: '전체 진행중' },

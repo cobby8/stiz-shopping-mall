@@ -82,6 +82,7 @@ const ORDER_DETAIL_PRESETS = {
         tabs: ['customer', 'design', 'production', 'shipping', 'payment', 'history'],
         fields: null,
         showQuickStatus: true,
+        showPriorityActions: true,
         showContact: true,
         showComments: true,
         showTags: true,
@@ -99,6 +100,7 @@ const ORDER_DETAIL_PRESETS = {
             'design.status', 'design.revisionCount', 'design.designer', 'design.orderSheetUrl', 'design.designFileUrl'
         ],
         showQuickStatus: true,
+        showPriorityActions: true,
         showContact: false,
         showComments: true,
         showTags: true,
@@ -119,6 +121,7 @@ const ORDER_DETAIL_PRESETS = {
             'workInstruction.status', 'workInstruction.sentAt', 'workInstruction.sentBy', 'workInstruction.url', 'workInstruction.note'
         ],
         showQuickStatus: true,
+        showPriorityActions: true,
         showContact: true,
         showComments: true,
         showTags: true,
@@ -138,6 +141,7 @@ const ORDER_DETAIL_PRESETS = {
             'shipping.address', 'shipping.desiredDate', 'shipping.releaseDate', 'shipping.shippedDate', 'shipping.carrier', 'shipping.trackingNumber'
         ],
         showQuickStatus: true,
+        showPriorityActions: true,
         showContact: false,
         showComments: true,
         showTags: true,
@@ -158,6 +162,7 @@ const ORDER_DETAIL_PRESETS = {
             'shipping.shippedDate', 'shipping.carrier', 'shipping.trackingNumber'
         ],
         showQuickStatus: true,
+        showPriorityActions: true,
         showContact: true,
         showComments: true,
         showTags: false,
@@ -216,6 +221,9 @@ function applyDetailPreset() {
     });
 
     setDetailElementVisibility('quick-status-card', currentDetailPreset.showQuickStatus);
+    // 우선 처리 카드는 quick-status와 동일 권한(showPriorityActions). 카드 자체는 항상 보이지만
+    // 내부 버튼은 renderPriorityActions가 status별로 hidden 토글한다 (Phase A, 2026-04-30)
+    setDetailElementVisibility('priority-actions-card', currentDetailPreset.showPriorityActions !== false);
     setDetailElementVisibility('contact-card', currentDetailPreset.showContact);
     setDetailElementVisibility('comments-card', currentDetailPreset.showComments);
     setDetailElementVisibility('tags-section', currentDetailPreset.showTags);
@@ -284,6 +292,10 @@ async function loadOrderDetail(orderId) {
         renderHistory();
         if (currentDetailPreset.showQuickStatus) {
             renderQuickStatusButtons();
+        }
+        // 우선 처리 단축 버튼 렌더 (Phase A, 2026-04-30) — status 기반 표시 조건은 함수 내부에서 결정
+        if (currentDetailPreset.showPriorityActions !== false) {
+            renderPriorityActions();
         }
         if (currentDetailPreset.showContact) {
             renderContactInfo();
@@ -950,6 +962,159 @@ async function quickStatusChange(newStatus) {
     if (!confirm(`상태를 "${label}"(으)로 변경하시겠습니까?`)) return;
 
     await changeStatus(newStatus, '');
+}
+
+// ============================================================
+// 우선 처리 단축 버튼 (Phase A, 2026-04-30)
+// 비유: 식당 주문 카운터의 빨간 "주문 벨" 3개 — 디자인확정 전이라도 주문서 받고,
+// 결제 확인하고, 제작팀에 종 울리는 단축 동작
+// ============================================================
+
+/**
+ * 현재 status 기준으로 우선 처리 버튼 3종 표시 여부 + HTML 렌더링
+ *
+ * 표시 조건 매트릭스:
+ * - 주문서 우선 접수: 현재 status가 STATUS_FLOW에서 'order_received'보다 앞단 (consult/design 단계)
+ * - 결제 확인 완료: payment.totalAmount > 0 && !payment.paidDate && status !== 'cancelled'
+ * - 작업지시서 전송: status가 payment_completed 또는 work_instruction_pending
+ *
+ * 결제 확인 버튼은 기존 renderPaymentConfirmSection의 입력 폼을 재사용하기 위해
+ * 결제 탭으로 전환 + 입금 확인 영역으로 스크롤하는 방식으로 구현 (이중 입력 UI 방지)
+ */
+function renderPriorityActions() {
+    const card = document.getElementById('priority-actions-card');
+    const container = document.getElementById('priority-actions-buttons');
+    if (!card || !container || !currentOrder) return;
+
+    const status = currentOrder.status || '';
+    const orderReceivedIdx = STATUS_FLOW.indexOf('order_received');
+    const currentIdx = STATUS_FLOW.indexOf(status);
+    const payment = currentOrder.payment || {};
+
+    // 1. 주문서 우선 접수 표시 조건 — order_received 이전 단계 + 비종결(hold/cancelled 제외)
+    const showReceive = currentIdx >= 0 && currentIdx < orderReceivedIdx
+        && status !== 'hold' && status !== 'cancelled';
+
+    // 2. 결제 확인 표시 조건 — 미수금 상태 + 취소가 아닐 때
+    const showPayment = (payment.totalAmount || 0) > 0
+        && !payment.paidDate
+        && status !== 'cancelled';
+
+    // 3. 작업지시서 전송 표시 조건 — payment_completed 또는 work_instruction_pending
+    const showWorkInstruction = status === 'payment_completed' || status === 'work_instruction_pending';
+
+    // 셋 다 안 보이면 카드 자체를 숨김 (UI 노이즈 제거)
+    if (!showReceive && !showPayment && !showWorkInstruction) {
+        card.classList.add('hidden');
+        return;
+    }
+    card.classList.remove('hidden');
+
+    // 버튼 HTML 조립 — 표시 조건별로 buttons 배열에 push 후 join
+    // 색상 규약: 주문서=blue / 결제=green / 작업지시서=purple (시각적 구분)
+    const buttons = [];
+
+    if (showReceive) {
+        buttons.push(`
+            <button onclick="priorityReceiveOrder()"
+                class="w-full text-left px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-sm hover:bg-blue-100 transition-colors flex items-center justify-between min-h-[44px]"
+                title="디자인 확정 전이라도 주문서를 우선 접수합니다">
+                <span class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-base text-blue-600">assignment_turned_in</span>
+                    <span class="font-medium text-blue-700">주문서 우선 접수</span>
+                </span>
+                <span class="material-symbols-outlined text-base text-blue-400">arrow_forward</span>
+            </button>
+        `);
+    }
+
+    if (showPayment) {
+        const totalAmount = payment.totalAmount || 0;
+        buttons.push(`
+            <button onclick="priorityConfirmPayment()"
+                class="w-full text-left px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-sm hover:bg-green-100 transition-colors flex items-center justify-between min-h-[44px]"
+                title="입금 확인 폼으로 이동합니다">
+                <span class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-base text-green-600">account_balance_wallet</span>
+                    <span class="font-medium text-green-700">결제 확인 완료</span>
+                </span>
+                <span class="text-[11px] text-green-600">${formatCurrency(totalAmount)}</span>
+            </button>
+        `);
+    }
+
+    if (showWorkInstruction) {
+        buttons.push(`
+            <button onclick="prioritySendWorkInstruction()"
+                class="w-full text-left px-3 py-2 rounded-lg border border-purple-200 bg-purple-50 text-sm hover:bg-purple-100 transition-colors flex items-center justify-between min-h-[44px]"
+                title="제작팀에 작업지시서 전송 처리합니다">
+                <span class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-base text-purple-600">description</span>
+                    <span class="font-medium text-purple-700">작업지시서 전송</span>
+                </span>
+                <span class="material-symbols-outlined text-base text-purple-400">arrow_forward</span>
+            </button>
+        `);
+    }
+
+    container.innerHTML = buttons.join('');
+}
+
+/**
+ * 주문서 우선 접수 — status를 order_received로 직행
+ * 디자인 확정 전이라도 호출 가능 (현재 isStatusRegression 차단 없음 — D-22 시트 진리 원칙)
+ */
+async function priorityReceiveOrder() {
+    if (!currentOrder) return;
+
+    const currentLabel = STATUS_LABELS[currentOrder.status] || currentOrder.status;
+    const confirmMsg = `현재 상태(${currentLabel})에서 주문서를 우선 접수 처리합니다.\n\n`
+        + `상태가 "주문서접수"로 변경되며, 접수일이 오늘로 자동 기록됩니다.\n`
+        + `디자인이 아직 확정되지 않았어도 진행됩니다.\n\n계속하시겠습니까?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // 빈 메모로 changeStatus 호출 — applyStatusDateDefaults가 orderReceiptDate 자동 채움 (L1291)
+    await changeStatus('order_received', '주문서 우선 접수');
+}
+
+/**
+ * 결제 확인 단축 — 결제 탭으로 전환 + 입금 확인 폼으로 스크롤
+ * 기존 renderPaymentConfirmSection의 입금 확인 폼을 재사용 (이중 UI 방지)
+ * 폼 자체에 입금일/입금액/메모 입력 + status payment_completed 자동 트리거 로직 이미 존재
+ */
+function priorityConfirmPayment() {
+    if (!currentOrder) return;
+
+    // 결제 탭으로 전환
+    switchTab('payment');
+
+    // 입금 확인 영역으로 부드럽게 스크롤 + 첫 입력칸 포커스
+    // setTimeout으로 탭 전환 완료 후 실행 (DOM 표시 직후 scrollIntoView가 제대로 동작하도록)
+    setTimeout(() => {
+        const section = document.getElementById('payment-confirm-section');
+        if (section) {
+            section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        const dateInput = document.getElementById('confirm-paid-date');
+        if (dateInput) dateInput.focus();
+    }, 100);
+}
+
+/**
+ * 작업지시서 전송 단축 — status를 work_instruction_sent로 변경
+ * applyStatusDateDefaults가 workInstruction.sentAt 자동 채움 (L1302)
+ */
+async function prioritySendWorkInstruction() {
+    if (!currentOrder) return;
+
+    const currentLabel = STATUS_LABELS[currentOrder.status] || currentOrder.status;
+    const confirmMsg = `현재 상태(${currentLabel})에서 작업지시서 전송 처리합니다.\n\n`
+        + `상태가 "작업지시서 전송후"로 변경되며, 전송 시각이 오늘로 기록됩니다.\n\n계속하시겠습니까?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    await changeStatus('work_instruction_sent', '작업지시서 전송');
 }
 
 // ============================================================
