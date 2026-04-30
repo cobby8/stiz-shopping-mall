@@ -1117,6 +1117,70 @@ async function prioritySendWorkInstruction() {
     await changeStatus('work_instruction_sent', '작업지시서 전송');
 }
 
+/**
+ * 견적서 PDF 다운로드 (Phase B-1, 2026-04-30)
+ *
+ * 비유: "주문서 → 견적서 PDF" 자동 영수증 발급기
+ *  - 서버 GET /api/admin/orders/:orderNumber/quote.pdf 호출
+ *  - 응답을 blob으로 받아 임시 URL 생성 → <a download>로 강제 다운로드
+ *  - window.open() 단순 호출은 JWT Authorization 헤더를 못 실어 401 발생 → blob 패턴 사용
+ *
+ * 토큰: adminFetch가 자동으로 Bearer 토큰 부착 (admin-common.js)
+ */
+async function downloadQuotePdf() {
+    if (!currentOrder || !currentOrder.orderNumber) {
+        alert('주문 정보가 없습니다.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-quote-pdf');
+    const originalText = btn ? btn.innerHTML : '';
+
+    try {
+        // 버튼 잠시 비활성화 + "생성 중" 표시 (UX 안정감)
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-base mr-1 animate-spin">progress_activity</span>생성 중...';
+        }
+
+        // adminFetch는 JWT 토큰 자동 부착 + 401 처리. PDF는 그냥 응답을 blob으로 받음
+        const res = await adminFetch(`/api/admin/orders/${encodeURIComponent(currentOrder.orderNumber)}/quote.pdf`);
+
+        if (!res.ok) {
+            // 서버가 404/500 보낸 경우 — JSON 에러 메시지 시도
+            let errMsg = `견적서 생성 실패 (HTTP ${res.status})`;
+            try {
+                const errBody = await res.json();
+                if (errBody.error) errMsg = errBody.error;
+            } catch (_) { /* PDF 응답 도중 깨졌으면 JSON 아님 */ }
+            alert(errMsg);
+            return;
+        }
+
+        // PDF blob → 임시 URL → 가상 링크 클릭으로 다운로드 트리거
+        // 비유: "장바구니에 PDF 담기 → 결제 = 클릭" 한 번에 처리
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quote-${currentOrder.orderNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // Object URL은 메모리 점유 → 다음 tick에 해제
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+        console.error('[downloadQuotePdf] 실패:', err);
+        alert('견적서 PDF 다운로드 중 오류가 발생했습니다.\n\n' + (err.message || ''));
+    } finally {
+        // 버튼 원상 복구
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
 // ============================================================
 // 고객 연락 정보 렌더링
 // ============================================================

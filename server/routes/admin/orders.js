@@ -44,8 +44,19 @@ import { sendNotification } from '../../services/notification.js';
 import { STATUS_TO_NOTIFICATION_TYPE } from '../../services/notification-templates.js';
 // admin.js에 잔류하는 공유 헬퍼 — stats.js와 동일 패턴(순환 참조는 ESM hoisting으로 안전, L1783 하단 export)
 import { normalizeOrderStatus } from '../admin.js';
+// 견적서 PDF 라우트 (Phase B-1, 2026-04-30)
+// 비유: "주문 캐비닛"에 "견적서 자동 출력기" 한 대를 같은 사무실 안에 추가한 것
+//  - 최종 URL: GET /api/admin/orders/:orderNumber/quote.pdf
+//  - quote.js는 /:orderNumber/quote.pdf 한 개 라우트만 정의 → 여기서 router.use('/', ...)로 루트 마운트
+//  - ⚠️ /:id 같은 동적 라우트와 충돌하지 않도록 quoteRouter는 :id 정의보다 위에 위치시킬 수도 있지만,
+//    Express는 `:orderNumber/quote.pdf`처럼 경로 끝에 `/quote.pdf`가 붙으면 `/:id`(/끝)와 매칭되지 않으므로 안전
+import quoteRouter from './quote.js';
 
 const router = express.Router();
+
+// quote 라우터 마운트 — /:orderNumber/quote.pdf
+// 정적/동적 라우트 정의 전에 마운트해 충돌 가능성 최소화
+router.use('/', quoteRouter);
 
 // ─────────────────────────────────────────────────────────────
 // orders 전용 헬퍼 (admin.js L50~56에서 이동)

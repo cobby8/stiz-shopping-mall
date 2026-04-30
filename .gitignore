@@ -32,3 +32,10 @@ test-*.js
 # K2 챗봇 지식 빌드 결과물 (DB에서 매번 빌드 가능, 개발자별 데이터 상태 상이)
 server/data/knowledge/products.json
 server/data/knowledge/products.json.tmp
+
+# 견적서 PDF 한글 폰트 (Phase B-1, 2026-04-30)
+# 폰트 파일은 저장소 비대화 방지 위해 추적 제외 (README.md 안내 따라 사용자가 다운로드)
+server/assets/fonts/*.ttf
+server/assets/fonts/*.otf
+server/assets/fonts/*.woff
+server/assets/fonts/*.woff2

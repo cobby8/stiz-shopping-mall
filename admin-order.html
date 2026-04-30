@@ -865,6 +865,18 @@
                                 <p class="field-label">견적서 링크</p>
                                 <p class="field-value" data-field="payment.quoteUrl">-</p>
                             </div>
+                            <!-- 견적서 PDF 자동 생성 버튼 (Phase B-1, 2026-04-30) -->
+                            <!-- 비유: 외부 PDF 도구(엑셀/한글) 수동 제작 → 한 번 클릭으로 자동 생성 -->
+                            <!-- 동작: 새 탭으로 PDF 스트림 열기 (브라우저가 다운로드 처리) -->
+                            <div class="md:col-span-3 mt-2">
+                                <button type="button" id="btn-quote-pdf" onclick="downloadQuotePdf()"
+                                    class="inline-flex items-center px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors min-h-[40px]"
+                                    title="현재 주문 정보를 견적서 PDF로 자동 생성합니다">
+                                    <span class="material-symbols-outlined text-base mr-1">picture_as_pdf</span>
+                                    견적서 PDF 다운로드
+                                </button>
+                                <span class="ml-2 text-[11px] text-gray-400">A4 / 한글 폰트 임베드 / 유효기간 30일</span>
+                            </div>
                         </div>
 
                         <!-- 원가/마진 영역 -->
