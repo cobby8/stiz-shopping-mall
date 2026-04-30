@@ -94,14 +94,20 @@
     </main>
 
     <!-- 문의 작성 모달 -->
+    <!-- 비유: 우체국 창구 — 일반 문의는 단순 편지, 샘플 요청은 등기 소포(받는 사람 주소 필수) -->
     <div id="writeModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg w-full max-w-lg">
+        <div class="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold">문의 작성</h2>
+                    <h2 class="text-xl font-bold" id="writeModalTitle">문의 작성</h2>
                     <button onclick="closeWriteModal()" class="text-gray-400 hover:text-black">
                         <span class="material-symbols-outlined">close</span>
                     </button>
+                </div>
+                <!-- 샘플 모드 안내 배너 (?topic=sample일 때만 표시) -->
+                <div id="sampleNotice" class="hidden mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-xs text-yellow-800 rounded">
+                    <strong>착불 발송 안내</strong> — 샘플은 <strong>착불</strong>로 발송됩니다(배송비는 받는 분 부담).<br>
+                    원단·시안 검토 후 영업일 기준 1~2일 내 발송됩니다.
                 </div>
                 <form id="inquiryForm" onsubmit="submitInquiry(event)">
                     <div class="mb-4">
@@ -110,13 +116,73 @@
                             class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none"
                             placeholder="문의 제목을 입력하세요">
                     </div>
-                    <div class="mb-4">
+
+                    <!-- 샘플 요청 전용 필드 묶음 (?topic=sample일 때만 보임, JS에서 hidden 토글) -->
+                    <div id="sampleFields" class="hidden">
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">샘플 종류 <span class="text-red-500">*</span></label>
+                            <select id="sampleType"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none bg-white">
+                                <option value="">선택해 주세요</option>
+                                <option value="fabric">원단 샘플</option>
+                                <option value="design">디자인 시안 샘플</option>
+                                <option value="both">원단 + 디자인 시안 (둘 다)</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">받는 분 <span class="text-red-500">*</span></label>
+                                <input type="text" id="sampleName"
+                                    class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none"
+                                    placeholder="이름">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">연락처 <span class="text-red-500">*</span></label>
+                                <input type="tel" id="samplePhone"
+                                    class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none"
+                                    placeholder="010-0000-0000">
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">우편번호 <span class="text-red-500">*</span></label>
+                            <div class="flex gap-2">
+                                <input type="text" id="samplePostalCode" readonly
+                                    class="w-32 border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50 outline-none"
+                                    placeholder="00000">
+                                <button type="button" onclick="openPostcodeSearch()"
+                                    class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-sm font-bold rounded transition-colors">
+                                    주소 검색
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">기본 주소 <span class="text-red-500">*</span></label>
+                            <input type="text" id="sampleAddress" readonly
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm bg-gray-50 outline-none"
+                                placeholder="주소 검색을 눌러 주세요">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">상세 주소 <span class="text-red-500">*</span></label>
+                            <input type="text" id="sampleAddressDetail"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none"
+                                placeholder="동/호수 등 상세 주소">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">요청 사유 (선택)</label>
+                            <textarea id="sampleReason" rows="3"
+                                class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none resize-none"
+                                placeholder="어떤 용도로 검토하시는지 적어 주시면 더 정확한 샘플을 보내드릴 수 있어요."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 일반 문의 본문 (?topic=sample이 아닐 때만 표시) -->
+                    <div id="inquiryContentWrap" class="mb-4">
                         <label class="block text-xs font-bold text-gray-500 mb-1">내용</label>
-                        <textarea id="inquiryContent" required rows="6"
+                        <textarea id="inquiryContent" rows="6"
                             class="w-full border border-gray-300 rounded px-4 py-3 text-sm focus:border-black outline-none resize-none"
                             placeholder="문의 내용을 상세히 적어주세요"></textarea>
                     </div>
-                    <div class="mb-6">
+                    <div class="mb-6" id="inquirySecretWrap">
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" id="inquirySecret" class="w-4 h-4">
                             <span class="text-sm text-gray-600">비밀글로 작성</span>
@@ -165,9 +231,14 @@
     <script src="js/header_render.js" defer></script>
     <script src="js/chatbot.js" defer></script>
     <script src="js/auth.js" defer></script>
+    <!-- 다음 우편번호 검색 (샘플 요청 배송지 입력에 사용) — Daum/Kakao 무료 CDN -->
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
     <script>
         let currentPage = 1;
         const PAGE_LIMIT = 10;
+        // 샘플 요청 모드 플래그 — ?topic=sample 일 때 true. submitInquiry에서 분기 사용
+        // 비유: 우체국에 들어갈 때 들고 온 봉투 종류(편지/소포)를 미리 메모해두는 셈
+        let isSampleMode = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             loadInquiries();
@@ -177,6 +248,7 @@
 
         // URL 파라미터로 들어온 문의 맥락 처리
         // - ?topic=password-reset → login.html "비밀번호 찾기"에서 유입 → 비밀번호 재설정 문의
+        // - ?topic=sample        → 샘플 요청 (샘플 종류/배송지 입력 폼 활성화)
         // - ?source=custom       → custom.html "무료 시안 요청" 카드에서 유입 → 시안 문의
         // 비로그인 사용자는 openWriteModal()이 login.html로 리다이렉트하므로 로직 전체 스킵
         function handleInquiryDeepLink() {
@@ -190,6 +262,9 @@
                 let presetTitle = null;
                 if (topic === 'password-reset') {
                     presetTitle = '[비밀번호 재설정] 로그인 도움 요청';
+                } else if (topic === 'sample') {
+                    presetTitle = '[샘플 요청] 원단/시안 샘플 발송 요청';
+                    isSampleMode = true; // 샘플 모드 ON — 추가 필드 노출 + 제출 분기
                 } else if (source === 'custom') {
                     presetTitle = '[무료 시안 요청] 디자이너 시안 문의';
                 }
@@ -211,6 +286,25 @@
             } catch (e) {
                 console.warn('[inquiry] deep-link prefill failed:', e);
             }
+        }
+
+        // 다음 우편번호 검색 팝업 — 결과를 폼에 채워 넣음
+        // 비유: "주소 검색" 버튼을 누르면 작은 검색창이 뜨고, 고른 주소가 자동으로 칸에 들어감
+        function openPostcodeSearch() {
+            if (typeof daum === 'undefined' || !daum.Postcode) {
+                alert('우편번호 검색을 불러올 수 없습니다. 새로고침 후 다시 시도해 주세요.');
+                return;
+            }
+            new daum.Postcode({
+                oncomplete: function (data) {
+                    // 도로명 주소 우선, 없으면 지번 주소 사용
+                    const addr = data.roadAddress || data.jibunAddress || '';
+                    document.getElementById('samplePostalCode').value = data.zonecode || '';
+                    document.getElementById('sampleAddress').value = addr;
+                    // 입력 편의 — 상세 주소 칸으로 포커스 이동
+                    document.getElementById('sampleAddressDetail').focus();
+                }
+            }).open();
         }
 
         // 문의 목록 로드
@@ -332,11 +426,34 @@
         }
 
         // 모달 열기/닫기
+        // 샘플 모드일 때는 추가 필드(샘플 종류/배송지) 영역을 보여주고 제목/안내 문구도 바꾼다
         function openWriteModal() {
             if (!isLoggedIn()) {
                 alert('로그인이 필요합니다.');
                 location.href = 'login.html';
                 return;
+            }
+            const sampleFields = document.getElementById('sampleFields');
+            const sampleNotice = document.getElementById('sampleNotice');
+            const titleEl = document.getElementById('writeModalTitle');
+            const contentWrap = document.getElementById('inquiryContentWrap');
+            const secretWrap = document.getElementById('inquirySecretWrap');
+            if (isSampleMode) {
+                sampleFields.classList.remove('hidden');   // 샘플 필드 표시
+                sampleNotice.classList.remove('hidden');   // 착불 안내 표시
+                if (titleEl) titleEl.textContent = '샘플 요청 작성';
+                // 샘플 모드에서는 일반 본문/비밀글 체크박스는 숨김 (요청 사유로 대체)
+                if (contentWrap) contentWrap.classList.add('hidden');
+                if (secretWrap) secretWrap.classList.add('hidden');
+                // 본문은 서버 NOT NULL 컬럼이므로 자동 채움(아래 submit에서 사유로 합성)
+                document.getElementById('inquiryContent').required = false;
+            } else {
+                sampleFields.classList.add('hidden');
+                sampleNotice.classList.add('hidden');
+                if (titleEl) titleEl.textContent = '문의 작성';
+                if (contentWrap) contentWrap.classList.remove('hidden');
+                if (secretWrap) secretWrap.classList.remove('hidden');
+                document.getElementById('inquiryContent').required = true;
             }
             document.getElementById('writeModal').classList.remove('hidden');
         }
@@ -348,17 +465,80 @@
             document.getElementById('detailModal').classList.add('hidden');
         }
 
-        // 문의 제출
+        // 한국 휴대폰 번호 간단 검증 — 010/011/016/017/018/019 + 7~8자리
+        // 비유: 우체부가 받을 수 있는 양식의 번호인지 미리 확인하는 셈
+        function isValidKoreanPhone(v) {
+            if (!v) return false;
+            const digits = v.replace(/[^0-9]/g, '');
+            return /^(01[016789])\d{7,8}$/.test(digits);
+        }
+
+        // 문의 제출 (일반 / 샘플 분기)
         async function submitInquiry(e) {
             e.preventDefault();
             const token = getToken();
             if (!token) { alert('로그인이 필요합니다.'); return; }
 
             const title = document.getElementById('inquiryTitle').value.trim();
+            if (!title) { alert('제목을 입력해주세요.'); return; }
+
+            // ────────── 샘플 요청 분기 ──────────
+            if (isSampleMode) {
+                const sampleType = document.getElementById('sampleType').value;
+                const name = document.getElementById('sampleName').value.trim();
+                const phone = document.getElementById('samplePhone').value.trim();
+                const postalCode = document.getElementById('samplePostalCode').value.trim();
+                const address = document.getElementById('sampleAddress').value.trim();
+                const addressDetail = document.getElementById('sampleAddressDetail').value.trim();
+                const reason = document.getElementById('sampleReason').value.trim();
+
+                // 입력 검증 — 우편번호 5자리, 전화번호 한국 형식, 빈값 차단
+                if (!sampleType) { alert('샘플 종류를 선택해 주세요.'); return; }
+                if (!name) { alert('받는 분 이름을 입력해 주세요.'); return; }
+                if (!isValidKoreanPhone(phone)) { alert('올바른 휴대폰 번호를 입력해 주세요. 예) 010-1234-5678'); return; }
+                if (!/^\d{5}$/.test(postalCode)) { alert('우편번호 검색 버튼으로 우편번호를 채워 주세요.'); return; }
+                if (!address) { alert('기본 주소를 입력해 주세요. (주소 검색 사용)'); return; }
+                if (!addressDetail) { alert('상세 주소를 입력해 주세요.'); return; }
+
+                // 본문은 NOT NULL이므로 사용자에게 보일 요약문을 자동 합성
+                const contentSummary =
+                    `[샘플 요청]\n종류: ${({fabric:'원단',design:'시안',both:'원단+시안'}[sampleType] || sampleType)}\n` +
+                    `받는 분: ${name} (${phone})\n` +
+                    `주소: (${postalCode}) ${address} ${addressDetail}\n` +
+                    (reason ? `사유: ${reason}` : '사유: (미기재)');
+
+                try {
+                    const res = await fetch('/api/board', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            boardType: 'sample',          // 샘플 요청 신규 타입
+                            title,
+                            content: contentSummary,
+                            isSecret: true,               // 배송지 포함이라 기본 비밀글
+                            sampleData: { sampleType, name, phone, postalCode, address, addressDetail, reason }
+                        })
+                    });
+                    const data = await res.json();
+                    if (!data.success) throw new Error(data.error);
+
+                    alert('샘플 요청이 접수되었습니다. 검토 후 연락드리겠습니다.');
+                    closeWriteModal();
+                    isSampleMode = false; // 다음 모달 오픈 시 일반 모드로 복귀
+                    location.href = 'inquiry.html'; // ?topic=sample 제거
+                } catch (err) {
+                    alert(err.message || '샘플 요청 등록에 실패했습니다.');
+                }
+                return;
+            }
+
+            // ────────── 일반 문의 (기존 흐름) ──────────
             const content = document.getElementById('inquiryContent').value.trim();
             const isSecret = document.getElementById('inquirySecret').checked;
-
-            if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
+            if (!content) { alert('내용을 입력해주세요.'); return; }
 
             try {
                 const res = await fetch('/api/board', {

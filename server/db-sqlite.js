@@ -62,6 +62,20 @@ try {
     // 이미 존재하면 무시
 }
 
+// --- 마이그레이션: board_posts 테이블에 data 컬럼 추가 (샘플 요청 등 구조화 데이터용) ---
+// 비유: 게시판 글에 "첨부 봉투"를 하나 더 마련하는 셈 — 본문 외 배송지/연락처 같은 구조화 정보를
+// JSON 문자열로 보관해서 일반 글에는 영향 없고, 샘플 요청 같은 새 타입만 활용한다.
+try {
+    const boardCols = db.pragma('table_info(board_posts)');
+    const hasData = boardCols.some(c => c.name === 'data');
+    if (!hasData) {
+        db.exec("ALTER TABLE board_posts ADD COLUMN data TEXT");
+        console.log('[DB] board_posts 테이블에 data 컬럼 추가 완료');
+    }
+} catch (e) {
+    // 이미 존재하면 무시 (idempotent)
+}
+
 // --- [P0-1] 마이그레이션: orders 테이블에 paymentKey 컬럼 + 부분 UNIQUE 인덱스 추가 ---
 // 비유: 결제 영수증 번호(토스가 발급)를 봉투 앞면에 적어두는 칸을 추가하는 것.
 //       기존 8,073건 주문은 빈값(NULL)이라 중복 허용되고, 신규 PG 결제만 UNIQUE 검증된다.

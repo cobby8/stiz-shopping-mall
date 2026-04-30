@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <link rel="icon" type="image/png" href="images/favicon-32.png">
+    <meta charset="UTF-8">
+    <!-- 관리자 진입 가드 — 미인증/만료/일반회원이면 admin-login.html 로 즉시 리다이렉트 (P1-1, 2026-04-29) -->
+    <script src="js/admin-guard.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIZ Admin - 게시판 관리 (샘플 요청)</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // 다른 admin-*.html 과 동일한 컬러/폰트 토큰 (브랜드 통일)
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#111111',
+                            red: '#E63946',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Material Symbols 아이콘 -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <style>
+        /* 모달 오버레이 */
+        .modal-overlay { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
+        .modal-content { animation: fadeInUp 0.2s ease-out; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 4단계 진행 뱃지 — "신청 → 검토 → 발송 → 완료" 색 구분으로 한눈에 단계 식별 */
+        .stage-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 11px; font-weight: 600; line-height: 1.4; white-space: nowrap;
+        }
+        .stage-requested  { background: #fef3c7; color: #b45309; }   /* 노랑 — 신청 */
+        .stage-reviewing  { background: #dbeafe; color: #1d4ed8; }   /* 파랑 — 검토 */
+        .stage-shipped    { background: #ede9fe; color: #6d28d9; }   /* 보라 — 발송 */
+        .stage-delivered  { background: #d1fae5; color: #047857; }   /* 초록 — 완료 */
+
+        /* 헤더 드롭다운 (다른 admin 페이지와 동일) */
+        .nav-dropdown { position: relative; }
+        .nav-dropdown-trigger {
+            display: inline-flex; align-items: center; gap: 4px;
+            color: #9ca3af; transition: color 0.15s;
+            background: transparent; border: none; cursor: pointer;
+            font: inherit; padding: 0;
+        }
+        .nav-dropdown-trigger:hover { color: #ffffff; }
+        .nav-dropdown-chevron { width: 14px; height: 14px; transition: transform 0.15s; }
+        .nav-dropdown-trigger[aria-expanded="true"] { color: #ffffff; }
+        .nav-dropdown-trigger[aria-expanded="true"] .nav-dropdown-chevron { transform: rotate(180deg); }
+        .nav-dropdown-panel {
+            display: none; position: absolute; top: calc(100% + 8px); left: 0;
+            min-width: 180px; background: #111111;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            padding: 6px 0; z-index: 50;
+        }
+        .nav-dropdown-item {
+            display: block; padding: 8px 16px; color: #d1d5db;
+            font-size: 14px; transition: background 0.15s, color 0.15s;
+        }
+        .nav-dropdown-item:hover { background: rgba(255,255,255,0.06); color: #ffffff; }
+        @media (min-width: 768px) {
+            .nav-dropdown:hover .nav-dropdown-panel,
+            .nav-dropdown-trigger[aria-expanded="true"] + .nav-dropdown-panel { display: block; }
+            .nav-dropdown::after {
+                content: ''; position: absolute; top: 100%; left: 0; right: 0;
+                height: 8px; pointer-events: none;
+            }
+            .nav-dropdown:hover::after { pointer-events: auto; }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans antialiased text-gray-900">
+
+    <!-- ============================================== -->
+    <!-- 관리자 헤더 — admin-faq.html 패턴 그대로 (브랜드 통일) -->
+    <!-- ============================================== -->
+    <header class="bg-brand-black text-white sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <button id="adminMobileToggle" type="button"
+                    class="md:hidden inline-flex items-center justify-center w-11 h-11 -ml-2 text-gray-300 hover:text-white"
+                    aria-label="메뉴 열기" aria-controls="adminMobileDrawer" aria-expanded="false">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <a href="index.html" class="text-xl font-bold tracking-tight">STIZ</a>
+                <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+            </div>
+
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="admin-home.html" class="text-gray-400 hover:text-white transition-colors">홈</a>
+                <div class="nav-dropdown" data-nav-group="orders">
+                    <button id="nav-orders-trigger" type="button" class="nav-dropdown-trigger"
+                        aria-haspopup="true" aria-expanded="false" aria-controls="nav-orders-panel">
+                        <span>주문현황</span>
+                        <svg class="nav-dropdown-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div id="nav-orders-panel" class="nav-dropdown-panel" role="menu" aria-labelledby="nav-orders-trigger">
+                        <a href="admin.html" role="menuitem" class="nav-dropdown-item">전체 주문</a>
+                        <a href="admin.html?view=design" role="menuitem" data-admin-scope="all,design" class="nav-dropdown-item">디자인 파트</a>
+                        <a href="admin.html?view=cs" role="menuitem" data-admin-scope="all,cs" class="nav-dropdown-item">CS 파트</a>
+                        <a href="admin.html?view=production" role="menuitem" data-admin-scope="all,production" class="nav-dropdown-item">제작 파트</a>
+                        <a href="admin.html?view=shipping" role="menuitem" data-admin-scope="all,shipping" class="nav-dropdown-item">출고 파트</a>
+                    </div>
+                </div>
+                <a href="admin-calendar.html" class="text-gray-400 hover:text-white transition-colors">일정표</a>
+                <a href="admin-analytics.html" class="text-gray-400 hover:text-white transition-colors">매출 분석</a>
+                <a href="admin-customers.html" class="text-gray-400 hover:text-white transition-colors">고객 관리</a>
+                <a href="admin-catalog.html" class="text-gray-400 hover:text-white transition-colors">상품설정</a>
+                <a href="admin-products.html" class="text-gray-400 hover:text-white transition-colors">상품관리</a>
+                <a href="admin-faq.html" class="text-gray-400 hover:text-white transition-colors">챗봇 FAQ</a>
+                <!-- 본인: 게시판 관리(샘플) — active 강조 -->
+                <a href="admin-board.html" class="text-white font-medium border-b-2 border-brand-red pb-1">게시판</a>
+                <a href="index.html" class="text-gray-400 hover:text-white transition-colors">쇼핑몰 보기</a>
+            </nav>
+
+            <div class="flex items-center space-x-4">
+                <span id="admin-name" class="text-sm text-gray-300"></span>
+                <a href="admin-settings.html" class="text-gray-400 hover:text-white transition-colors" title="설정">
+                    <span class="material-symbols-outlined text-xl">settings</span>
+                </a>
+                <button onclick="handleLogout()" class="text-sm text-gray-400 hover:text-white transition-colors flex items-center space-x-1">
+                    <span class="material-symbols-outlined text-base">logout</span>
+                    <span>로그아웃</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 모바일 드로어 (단순화) -->
+        <div id="adminMobileDrawer" class="md:hidden hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-hidden="true" aria-label="관리자 메뉴">
+            <div data-drawer-overlay class="absolute inset-0 bg-black/60"></div>
+            <aside class="relative bg-brand-black text-white w-72 max-w-[85%] h-full shadow-xl flex flex-col">
+                <div class="flex items-center justify-between h-16 px-6 border-b border-white/10">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg font-bold tracking-tight">STIZ</span>
+                        <span class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded">ADMIN</span>
+                    </div>
+                    <button type="button" data-drawer-close
+                        class="inline-flex items-center justify-center w-11 h-11 text-gray-300 hover:text-white" aria-label="메뉴 닫기">
+                        <span class="material-symbols-outlined text-2xl">close</span>
+                    </button>
+                </div>
+                <nav class="flex-1 overflow-y-auto py-2">
+                    <a href="admin-home.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">홈</a>
+                    <a href="admin.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">주문현황</a>
+                    <a href="admin.html?view=cs" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">CS 파트</a>
+                    <a href="admin-calendar.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">일정표</a>
+                    <a href="admin-customers.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">고객 관리</a>
+                    <a href="admin-faq.html" class="flex items-center min-h-[44px] px-6 py-3 text-gray-300 hover:text-white hover:bg-white/5">챗봇 FAQ</a>
+                    <a href="admin-board.html" class="flex items-center min-h-[44px] px-6 py-3 text-white font-medium bg-white/10" aria-current="page">게시판 (샘플)</a>
+                </nav>
+            </aside>
+        </div>
+    </header>
+
+    <!-- ============================================== -->
+    <!-- 메인 콘텐츠 -->
+    <!-- ============================================== -->
+    <main class="container mx-auto px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8 max-w-7xl">
+
+        <!-- 페이지 타이틀 -->
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <span class="material-symbols-outlined text-brand-red">inventory_2</span>
+                샘플 요청 관리
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">
+                고객이 inquiry.html 에서 신청한 샘플(원단/시안) 발송 요청을 관리합니다.
+                4단계 — <strong>신청 → 검토 → 발송 → 완료</strong> 로 처리하세요. 발송 단계에서는 운송장 번호가 필수입니다.
+            </p>
+        </div>
+
+        <!-- 단계별 카운트 (간단 통계) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6" id="stage-stats">
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-xs text-gray-500">신청</div>
+                <div class="text-2xl font-bold text-yellow-700" id="cnt-requested">-</div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-xs text-gray-500">검토중</div>
+                <div class="text-2xl font-bold text-blue-700" id="cnt-reviewing">-</div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-xs text-gray-500">발송중</div>
+                <div class="text-2xl font-bold text-purple-700" id="cnt-shipped">-</div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="text-xs text-gray-500">완료</div>
+                <div class="text-2xl font-bold text-green-700" id="cnt-delivered">-</div>
+            </div>
+        </div>
+
+        <!-- 목록 -->
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <div class="text-sm font-bold">샘플 요청 목록 <span id="post-count" class="text-gray-400 font-normal">(0건)</span></div>
+                <button onclick="loadSamples()" class="text-xs text-gray-500 hover:text-black flex items-center gap-1">
+                    <span class="material-symbols-outlined text-base">refresh</span>
+                    <span>새로고침</span>
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-500 text-xs">
+                        <tr>
+                            <th class="px-3 py-2 text-left">신청일</th>
+                            <th class="px-3 py-2 text-left">신청자</th>
+                            <th class="px-3 py-2 text-left">샘플 종류</th>
+                            <th class="px-3 py-2 text-left">받는 분 / 연락처</th>
+                            <th class="px-3 py-2 text-left">단계</th>
+                            <th class="px-3 py-2 text-center">처리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sample-list">
+                        <tr><td colspan="6" class="text-center py-8 text-gray-400">로딩 중…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- 페이지네이션 -->
+            <div id="pagination" class="flex justify-center gap-2 py-4"></div>
+        </div>
+    </main>
+
+    <!-- ============================================== -->
+    <!-- 상세/처리 모달 — 신청 정보 + 4단계 액션 + 운송장/메모 -->
+    <!-- ============================================== -->
+    <div id="detailModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto modal-content">
+            <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold" id="modalTitle">샘플 요청 상세</h2>
+                        <div class="text-xs text-gray-400 mt-1" id="modalMeta"></div>
+                    </div>
+                    <button onclick="closeDetailModal()" class="text-gray-400 hover:text-black">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <!-- 단계 표시 -->
+                <div class="mb-4">
+                    <div class="text-xs font-bold text-gray-500 mb-1">현재 단계</div>
+                    <div id="modalStage"></div>
+                </div>
+
+                <!-- 신청 정보 -->
+                <div class="bg-gray-50 rounded-lg p-4 mb-4 text-sm space-y-2">
+                    <div><span class="text-gray-500 inline-block w-24">샘플 종류</span> <span id="modalSampleType" class="font-medium"></span></div>
+                    <div><span class="text-gray-500 inline-block w-24">받는 분</span> <span id="modalShippingName" class="font-medium"></span></div>
+                    <div><span class="text-gray-500 inline-block w-24">연락처</span> <span id="modalShippingPhone" class="font-medium"></span></div>
+                    <div><span class="text-gray-500 inline-block w-24">주소</span> <span id="modalShippingAddress" class="font-medium"></span></div>
+                    <div><span class="text-gray-500 inline-block w-24">사유</span> <span id="modalReason"></span></div>
+                </div>
+
+                <!-- 운송장/메모 입력 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">운송장 번호</label>
+                        <input type="text" id="modalTracking"
+                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-brand-red"
+                            placeholder="발송 단계 진입 시 필수">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">관리자 메모 (선택)</label>
+                        <input type="text" id="modalMemo"
+                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-brand-red"
+                            placeholder="내부 메모">
+                    </div>
+                </div>
+
+                <!-- 4단계 액션 버튼 -->
+                <div class="flex flex-wrap gap-2">
+                    <button data-action-stage="reviewing"
+                        class="flex-1 min-w-[120px] px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded transition-colors">
+                        검토 시작
+                    </button>
+                    <button data-action-stage="shipped"
+                        class="flex-1 min-w-[120px] px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded transition-colors">
+                        발송 처리
+                    </button>
+                    <button data-action-stage="delivered"
+                        class="flex-1 min-w-[120px] px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded transition-colors">
+                        완료 처리
+                    </button>
+                </div>
+                <div class="text-[11px] text-gray-400 mt-3">
+                    * 단계는 역행도 가능합니다(운영 실수 복구용). 발송 처리 시 운송장 번호가 필수입니다.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- 스크립트 -->
+    <!-- ============================================== -->
+    <script>
+        // 토큰 헬퍼 — admin은 stiz_admin_token을 사용 (CLAUDE.md 표준)
+        function getAdminToken() {
+            return localStorage.getItem('stiz_admin_token') || '';
+        }
+        function handleLogout() {
+            localStorage.removeItem('stiz_admin_token');
+            location.href = 'admin-login.html';
+        }
+
+        // 관리자 이름 표시 (다른 admin 페이지와 동일 패턴 — JWT payload 디코드)
+        (function setAdminName() {
+            try {
+                const tok = getAdminToken();
+                if (!tok) return;
+                const payload = JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                const el = document.getElementById('admin-name');
+                if (el) el.textContent = payload.name || payload.email || '관리자';
+            } catch {}
+        })();
+
+        // 단계 한글 라벨
+        const STAGE_LABEL = {
+            requested: '신청', reviewing: '검토중', shipped: '발송중', delivered: '완료'
+        };
+        const STAGES = ['requested', 'reviewing', 'shipped', 'delivered'];
+
+        let currentPage = 1;
+        const PAGE_LIMIT = 20;
+        let cachedPosts = [];   // 모달 열 때 다시 fetch 안 하도록 캐시
+        let currentPostId = null;
+
+        // 한국어 휴대폰 표시 — 010-1234-5678 패턴으로 포매팅
+        function formatPhone(digits) {
+            const s = String(digits || '').replace(/[^0-9]/g, '');
+            if (s.length === 11) return s.slice(0, 3) + '-' + s.slice(3, 7) + '-' + s.slice(7);
+            if (s.length === 10) return s.slice(0, 3) + '-' + s.slice(3, 6) + '-' + s.slice(6);
+            return s;
+        }
+
+        // 단계 뱃지 HTML 생성
+        function renderStageBadge(stage) {
+            const cls = 'stage-' + (stage || 'requested');
+            const label = STAGE_LABEL[stage] || stage || '-';
+            return `<span class="stage-badge ${cls}">${label}</span>`;
+        }
+
+        // 샘플 종류 라벨
+        function sampleTypeLabel(t) {
+            return ({ fabric: '원단', design: '시안', both: '원단+시안' }[t] || t || '-');
+        }
+
+        // 목록 로드
+        async function loadSamples(page = 1) {
+            currentPage = page;
+            const token = getAdminToken();
+            if (!token) { handleLogout(); return; }
+            try {
+                const res = await fetch(`/api/board?type=sample&page=${page}&limit=${PAGE_LIMIT}`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                cachedPosts = data.posts || [];
+                renderList(cachedPosts, data.total || 0);
+                renderPagination(data.page, data.totalPages);
+                renderStats(cachedPosts);
+            } catch (err) {
+                console.error('[SampleBoard] 목록 로드 실패:', err);
+                document.getElementById('sample-list').innerHTML =
+                    '<tr><td colspan="6" class="text-center py-8 text-gray-400">목록을 불러올 수 없습니다.</td></tr>';
+            }
+        }
+
+        // 단계별 카운트 통계 (현재 페이지 기준)
+        function renderStats(posts) {
+            const cnt = { requested: 0, reviewing: 0, shipped: 0, delivered: 0 };
+            posts.forEach(p => {
+                const s = p.data?.sampleRequest?.stage || 'requested';
+                if (cnt[s] !== undefined) cnt[s]++;
+            });
+            document.getElementById('cnt-requested').textContent = cnt.requested;
+            document.getElementById('cnt-reviewing').textContent = cnt.reviewing;
+            document.getElementById('cnt-shipped').textContent = cnt.shipped;
+            document.getElementById('cnt-delivered').textContent = cnt.delivered;
+        }
+
+        // 목록 렌더
+        function renderList(posts, total) {
+            document.getElementById('post-count').textContent = `(${total}건)`;
+            const tbody = document.getElementById('sample-list');
+            if (!posts.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-400">샘플 요청이 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = posts.map(p => {
+                const sr = p.data?.sampleRequest || {};
+                const ship = sr.shipping || {};
+                const date = new Date(p.createdAt).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                return `
+                <tr class="border-t border-gray-100 hover:bg-gray-50">
+                    <td class="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">${date}</td>
+                    <td class="px-3 py-3">${escapeHtml(p.authorName || '-')}</td>
+                    <td class="px-3 py-3">${sampleTypeLabel(sr.sampleType)}</td>
+                    <td class="px-3 py-3 text-xs">
+                        ${escapeHtml(ship.name || '-')}<br>
+                        <span class="text-gray-400">${formatPhone(ship.phone)}</span>
+                    </td>
+                    <td class="px-3 py-3">${renderStageBadge(sr.stage)}</td>
+                    <td class="px-3 py-3 text-center">
+                        <button onclick="openDetail(${p.id})"
+                            class="px-3 py-1 bg-black text-white text-xs font-bold rounded hover:bg-gray-800">
+                            상세 / 처리
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // 페이지네이션 렌더
+        function renderPagination(current, totalPages) {
+            const container = document.getElementById('pagination');
+            if (!totalPages || totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            for (let i = 1; i <= totalPages; i++) {
+                html += i === current
+                    ? `<button class="w-8 h-8 bg-black text-white text-sm font-bold">${i}</button>`
+                    : `<button onclick="loadSamples(${i})" class="w-8 h-8 border border-gray-300 hover:border-black text-sm">${i}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        // 상세 모달 열기
+        function openDetail(id) {
+            const post = cachedPosts.find(p => p.id === id);
+            if (!post) { alert('데이터를 찾을 수 없습니다.'); return; }
+            const sr = post.data?.sampleRequest || {};
+            const ship = sr.shipping || {};
+            currentPostId = id;
+            document.getElementById('modalTitle').textContent = post.title || '샘플 요청 상세';
+            document.getElementById('modalMeta').textContent =
+                `${post.authorName || '-'} | 신청 ${new Date(post.createdAt).toLocaleString('ko-KR')}`;
+            document.getElementById('modalStage').innerHTML = renderStageBadge(sr.stage);
+            document.getElementById('modalSampleType').textContent = sampleTypeLabel(sr.sampleType);
+            document.getElementById('modalShippingName').textContent = ship.name || '-';
+            document.getElementById('modalShippingPhone').textContent = formatPhone(ship.phone);
+            document.getElementById('modalShippingAddress').textContent =
+                ship.postalCode ? `(${ship.postalCode}) ${ship.address || ''} ${ship.addressDetail || ''}` : (ship.address || '-');
+            document.getElementById('modalReason').textContent = sr.reason || '(미기재)';
+            document.getElementById('modalTracking').value = sr.trackingNumber || '';
+            document.getElementById('modalMemo').value = sr.memo || '';
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+            currentPostId = null;
+        }
+
+        // 단계 변경 액션 — 4단계 어느 방향으로든 가능 (서버에서 검증)
+        async function changeStage(stage) {
+            if (!currentPostId) return;
+            const tracking = document.getElementById('modalTracking').value.trim();
+            const memo = document.getElementById('modalMemo').value;
+            // 발송 단계 진입 시 운송장 가드 (서버에서도 검증하지만 UX 빠른 피드백)
+            if (stage === 'shipped' && !tracking) {
+                alert('발송 처리 시 운송장 번호를 입력해 주세요.');
+                document.getElementById('modalTracking').focus();
+                return;
+            }
+            const token = getAdminToken();
+            try {
+                const res = await fetch(`/api/admin/board/${currentPostId}/sample-stage`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ stage, trackingNumber: tracking, memo })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                alert(`"${STAGE_LABEL[stage]}" 단계로 변경되었습니다.`);
+                closeDetailModal();
+                loadSamples(currentPage);
+            } catch (err) {
+                alert(err.message || '단계 변경에 실패했습니다.');
+            }
+        }
+
+        // 액션 버튼 바인딩
+        document.querySelectorAll('[data-action-stage]').forEach(btn => {
+            btn.addEventListener('click', () => changeStage(btn.dataset.actionStage));
+        });
+
+        // 모달 바깥 클릭으로 닫기
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeDetailModal();
+        });
+
+        // XSS 방지 유틸
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str ?? '');
+            return div.innerHTML;
+        }
+
+        // 모바일 드로어 토글
+        (function mobileDrawer() {
+            const toggle = document.getElementById('adminMobileToggle');
+            const drawer = document.getElementById('adminMobileDrawer');
+            if (!toggle || !drawer) return;
+            toggle.addEventListener('click', () => {
+                drawer.classList.remove('hidden');
+                drawer.setAttribute('aria-hidden', 'false');
+                toggle.setAttribute('aria-expanded', 'true');
+            });
+            drawer.querySelector('[data-drawer-close]')?.addEventListener('click', () => {
+                drawer.classList.add('hidden');
+                drawer.setAttribute('aria-hidden', 'true');
+                toggle.setAttribute('aria-expanded', 'false');
+            });
+            drawer.querySelector('[data-drawer-overlay]')?.addEventListener('click', () => {
+                drawer.classList.add('hidden');
+                drawer.setAttribute('aria-hidden', 'true');
+                toggle.setAttribute('aria-expanded', 'false');
+            });
+        })();
+
+        // 헤더 드롭다운 동작 (다른 admin 페이지와 동일)
+        (function initOrderStatusDropdown() {
+            const trigger = document.getElementById('nav-orders-trigger');
+            if (!trigger) return;
+            const panelId = trigger.getAttribute('aria-controls');
+            const panel = panelId ? document.getElementById(panelId) : null;
+            if (!panel) return;
+            const container = trigger.closest('[data-nav-group="orders"]');
+            const setOpen = (open) => trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+                setOpen(!isOpen);
+            });
+            document.addEventListener('click', (e) => {
+                if (container && !container.contains(e.target)) setOpen(false);
+            });
+            panel.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setOpen(false)));
+        })();
+
+        // 첫 로드
+        document.addEventListener('DOMContentLoaded', () => loadSamples(1));
+    </script>
+</body>
+</html>
